@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IoMail, IoLockClosed, IoEye, IoEyeOff, IoKey, IoShieldCheckmark } from 'react-icons/io5';
 import { Colors } from '../constants/Colors';
@@ -19,6 +19,14 @@ export default function LoginScreen() {
     const [privateKeyError, setPrivateKeyError] = useState('');
     const [showPrivateKeyInput, setShowPrivateKeyInput] = useState(false);
     const [verifyingKey, setVerifyingKey] = useState(false);
+
+    // Clear login state when component mounts (user is on login page)
+    useEffect(() => {
+        console.log('🔐 LoginScreen mounted - clearing login state');
+        localStorage.removeItem('isLoggedIn');
+        // Dispatch logout event to disconnect WebSocket
+        window.dispatchEvent(new Event('userLoggedOut'));
+    }, []);
 
     const handleLogin = async () => {
         setLoading(true);
@@ -87,6 +95,9 @@ export default function LoginScreen() {
                 try {
                     localStorage.setItem('isLoggedIn', 'true');
                     console.log('User session confirmed after private key verification');
+
+                    // Dispatch custom event to trigger WebSocket connection
+                    window.dispatchEvent(new Event('userLoggedIn'));
                 } catch (sessionError) {
                     console.error('Error setting login session:', sessionError);
                 }

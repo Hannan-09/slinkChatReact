@@ -1,33 +1,131 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
+import useStompSocket from '../hooks/useStompSocket';
 
 const WebSocketContext = createContext(null);
 
+// Global online users state
+const onlineUsersState = {
+    users: new Set(),
+    listeners: new Set(),
+
+    setOnline(userId) {
+        this.users.add(userId);
+        this.notifyListeners();
+    },
+
+    setOffline(userId) {
+        this.users.delete(userId);
+        this.notifyListeners();
+    },
+
+    isOnline(userId) {
+        return this.users.has(userId);
+    },
+
+    addListener(callback) {
+        this.listeners.add(callback);
+    },
+
+    removeListener(callback) {
+        this.listeners.delete(callback);
+    },
+
+    notifyListeners() {
+        this.listeners.forEach(callback => callback());
+    }
+};
+
 export function WebSocketProvider({ children }) {
-    // Mock WebSocket implementation - replace with actual useStompSocket hook
-    const socket = {
-        connected: false,
-        connecting: false,
-        error: null,
-        sendMessage: () => {
-            console.log('WebSocket sendMessage called (mock)');
-            return false;
-        },
-        messages: [],
-        sendTypingIndicator: () => {
-            console.log('WebSocket sendTypingIndicator called (mock)');
-        },
-        subscribeToChat: () => {
-            console.log('WebSocket subscribeToChat called (mock)');
-            return () => { };
-        },
-        subscribe: () => {
-            console.log('WebSocket subscribe called (mock)');
-            return () => { };
-        },
-        unsubscribe: () => {
-            console.log('WebSocket unsubscribe called (mock)');
-        },
-    };
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+    // Check if user is logged in
+    useEffect(() => {
+        const checkLoginStatus = () => {
+            const userId = localStorage.getItem('userId');
+            const isLoggedInFlag = localStorage.getItem('isLoggedIn');
+            const loggedIn = !!(userId && isLoggedInFlag === 'true');
+            console.log('🔐 Login status check:', { userId, isLoggedInFlag, loggedIn });
+            setIsLoggedIn(loggedIn);
+        };
+
+        checkLoginStatus();
+
+        // Listen for storage changes (login/logout events)
+        window.addEventListener('storage', checkLoginStatus);
+
+        // Custom event for login
+        const handleLogin = () => {
+            console.log('🔐 userLoggedIn event received');
+            checkLoginStatus();
+        };
+        window.addEventListener('userLoggedIn', handleLogin);
+        window.addEventListener('userLoggedOut', handleLogin);
+
+        return () => {
+            window.removeEventListener('storage', checkLoginStatus);
+            window.removeEventListener('userLoggedIn', handleLogin);
+            window.removeEventListener('userLoggedOut', handleLogin);
+        };
+    }, []);
+
+    console.log('🔐 WebSocketProvider render - isLoggedIn:', isLoggedIn);
+
+    // Only initialize WebSocket if user is logged in
+    const socket = useStompSocket({
+        maxReconnectAttempts: 5,
+        reconnectInterval: 3000,
+        debug: true,
+        enabled: isLoggedIn, // Pass enabled flag
+    });
+
+    // Subscribe to global presence updates when connected - ONLY ONCE
+    const hasSubscribedRef = useRef(false);
+
+    useEffect(() => {
+        if (!socket.connected || !isLoggedIn) {
+            hasSubscribedRef.current = false;
+            return;
+        }
+
+        // Prevent multiple subscriptions
+        if (hasSubscribedRef.current) {
+            console.log('🌐 Already subscribed to presence, skipping...');
+            return;
+        }
+
+        console.log('🌐 Subscribing to global presence updates (ONCE)');
+        hasSubscribedRef.current = true;
+
+        // Subscribe to presence topic globally - only one subscription for entire app
+        const presenceSubscription = socket.subscribe('/topic/presence', (presenceMsg) => {
+            console.log('🌐 Global presence update:', presenceMsg);
+
+            // Parse the message: "userId is ONLINE" or "userId is OFFLINE"
+            const messageStr = typeof presenceMsg === 'string' ? presenceMsg : String(presenceMsg);
+            const parts = messageStr.split(' is ');
+
+            if (parts.length === 2) {
+                const userId = parseInt(parts[0]);
+                const status = parts[1];
+
+                if (status === 'ONLINE') {
+                    onlineUsersState.setOnline(userId);
+                    console.log(`✅ User ${userId} is now ONLINE`);
+                } else if (status === 'OFFLINE') {
+                    onlineUsersState.setOffline(userId);
+                    console.log(`❌ User ${userId} is now OFFLINE`);
+                }
+            }
+        });
+
+        return () => {
+            if (presenceSubscription) {
+                socket.unsubscribe('/topic/presence');
+                console.log('🌐 Unsubscribed from global presence');
+                hasSubscribedRef.current = false;
+            }
+        };
+    }, [socket.connected, isLoggedIn]);
 
     return (
         <WebSocketContext.Provider value={socket}>
@@ -42,4 +140,38 @@ export function useWebSocket() {
         throw new Error('useWebSocket must be used within WebSocketProvider');
     }
     return context;
+}
+
+// Hook to check if a user is online
+export function useUserOnlineStatus(userId) {
+    const [isOnline, setIsOnline] = useState(false);
+    const socket = useWebSocket();
+
+    useEffect(() => {
+        // Initial check from state
+        const currentlyOnline = onlineUsersState.isOnline(userId);
+        setIsOnline(currentlyOnline);
+
+        // If not in state and socket is connected, assume online initially
+        // (they might have connected before we subscribed)
+        if (!currentlyOnline && socket.connected && userId) {
+            console.log(`🔍 User ${userId} not in state, assuming online initially`);
+            // Optimistically set as online, will be corrected if they go offline
+            onlineUsersState.setOnline(userId);
+            setIsOnline(true);
+        }
+
+        // Listen for changes
+        const listener = () => {
+            setIsOnline(onlineUsersState.isOnline(userId));
+        };
+
+        onlineUsersState.addListener(listener);
+
+        return () => {
+            onlineUsersState.removeListener(listener);
+        };
+    }, [userId, socket.connected]);
+
+    return isOnline;
 }
