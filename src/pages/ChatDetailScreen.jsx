@@ -11,6 +11,13 @@ import {
     IoArrowDown,
     IoShieldCheckmark,
     IoLockClosed,
+    IoCheckmarkDone,
+    IoCheckmark,
+    IoCreateOutline,
+    IoTrashOutline,
+    IoCloseCircle,
+    IoCheckmarkCircle,
+    IoEllipsisVertical,
 } from 'react-icons/io5';
 import { ApiUtils } from '../services/AuthService';
 import chatApiService from '../services/ChatApiService';
@@ -47,8 +54,14 @@ export default function ChatDetailScreen() {
     const [isEncryptionEnabled, setIsEncryptionEnabled] = useState(false);
     const [currentUserId, setCurrentUserId] = useState(null);
 
+    // Edit/Delete message states
+    const [editingMessageId, setEditingMessageId] = useState(null);
+    const [editingMessageText, setEditingMessageText] = useState('');
+    const [selectedMessage, setSelectedMessage] = useState(null);
+    const [showMessageMenu, setShowMessageMenu] = useState(false);
+
     const receiverUserId = parseInt(receiverId);
-    
+
     // Use the global online status hook
     const isReceiverOnline = useUserOnlineStatus(receiverUserId);
 
@@ -57,6 +70,7 @@ export default function ChatDetailScreen() {
     const textInputRef = useRef(null);
     const lastMessageCountRef = useRef(0);
     const typingTimeoutRef = useRef(null);
+    const markedAsReadRef = useRef(new Set()); // Track which messages have been marked as read
 
     const chatRoomId = parseInt(id);
 
@@ -90,6 +104,31 @@ export default function ChatDetailScreen() {
         getUserId();
     }, []);
 
+    // Close message menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (showMessageMenu && !event.target.closest('.message-menu')) {
+                setShowMessageMenu(null);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showMessageMenu]);
+
+    // Mark messages as read when they appear (only once per message)
+    useEffect(() => {
+        if (!connected || !currentUserId) return;
+
+        messages.forEach((item) => {
+            // Only mark unread messages from other users that haven't been marked yet
+            if (!item.isMe && !item.isRead && item.id && !item.id.toString().startsWith('temp-') && !markedAsReadRef.current.has(item.id)) {
+                markedAsReadRef.current.add(item.id);
+                markMessageAsRead(item.id);
+            }
+        });
+    }, [messages, connected, currentUserId]);
+
     // Load encryption state
     useEffect(() => {
         const loadEncryptionState = async () => {
@@ -122,12 +161,17 @@ export default function ChatDetailScreen() {
 
         console.log('📡 Subscribing to chat room:', chatRoomId);
 
-        // Subscribe to chat messages
-        const messageDestination = `/topic/chat/${chatRoomId}/${currentUserId}`;
-        console.log('Subscribing to:', messageDestination);
+        // Subscribe to messages we send (as sender)
+        const senderDestination = `/topic/chat/${chatRoomId}/${currentUserId}/${receiverUserId}`;
+        console.log('Subscribing to sender destination:', senderDestination);
 
-        const messageSubscription = subscribe(messageDestination, (wsMessage) => {
-            console.log('📨 WebSocket message received:', wsMessage);
+        // Subscribe to messages we receive (as receiver)
+        const receiverDestination = `/topic/chat/${chatRoomId}/${receiverUserId}/${currentUserId}`;
+        console.log('Subscribing to receiver destination:', receiverDestination);
+
+        const handleMessage = (wsMessage) => {
+            console.log('📨 WebSocket message received');
+            console.log('📨 Message data:', JSON.stringify(wsMessage, null, 2));
 
             // Skip typing indicators
             if (wsMessage.typing !== undefined || wsMessage.messageType === 'TYPING') {
@@ -149,9 +193,33 @@ export default function ChatDetailScreen() {
             };
 
             setMessages((prev) => {
-                // Check for duplicates
-                const exists = prev.some((m) => m.id === newMsg.id);
-                if (exists) return prev;
+                // Check for duplicates by real ID
+                const existsById = prev.some((m) => m.id === newMsg.id && !m.id.toString().startsWith('temp-') && !m.id.toString().includes(`${currentUserId}-`));
+                if (existsById) {
+                    console.log('⚠️ Message already exists with real ID:', newMsg.id);
+                    return prev;
+                }
+
+                // If this is from current user, replace the temporary/pseudo message
+                if (newMsg.isMe) {
+                    // Find and replace temp or pseudo ID message with matching content
+                    const tempIndex = prev.findIndex((m) => {
+                        const isTempOrPseudo = m.id.toString().startsWith('temp-') || m.id.toString().includes(`${currentUserId}-`);
+                        return isTempOrPseudo && m.isMe && m.text === newMsg.text;
+                    });
+
+                    if (tempIndex !== -1) {
+                        console.log('✅ Replacing temp/pseudo message with real ID:', prev[tempIndex].id, '→', newMsg.id);
+                        const updated = [...prev];
+                        updated[tempIndex] = { ...newMsg, status: 'sent' };
+                        return updated;
+                    } else {
+                        console.log('⚠️ No matching temp message found for:', newMsg.text.substring(0, 20));
+                    }
+                }
+
+                // Otherwise add as new message
+                console.log('➕ Adding new message:', newMsg.id);
                 return [...prev, newMsg];
             });
 
@@ -162,7 +230,11 @@ export default function ChatDetailScreen() {
                 setNewMessageCount((prev) => prev + 1);
                 setShowNewMessageNotification(true);
             }
-        });
+        };
+
+        // Subscribe to both sender and receiver destinations
+        const senderSubscription = subscribe(senderDestination, handleMessage);
+        const receiverSubscription = subscribe(receiverDestination, handleMessage);
 
         // Subscribe to typing indicators
         const typingDestination = `/topic/chat/${chatRoomId}/typing/${currentUserId}`;
@@ -206,10 +278,101 @@ export default function ChatDetailScreen() {
             }
         });
 
+        // Subscribe to edit messages - both as sender and receiver
+        const editSenderDestination = `/topic/chat/edit/${chatRoomId}/${currentUserId}/${receiverUserId}`;
+        const editReceiverDestination = `/topic/chat/edit/${chatRoomId}/${receiverUserId}/${currentUserId}`;
+        console.log('Subscribing to edit sender:', editSenderDestination);
+        console.log('Subscribing to edit receiver:', editReceiverDestination);
+
+        const handleEditMessage = (editMsg) => {
+            console.log('✏️ Edit message received:', JSON.stringify(editMsg, null, 2));
+
+            const messageData = editMsg.data || editMsg;
+            const editedMessageId = messageData.chatMessageId;
+
+            console.log('📝 Parsed edit data:', {
+                editedMessageId,
+                content: messageData.content,
+                fullData: messageData
+            });
+
+            setMessages((prev) => {
+                console.log('📋 Current messages count:', prev.length);
+                const updated = prev.map((msg) => {
+                    if (msg.id == editedMessageId || msg.id === editedMessageId.toString()) {
+                        console.log('✅ Found matching message to edit:', msg.id, '→', messageData.content);
+                        return {
+                            ...msg,
+                            text: messageData.content || msg.text,
+                            isEdited: true,
+                            editedAt: messageData.editedAt || new Date().toISOString(),
+                        };
+                    }
+                    return msg;
+                });
+
+                const wasUpdated = updated.some((m, i) => m !== prev[i]);
+                console.log('📊 Was any message updated?', wasUpdated);
+
+                return updated;
+            });
+        };
+
+        const editSenderSubscription = subscribe(editSenderDestination, handleEditMessage);
+        const editReceiverSubscription = subscribe(editReceiverDestination, handleEditMessage);
+
+        // Subscribe to delete messages
+        const deleteDestination = `/topic/chat/${chatRoomId}/delete`;
+        const deleteSubscription = subscribe(deleteDestination, (deleteMsg) => {
+            console.log('🗑️ Delete message received:', deleteMsg);
+
+            const messageData = deleteMsg.data || deleteMsg;
+            const deletedMessageId = messageData.chatMessageId;
+
+            setMessages((prev) => prev.map((msg) => {
+                if (msg.id == deletedMessageId || msg.id === deletedMessageId.toString()) {
+                    console.log('✅ Message deleted:', msg.id);
+                    return {
+                        ...msg,
+                        text: null,
+                        isDeleted: true,
+                        deletedAt: messageData.deletedAt || new Date().toISOString(),
+                    };
+                }
+                return msg;
+            }));
+        });
+
+        // Subscribe to read receipts
+        const readReceiptsDestination = `/topic/chat/${chatRoomId}/read-receipts`;
+        const readReceiptsSubscription = subscribe(readReceiptsDestination, (readMsg) => {
+            console.log('✅ Read receipt received:', readMsg);
+
+            const messageData = readMsg.data || readMsg;
+            const readMessageId = messageData.chatMessageId;
+
+            setMessages((prev) => prev.map((msg) => {
+                if (msg.id === readMessageId) {
+                    return {
+                        ...msg,
+                        isRead: true,
+                        readAt: messageData.readAt,
+                        status: 'read',
+                    };
+                }
+                return msg;
+            }));
+        });
+
         return () => {
             console.log('🧹 Unsubscribing from chat');
-            if (messageSubscription) unsubscribe(messageDestination);
+            if (senderSubscription) unsubscribe(senderDestination);
+            if (receiverSubscription) unsubscribe(receiverDestination);
             if (typingSubscription) unsubscribe(typingDestination);
+            if (editSenderSubscription) unsubscribe(editSenderDestination);
+            if (editReceiverSubscription) unsubscribe(editReceiverDestination);
+            if (deleteSubscription) unsubscribe(deleteDestination);
+            if (readReceiptsSubscription) unsubscribe(readReceiptsDestination);
         };
     }, [connected, currentUserId, chatRoomId, receiverUserId, subscribe, unsubscribe, isUserScrolledUp]);
 
@@ -228,7 +391,7 @@ export default function ChatDetailScreen() {
 
             const transformedMessages = (response.data || []).map((msg, index) => ({
                 id: msg.chatMessageId?.toString() || msg.messageId?.toString() || `msg-${index}`,
-                text: msg.content || msg.message || '',
+                text: msg.content || msg.message || null,
                 time: msg.sentAt ? formatMessageTime(msg.sentAt) : '12:00 AM',
                 isMe: msg.senderId === currentUserId,
                 status: msg.status || 'delivered',
@@ -237,6 +400,8 @@ export default function ChatDetailScreen() {
                 senderId: msg.senderId,
                 receiverId: msg.receiverId,
                 isEncrypted: false,
+                isDeleted: msg.content === null || msg.isDeleted === true,
+                deletedAt: msg.deletedAt || (msg.content === null ? msg.sentAt : null),
             }));
 
             setMessages(transformedMessages);
@@ -268,6 +433,12 @@ export default function ChatDetailScreen() {
 
     const sendMessage = async () => {
         if (!message.trim()) return;
+
+        // Check if we're editing a message
+        if (editingMessageId) {
+            handleEditMessage();
+            return;
+        }
 
         console.log('📤 Sending message:', message);
 
@@ -307,9 +478,17 @@ export default function ChatDetailScreen() {
 
                 if (success) {
                     console.log('✅ Message sent via WebSocket');
-                    // Update status
+
+                    // Generate a pseudo-real ID (timestamp-based) to replace temp ID
+                    // This allows the three-dot menu to appear immediately
+                    const pseudoId = `${currentUserId}-${Date.now()}`;
+
                     setMessages((prev) =>
-                        prev.map((msg) => (msg.id === newMessage.id ? { ...msg, status: 'sent' } : msg))
+                        prev.map((msg) =>
+                            msg.id === newMessage.id
+                                ? { ...msg, id: pseudoId, status: 'sent' }
+                                : msg
+                        )
                     );
                 } else {
                     console.log('❌ WebSocket send failed');
@@ -329,6 +508,113 @@ export default function ChatDetailScreen() {
             alert('Failed to send message');
         }
     };
+
+    // Mark message as read
+    const markMessageAsRead = (messageId) => {
+        if (!connected || !currentUserId || !chatRoomId) return;
+
+        console.log('📖 Marking message as read:', messageId);
+
+        const destination = `/app/chat/${chatRoomId}/${currentUserId}/read`;
+        const success = publish(destination, {
+            messageId: messageId,
+        });
+
+        if (success) {
+            console.log('✅ Read receipt sent');
+        }
+    };
+
+    // Delete message
+    const handleDeleteMessage = (messageId) => {
+        if (!messageId || !currentUserId || !chatRoomId) return;
+
+        if (!confirm('Are you sure you want to delete this message?')) return;
+
+        console.log('🗑️ Deleting message:', messageId);
+
+        const destination = `/app/chat/delete/${chatRoomId}/${messageId}/${currentUserId}`;
+        const success = publish(destination, {});
+
+        if (success) {
+            console.log('✅ Delete message sent');
+            setShowMessageMenu(null);
+            setSelectedMessage(null);
+        } else {
+            alert('Failed to delete message');
+        }
+    };
+
+    // Start editing a message
+    const startEditMessage = (msg) => {
+        setEditingMessageId(msg.id);
+        setEditingMessageText(msg.text);
+        setMessage(msg.text); // Set the input box text
+        setShowMessageMenu(null);
+        // Focus the input
+        setTimeout(() => textInputRef.current?.focus(), 100);
+    };
+
+    // Handle editing a message
+    const handleEditMessage = () => {
+        if (!message.trim() || !editingMessageId) return;
+
+        console.log('✏️ Editing message:', editingMessageId, '→', message);
+
+        // Send edit via WebSocket
+        if (connected && publish) {
+            const destination = `/app/chat/edit/${chatRoomId}/${editingMessageId}/${currentUserId}/${receiverUserId}`;
+            const payload = {
+                content: message.trim(),
+                messageType: 'TEXT',
+            };
+
+            console.log('📤 Sending edit:', {
+                destination,
+                payload,
+                chatRoomId,
+                messageId: editingMessageId,
+                senderId: currentUserId,
+                receiverId: receiverUserId
+            });
+
+            const success = publish(destination, payload);
+
+            if (success) {
+                console.log('✅ Edit sent via WebSocket successfully');
+
+                // Optimistically update the message locally
+                setMessages((prev) => prev.map((msg) => {
+                    if (msg.id == editingMessageId || msg.id === editingMessageId.toString()) {
+                        return {
+                            ...msg,
+                            text: message.trim(),
+                            isEdited: true,
+                            editedAt: new Date().toISOString(),
+                        };
+                    }
+                    return msg;
+                }));
+            } else {
+                alert('Failed to edit message');
+            }
+        }
+
+        // Clear editing state
+        setEditingMessageId(null);
+        setEditingMessageText('');
+        setMessage('');
+    };
+
+    // Cancel editing
+    const cancelEdit = () => {
+        setEditingMessageId(null);
+        setEditingMessageText('');
+        setMessage('');
+    };
+
+    // Get publish function from WebSocket
+    const { publish } = useWebSocket();
 
     const handleTextChange = (text) => {
         setMessage(text);
@@ -471,28 +757,126 @@ export default function ChatDetailScreen() {
                     </div>
                 ) : (
                     messages.map((item) => {
-                        const messageLength = item.text?.length || 0;
-                        let maxWidth = 'max-w-[75%]';
-                        if (messageLength <= 20) maxWidth = 'max-w-fit';
-                        else if (messageLength <= 50) maxWidth = 'max-w-[50%]';
-
                         return (
-                            <div key={item.id} className={`flex my-1 sm:my-2 ${item.isMe ? 'justify-end' : 'justify-start'}`}>
-                                <div
-                                    className={`max-w-[80%] sm:max-w-[70%] md:max-w-[60%] lg:max-w-[50%] px-3 sm:px-4 py-2 sm:py-3 rounded-2xl shadow-lg ${item.isMe ? 'bg-red-500' : 'bg-[#2d2d2d] border border-gray-700'
-                                        }`}
-                                    style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                                >
-                                    <div className="flex items-start">
-                                        <p className={`text-sm sm:text-base leading-relaxed whitespace-pre-wrap ${item.isMe ? 'text-white' : 'text-white'}`}
-                                            style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
-                                            {item.text}
-                                        </p>
-                                        {item.isEncrypted && (
-                                            <IoLockClosed className={`ml-2 mt-1 text-xs flex-shrink-0 ${item.isMe ? 'text-white opacity-70' : 'text-gray-400'}`} />
-                                        )}
+                            <div key={item.id} className={`flex my-1 sm:my-2 ${item.isMe ? 'justify-end' : 'justify-start'} group w-full`}>
+                                <div className="relative max-w-[85%] sm:max-w-[75%] md:max-w-[65%] lg:max-w-[55%]">
+                                    <div
+                                        className={`w-full px-3 sm:px-4 py-2 sm:py-3 rounded-2xl shadow-lg ${item.isDeleted
+                                            ? 'bg-gray-800 border border-gray-700'
+                                            : item.isMe
+                                                ? 'bg-red-500'
+                                                : 'bg-[#2d2d2d] border border-gray-700'
+                                            }`}
+                                        style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                                        onContextMenu={(e) => {
+                                            if (item.isMe && !item.isDeleted) {
+                                                e.preventDefault();
+                                                setSelectedMessage(item);
+                                                setShowMessageMenu(true);
+                                            }
+                                        }}
+                                    >
+                                        {/* Message Content */}
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex-1">
+                                                {item.isDeleted ? (
+                                                    <div className="flex flex-col">
+                                                        <p className="text-sm sm:text-base italic text-gray-500 flex items-center">
+                                                            <IoTrashOutline className="inline mr-2" />
+                                                            This message was deleted
+                                                        </p>
+                                                        {item.deletedAt && (
+                                                            <p className="text-xs text-gray-600 mt-1">
+                                                                Deleted at {formatMessageTime(item.deletedAt)}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <p className={`text-sm sm:text-base leading-relaxed whitespace-pre-wrap ${item.isMe ? 'text-white' : 'text-white'}`}
+                                                        style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                                                        {item.text}
+                                                    </p>
+                                                )}
+                                                {item.isEncrypted && !item.isDeleted && (
+                                                    <IoLockClosed className={`ml-2 mt-1 text-xs flex-shrink-0 ${item.isMe ? 'text-white opacity-70' : 'text-gray-400'}`} />
+                                                )}
+                                            </div>
+
+                                            {/* Three-dot menu for own messages (show for all sent messages) */}
+                                            {item.isMe && !item.isDeleted && !item.id.toString().startsWith('temp-') && (
+                                                <div className="ml-2 flex-shrink-0 relative message-menu">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setShowMessageMenu(showMessageMenu === item.id ? null : item.id);
+                                                        }}
+                                                        className="p-1 hover:bg-white hover:bg-opacity-20 rounded transition-opacity"
+                                                        title="Options"
+                                                    >
+                                                        <IoEllipsisVertical className="text-white text-base" />
+                                                    </button>
+
+                                                    {/* Dropdown menu */}
+                                                    {showMessageMenu === item.id && (
+                                                        <div className="absolute right-0 top-8 bg-[#2d2d2d] border border-gray-700 rounded-lg shadow-xl z-50 min-w-[120px]">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    console.log('Edit clicked for message:', item.id);
+                                                                    startEditMessage(item);
+                                                                    setShowMessageMenu(null);
+                                                                }}
+                                                                className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2 rounded-t-lg"
+                                                            >
+                                                                <IoCreateOutline className="text-base" />
+                                                                <span className="text-sm">Edit</span>
+                                                            </button>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    console.log('Delete clicked for message:', item.id);
+                                                                    handleDeleteMessage(item.id);
+                                                                    setShowMessageMenu(null);
+                                                                }}
+                                                                className="w-full px-4 py-2 text-left text-red-400 hover:bg-gray-700 flex items-center gap-2 rounded-b-lg"
+                                                                title="Delete"
+                                                            >
+                                                                <IoTrashOutline className="text-base" />
+                                                                <span className="text-sm">Delete</span>
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Time and Status */}
+                                        <div className="flex items-center justify-between mt-1.5">
+                                            <div className="flex items-center gap-1">
+                                                <p className={`text-xs ${item.isMe ? 'text-white opacity-70' : 'text-gray-400'}`}>
+                                                    {item.time}
+                                                </p>
+                                                {item.isEdited && !item.isDeleted && (
+                                                    <span className={`text-xs italic ${item.isMe ? 'text-white opacity-60' : 'text-gray-500'}`}>
+                                                        (edited)
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Read receipts for sent messages */}
+                                            {item.isMe && !item.isDeleted && (
+                                                <div className="ml-2">
+                                                    {item.isRead || item.status === 'read' ? (
+                                                        <IoCheckmarkDone className="text-blue-400 text-sm" title="Read" />
+                                                    ) : item.status === 'delivered' || item.status === 'sent' ? (
+                                                        <IoCheckmarkDone className="text-gray-400 text-sm" title="Delivered" />
+                                                    ) : item.status === 'sending' ? (
+                                                        <IoCheckmark className="text-gray-400 text-sm animate-pulse" title="Sending" />
+                                                    ) : null}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                    <p className={`text-xs mt-1.5 ${item.isMe ? 'text-white opacity-70' : 'text-gray-400'}`}>{item.time}</p>
                                 </div>
                             </div>
                         );
@@ -504,20 +888,38 @@ export default function ChatDetailScreen() {
             </div>
 
             {/* New Message Notification */}
-            {showNewMessageNotification && (
-                <button
-                    onClick={scrollToBottom}
-                    className="absolute bottom-24 sm:bottom-28 left-3 right-3 sm:left-5 sm:right-5 bg-red-500 rounded-full py-2 sm:py-3 px-3 sm:px-4 shadow-lg flex items-center justify-center z-50 hover:bg-red-600 transition-colors"
-                >
-                    <IoArrowDown className="text-white text-sm sm:text-base mr-2" />
-                    <span className="text-white text-xs sm:text-sm font-semibold">
-                        {newMessageCount} new message{newMessageCount > 1 ? 's' : ''}
-                    </span>
-                </button>
-            )}
+            {
+                showNewMessageNotification && (
+                    <button
+                        onClick={scrollToBottom}
+                        className="absolute bottom-24 sm:bottom-28 left-3 right-3 sm:left-5 sm:right-5 bg-red-500 rounded-full py-2 sm:py-3 px-3 sm:px-4 shadow-lg flex items-center justify-center z-50 hover:bg-red-600 transition-colors"
+                    >
+                        <IoArrowDown className="text-white text-sm sm:text-base mr-2" />
+                        <span className="text-white text-xs sm:text-sm font-semibold">
+                            {newMessageCount} new message{newMessageCount > 1 ? 's' : ''}
+                        </span>
+                    </button>
+                )
+            }
 
             {/* Message Input - Sticky Bottom */}
             <div className="sticky bottom-0 z-10 bg-[#1a1a1a] px-3 sm:px-5 py-3 sm:py-4 border-t border-gray-800 shadow-lg">
+                {/* Edit Mode Indicator */}
+                {editingMessageId && (
+                    <div className="mb-2 flex items-center justify-between bg-[#2d2d2d] px-3 py-2 rounded-lg border border-gray-700">
+                        <div className="flex items-center gap-2">
+                            <IoCreateOutline className="text-blue-400 text-lg" />
+                            <span className="text-sm text-gray-300">Editing message</span>
+                        </div>
+                        <button
+                            onClick={cancelEdit}
+                            className="p-1 hover:bg-gray-700 rounded"
+                        >
+                            <IoCloseCircle className="text-gray-400 text-xl" />
+                        </button>
+                    </div>
+                )}
+
                 <div className="flex items-end gap-1 sm:gap-2">
                     <button className="w-9 h-9 sm:w-10 sm:h-10 bg-[#2d2d2d] rounded-full flex items-center justify-center shadow-lg border border-gray-700 hover:bg-gray-700 transition-colors flex-shrink-0">
                         <IoHappyOutline className="text-gray-400 text-lg sm:text-xl" />
@@ -528,26 +930,36 @@ export default function ChatDetailScreen() {
                         value={message}
                         onChange={(e) => handleTextChange(e.target.value)}
                         onKeyPress={handleKeyPress}
-                        placeholder="Type a message"
+                        placeholder={editingMessageId ? "Edit your message" : "Type a message"}
                         className="flex-1 bg-[#2d2d2d] border border-gray-700 rounded-3xl px-3 sm:px-5 py-2 sm:py-3 text-sm sm:text-base text-white placeholder-gray-500 outline-none resize-none shadow-lg max-h-24 min-h-[40px] sm:min-h-[44px]"
                         rows={1}
                     />
 
-                    <button className="hidden sm:flex w-10 h-10 bg-[#2d2d2d] rounded-full items-center justify-center shadow-lg border border-gray-700 hover:bg-gray-700 transition-colors flex-shrink-0">
-                        <IoAttach className="text-gray-400 text-xl" />
-                    </button>
+                    {!editingMessageId && (
+                        <>
+                            <button className="hidden sm:flex w-10 h-10 bg-[#2d2d2d] rounded-full items-center justify-center shadow-lg border border-gray-700 hover:bg-gray-700 transition-colors flex-shrink-0">
+                                <IoAttach className="text-gray-400 text-xl" />
+                            </button>
 
-                    <button className="hidden sm:flex w-10 h-10 bg-[#2d2d2d] rounded-full items-center justify-center shadow-lg border border-gray-700 hover:bg-gray-700 transition-colors flex-shrink-0">
-                        <IoCamera className="text-white text-xl" />
-                    </button>
+                            <button className="hidden sm:flex w-10 h-10 bg-[#2d2d2d] rounded-full items-center justify-center shadow-lg border border-gray-700 hover:bg-gray-700 transition-colors flex-shrink-0">
+                                <IoCamera className="text-white text-xl" />
+                            </button>
+                        </>
+                    )}
 
                     <button
                         onClick={sendMessage}
                         disabled={!message.trim()}
-                        className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-lg transition-colors flex-shrink-0 ${message.trim() ? 'bg-red-500 hover:bg-red-600' : 'bg-gray-600 cursor-not-allowed'
+                        className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-lg transition-colors flex-shrink-0 ${message.trim()
+                            ? 'bg-red-500 hover:bg-red-600'
+                            : 'bg-gray-600 cursor-not-allowed'
                             }`}
                     >
-                        <IoSend className="text-white text-lg sm:text-xl" />
+                        {editingMessageId ? (
+                            <IoCheckmarkCircle className="text-white text-lg sm:text-xl" />
+                        ) : (
+                            <IoSend className="text-white text-lg sm:text-xl" />
+                        )}
                     </button>
                 </div>
             </div>

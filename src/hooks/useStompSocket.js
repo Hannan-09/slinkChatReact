@@ -362,8 +362,8 @@ export default function useStompSocket(options = {}) {
         ? (str) => console.log(`[STOMP DEBUG]:`, str)
         : undefined,
       reconnectDelay: 0, // Disable auto-reconnect
-      heartbeatIncoming: 10000,
-      heartbeatOutgoing: 10000,
+      heartbeatIncoming: 20000, // Expect server heartbeat every 20 seconds
+      heartbeatOutgoing: 20000, // Send client heartbeat every 20 seconds
     });
 
     client.onConnect = () => {
