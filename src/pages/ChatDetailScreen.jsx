@@ -343,26 +343,43 @@ export default function ChatDetailScreen() {
             }));
         });
 
-        // Subscribe to read receipts
-        const readReceiptsDestination = `/topic/chat/${chatRoomId}/read-receipts`;
-        const readReceiptsSubscription = subscribe(readReceiptsDestination, (readMsg) => {
-            console.log('✅ Read receipt received:', readMsg);
+        // Subscribe to read receipts - both as sender and receiver
+        const readSenderDestination = `/topic/chat/read/${chatRoomId}/${currentUserId}/${receiverUserId}`;
+        const readReceiverDestination = `/topic/chat/read/${chatRoomId}/${receiverUserId}/${currentUserId}`;
+        console.log('Subscribing to read sender:', readSenderDestination);
+        console.log('Subscribing to read receiver:', readReceiverDestination);
+
+        const handleReadReceipt = (readMsg) => {
+            console.log('✅ Read receipt received:', JSON.stringify(readMsg, null, 2));
 
             const messageData = readMsg.data || readMsg;
-            const readMessageId = messageData.chatMessageId;
+            const readMessageId = messageData.chatMessageId || messageData.messageId;
 
-            setMessages((prev) => prev.map((msg) => {
-                if (msg.id === readMessageId) {
-                    return {
-                        ...msg,
-                        isRead: true,
-                        readAt: messageData.readAt,
-                        status: 'read',
-                    };
-                }
-                return msg;
-            }));
-        });
+            console.log('📖 Processing read receipt for message ID:', readMessageId);
+
+            setMessages((prev) => {
+                const updated = prev.map((msg) => {
+                    if (msg.id == readMessageId || msg.id === readMessageId.toString()) {
+                        console.log('✅ Found message to mark as read:', msg.id, 'Current status:', msg.status);
+                        return {
+                            ...msg,
+                            isRead: true,
+                            readAt: messageData.readAt || new Date().toISOString(),
+                            status: 'read',
+                        };
+                    }
+                    return msg;
+                });
+
+                const wasUpdated = updated.some((m, i) => m.status !== prev[i].status);
+                console.log('📊 Was any message status updated?', wasUpdated);
+
+                return updated;
+            });
+        };
+
+        const readSenderSubscription = subscribe(readSenderDestination, handleReadReceipt);
+        const readReceiverSubscription = subscribe(readReceiverDestination, handleReadReceipt);
 
         return () => {
             console.log('🧹 Unsubscribing from chat');
@@ -372,7 +389,8 @@ export default function ChatDetailScreen() {
             if (editSenderSubscription) unsubscribe(editSenderDestination);
             if (editReceiverSubscription) unsubscribe(editReceiverDestination);
             if (deleteSubscription) unsubscribe(deleteDestination);
-            if (readReceiptsSubscription) unsubscribe(readReceiptsDestination);
+            if (readSenderSubscription) unsubscribe(readSenderDestination);
+            if (readReceiverSubscription) unsubscribe(readReceiverDestination);
         };
     }, [connected, currentUserId, chatRoomId, receiverUserId, subscribe, unsubscribe, isUserScrolledUp]);
 
@@ -394,12 +412,14 @@ export default function ChatDetailScreen() {
                 text: msg.content || msg.message || null,
                 time: msg.sentAt ? formatMessageTime(msg.sentAt) : '12:00 AM',
                 isMe: msg.senderId === currentUserId,
-                status: msg.status || 'delivered',
+                status: msg.isRead ? 'read' : (msg.status || 'delivered'),
                 timestamp: msg.sentAt || new Date().toISOString(),
                 senderName: msg.senderName || (msg.senderId === currentUserId ? 'You' : name),
                 senderId: msg.senderId,
                 receiverId: msg.receiverId,
                 isEncrypted: false,
+                isRead: msg.isRead || false,
+                readAt: msg.readAt || null,
                 isDeleted: msg.content === null || msg.isDeleted === true,
                 deletedAt: msg.deletedAt || (msg.content === null ? msg.sentAt : null),
             }));
@@ -511,17 +531,23 @@ export default function ChatDetailScreen() {
 
     // Mark message as read
     const markMessageAsRead = (messageId) => {
-        if (!connected || !currentUserId || !chatRoomId) return;
+        if (!connected || !currentUserId || !chatRoomId || !receiverUserId) return;
 
         console.log('📖 Marking message as read:', messageId);
 
-        const destination = `/app/chat/${chatRoomId}/${currentUserId}/read`;
+        // Backend expects: /chat/read/{chatRoomId}/{senderId}/{receiverId}
+        // Where senderId is the one who SENT the message (receiverUserId in our context)
+        // And receiverId is the one READING the message (currentUserId)
+        const destination = `/app/chat/read/${chatRoomId}/${receiverUserId}/${currentUserId}`;
         const success = publish(destination, {
+            chatMessageId: messageId,
             messageId: messageId,
         });
 
         if (success) {
-            console.log('✅ Read receipt sent');
+            console.log('✅ Read receipt sent for message:', messageId, 'to destination:', destination);
+        } else {
+            console.error('❌ Failed to send read receipt for message:', messageId);
         }
     };
 
@@ -865,14 +891,17 @@ export default function ChatDetailScreen() {
 
                                             {/* Read receipts for sent messages */}
                                             {item.isMe && !item.isDeleted && (
-                                                <div className="ml-2">
+                                                <div className="ml-2 flex items-center">
                                                     {item.isRead || item.status === 'read' ? (
-                                                        <IoCheckmarkDone className="text-blue-400 text-sm" title="Read" />
-                                                    ) : item.status === 'delivered' || item.status === 'sent' ? (
-                                                        <IoCheckmarkDone className="text-gray-400 text-sm" title="Delivered" />
+                                                        // Double tick - Blue (Read by receiver)
+                                                        <IoCheckmarkDone className="text-blue-500 text-base" title="Read" />
                                                     ) : item.status === 'sending' ? (
-                                                        <IoCheckmark className="text-gray-400 text-sm animate-pulse" title="Sending" />
-                                                    ) : null}
+                                                        // Single tick - Gray (Sending)
+                                                        <IoCheckmark className="text-gray-300 text-base animate-pulse" title="Sending" />
+                                                    ) : (
+                                                        // Single tick - Gray (Sent but not read)
+                                                        <IoCheckmark className="text-gray-300 text-base" title="Sent" />
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
