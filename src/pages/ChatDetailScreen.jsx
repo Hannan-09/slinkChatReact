@@ -18,6 +18,7 @@ import {
     IoCloseCircle,
     IoCheckmarkCircle,
     IoEllipsisVertical,
+    IoArrowUndoOutline,
 } from 'react-icons/io5';
 import { ApiUtils } from '../services/AuthService';
 import chatApiService from '../services/ChatApiService';
@@ -59,6 +60,9 @@ export default function ChatDetailScreen() {
     const [editingMessageText, setEditingMessageText] = useState('');
     const [selectedMessage, setSelectedMessage] = useState(null);
     const [showMessageMenu, setShowMessageMenu] = useState(false);
+
+    // Reply message states
+    const [replyingToMessage, setReplyingToMessage] = useState(null);
 
     const receiverUserId = parseInt(receiverId);
 
@@ -190,7 +194,12 @@ export default function ChatDetailScreen() {
                 senderId: wsMessage.senderId,
                 receiverId: wsMessage.receiverId,
                 isEncrypted: false,
+                replyTo: wsMessage.replyTo || null,
             };
+
+            if (wsMessage.replyTo) {
+                console.log('📨 Message has replyTo:', wsMessage.replyTo);
+            }
 
             setMessages((prev) => {
                 // Check for duplicates by real ID
@@ -211,7 +220,13 @@ export default function ChatDetailScreen() {
                     if (tempIndex !== -1) {
                         console.log('✅ Replacing temp/pseudo message with real ID:', prev[tempIndex].id, '→', newMsg.id);
                         const updated = [...prev];
-                        updated[tempIndex] = { ...newMsg, status: 'sent' };
+                        const tempMessage = prev[tempIndex];
+                        // Preserve replyTo from temp message if not in newMsg
+                        updated[tempIndex] = {
+                            ...newMsg,
+                            status: 'sent',
+                            replyTo: newMsg.replyTo || tempMessage.replyTo
+                        };
                         return updated;
                     } else {
                         console.log('⚠️ No matching temp message found for:', newMsg.text.substring(0, 20));
@@ -422,6 +437,7 @@ export default function ChatDetailScreen() {
                 readAt: msg.readAt || null,
                 isDeleted: msg.content === null || msg.isDeleted === true,
                 deletedAt: msg.deletedAt || (msg.content === null ? msg.sentAt : null),
+                replyTo: msg.replyTo || null,
             }));
 
             setMessages(transformedMessages);
@@ -461,12 +477,26 @@ export default function ChatDetailScreen() {
         }
 
         console.log('📤 Sending message:', message);
+        console.log('📤 replyingToMessage state:', replyingToMessage);
+        if (replyingToMessage) {
+            console.log('📤 Replying to message ID:', replyingToMessage.id);
+            console.log('📤 Replying to message text:', replyingToMessage.text);
+        }
 
         try {
             if (!currentUserId || !chatRoomId || !receiverUserId) {
                 alert('Missing required information');
                 return;
             }
+
+            // Store replyTo data before clearing state
+            const replyToData = replyingToMessage ? {
+                chatMessageId: replyingToMessage.id,
+                content: replyingToMessage.text,
+                senderName: replyingToMessage.senderName,
+            } : null;
+
+            console.log('📤 replyToData created:', replyToData);
 
             const newMessage = {
                 id: `temp-${Date.now()}`,
@@ -482,19 +512,29 @@ export default function ChatDetailScreen() {
                 senderName: 'You',
                 senderId: currentUserId,
                 receiverId: receiverUserId,
+                replyTo: replyToData,
             };
 
             // Add to UI immediately
             setMessages((prev) => [...prev, newMessage]);
             setMessage('');
+            setReplyingToMessage(null); // Clear reply state
 
             // Send via WebSocket
             if (connected && sendSocketMessage) {
                 console.log('Sending via WebSocket...');
-                const success = sendSocketMessage(chatRoomId, currentUserId, receiverUserId, {
+
+                // Build the payload matching ChatMessageRequest DTO
+                const payload = {
                     content: newMessage.text,
                     messageType: 'TEXT',
-                });
+                    replyToId: replyToData ? parseInt(replyToData.chatMessageId) : null,
+                    attachments: [],
+                };
+
+                console.log('📤 Sending payload:', JSON.stringify(payload, null, 2));
+
+                const success = sendSocketMessage(chatRoomId, currentUserId, receiverUserId, payload);
 
                 if (success) {
                     console.log('✅ Message sent via WebSocket');
@@ -637,6 +677,23 @@ export default function ChatDetailScreen() {
         setEditingMessageId(null);
         setEditingMessageText('');
         setMessage('');
+    };
+
+    // Start replying to a message
+    const startReplyMessage = (msg) => {
+        console.log('🔄 Starting reply to message:', msg);
+        console.log('🔄 Message ID:', msg.id);
+        console.log('🔄 Message text:', msg.text);
+        console.log('🔄 Message senderName:', msg.senderName);
+        setReplyingToMessage(msg);
+        setShowMessageMenu(null);
+        // Focus the input
+        setTimeout(() => textInputRef.current?.focus(), 100);
+    };
+
+    // Cancel replying
+    const cancelReply = () => {
+        setReplyingToMessage(null);
     };
 
     // Get publish function from WebSocket
@@ -805,6 +862,18 @@ export default function ChatDetailScreen() {
                                         {/* Message Content */}
                                         <div className="flex items-start justify-between">
                                             <div className="flex-1">
+                                                {/* Reply Preview */}
+                                                {item.replyTo && (
+                                                    <div className={`mb-2 pl-2 border-l-2 ${item.isMe ? 'border-white border-opacity-50' : 'border-red-500'}`}>
+                                                        <p className={`text-xs font-semibold ${item.isMe ? 'text-white opacity-80' : 'text-red-400'}`}>
+                                                            {item.replyTo.senderName || 'Unknown'}
+                                                        </p>
+                                                        <p className={`text-xs ${item.isMe ? 'text-white opacity-70' : 'text-gray-400'} truncate`}>
+                                                            {item.replyTo.content || 'Message'}
+                                                        </p>
+                                                    </div>
+                                                )}
+
                                                 {item.isDeleted ? (
                                                     <div className="flex flex-col">
                                                         <p className="text-sm sm:text-base italic text-gray-500 flex items-center">
@@ -828,8 +897,8 @@ export default function ChatDetailScreen() {
                                                 )}
                                             </div>
 
-                                            {/* Three-dot menu for own messages (show for all sent messages) */}
-                                            {item.isMe && !item.isDeleted && !item.id.toString().startsWith('temp-') && (
+                                            {/* Three-dot menu (show for all messages except temp ones) */}
+                                            {!item.isDeleted && !item.id.toString().startsWith('temp-') && (
                                                 <div className="ml-2 flex-shrink-0 relative message-menu">
                                                     <button
                                                         onClick={(e) => {
@@ -848,28 +917,43 @@ export default function ChatDetailScreen() {
                                                             <button
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
-                                                                    console.log('Edit clicked for message:', item.id);
-                                                                    startEditMessage(item);
-                                                                    setShowMessageMenu(null);
+                                                                    console.log('Reply clicked for message:', item.id);
+                                                                    startReplyMessage(item);
                                                                 }}
-                                                                className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2 rounded-t-lg"
+                                                                className={`w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2 ${item.isMe ? '' : 'rounded-t-lg rounded-b-lg'}`}
                                                             >
-                                                                <IoCreateOutline className="text-base" />
-                                                                <span className="text-sm">Edit</span>
+                                                                <IoArrowUndoOutline className="text-base" />
+                                                                <span className="text-sm">Reply</span>
                                                             </button>
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    console.log('Delete clicked for message:', item.id);
-                                                                    handleDeleteMessage(item.id);
-                                                                    setShowMessageMenu(null);
-                                                                }}
-                                                                className="w-full px-4 py-2 text-left text-red-400 hover:bg-gray-700 flex items-center gap-2 rounded-b-lg"
-                                                                title="Delete"
-                                                            >
-                                                                <IoTrashOutline className="text-base" />
-                                                                <span className="text-sm">Delete</span>
-                                                            </button>
+                                                            {item.isMe && (
+                                                                <>
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            console.log('Edit clicked for message:', item.id);
+                                                                            startEditMessage(item);
+                                                                            setShowMessageMenu(null);
+                                                                        }}
+                                                                        className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2"
+                                                                    >
+                                                                        <IoCreateOutline className="text-base" />
+                                                                        <span className="text-sm">Edit</span>
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            console.log('Delete clicked for message:', item.id);
+                                                                            handleDeleteMessage(item.id);
+                                                                            setShowMessageMenu(null);
+                                                                        }}
+                                                                        className="w-full px-4 py-2 text-left text-red-400 hover:bg-gray-700 flex items-center gap-2 rounded-b-lg"
+                                                                        title="Delete"
+                                                                    >
+                                                                        <IoTrashOutline className="text-base" />
+                                                                        <span className="text-sm">Delete</span>
+                                                                    </button>
+                                                                </>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
@@ -946,6 +1030,29 @@ export default function ChatDetailScreen() {
                         >
                             <IoCloseCircle className="text-gray-400 text-xl" />
                         </button>
+                    </div>
+                )}
+
+                {/* Reply Mode Indicator */}
+                {replyingToMessage && !editingMessageId && (
+                    <div className="mb-2 bg-[#2d2d2d] px-3 py-2 rounded-lg border border-gray-700">
+                        <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <IoArrowUndoOutline className="text-red-400 text-base flex-shrink-0" />
+                                    <span className="text-xs text-gray-400">Replying to {replyingToMessage.senderName}</span>
+                                </div>
+                                <p className="text-sm text-gray-300 truncate pl-6">
+                                    {replyingToMessage.text}
+                                </p>
+                            </div>
+                            <button
+                                onClick={cancelReply}
+                                className="p-1 hover:bg-gray-700 rounded ml-2 flex-shrink-0"
+                            >
+                                <IoCloseCircle className="text-gray-400 text-xl" />
+                            </button>
+                        </div>
                     </div>
                 )}
 

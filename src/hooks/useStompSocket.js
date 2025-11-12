@@ -276,14 +276,25 @@ export default function useStompSocket(options = {}) {
     (chatRoomId, senderId, receiverId, messageData) => {
       const destination = `/app/chat/${chatRoomId}/${senderId}/${receiverId}`;
       console.log("📤 Sending message to:", destination);
-      return publish(destination, {
+
+      // Build the payload with all fields from messageData
+      const payload = {
         content: messageData.content,
         messageType: messageData.messageType || "TEXT",
         timestamp: new Date().toISOString(),
         senderId,
         receiverId,
         chatRoomId,
-      });
+        replyToId: messageData.replyToId || null,
+        attachments: messageData.attachments || [],
+      };
+
+      console.log(
+        "📤 Full payload being sent:",
+        JSON.stringify(payload, null, 2)
+      );
+
+      return publish(destination, payload);
     },
     [publish]
   );
