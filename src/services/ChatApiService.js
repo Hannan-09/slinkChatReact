@@ -164,6 +164,43 @@ class ChatApiService {
       }),
     });
   }
+
+  // Upload files
+  async uploadFiles(formData) {
+    const url = `${this.baseUrl}/chat/file-upload`;
+    try {
+      const token = localStorage.getItem("accessToken");
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Upload failed:", response.status, errorText);
+        throw new Error(`Upload failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("Upload API response:", result);
+
+      // Handle different response structures
+      if (result.data && Array.isArray(result.data)) {
+        return result.data;
+      } else if (Array.isArray(result)) {
+        return result;
+      } else {
+        console.error("Unexpected response structure:", result);
+        return [];
+      }
+    } catch (error) {
+      console.error("Error uploading files:", error);
+      throw error;
+    }
+  }
 }
 
 // Create and export singleton instance

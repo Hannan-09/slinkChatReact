@@ -20,12 +20,128 @@ import {
     IoEllipsisVertical,
     IoArrowUndoOutline,
     IoCopyOutline,
+    IoImages,
+    IoDocument,
+    IoClose,
+    IoCloudUploadOutline,
+    IoPlayCircle,
+    IoDocumentText,
+    IoMic,
+    IoStop,
+    IoPause,
+    IoPlay,
+    IoMusicalNote,
 } from 'react-icons/io5';
 import EmojiPicker from 'emoji-picker-react';
+import { useCall } from '../contexts/CallContext';
 import { ApiUtils } from '../services/AuthService';
 import chatApiService from '../services/ChatApiService';
 import EncryptionService from '../services/EncryptionService';
 import { useWebSocket, useUserOnlineStatus } from '../contexts/WebSocketContext';
+
+// WhatsApp-style Audio Player Component
+const WhatsAppAudioPlayer = ({ audioUrl, isMe }) => {
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [duration, setDuration] = useState(0);
+    const audioRef = useRef(null);
+
+    useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio) return;
+
+        const handleLoadedMetadata = () => {
+            setDuration(audio.duration);
+        };
+
+        const handleTimeUpdate = () => {
+            setCurrentTime(audio.currentTime);
+        };
+
+        const handleEnded = () => {
+            setIsPlaying(false);
+            setCurrentTime(0);
+        };
+
+        audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+        audio.addEventListener('timeupdate', handleTimeUpdate);
+        audio.addEventListener('ended', handleEnded);
+
+        return () => {
+            audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+            audio.removeEventListener('timeupdate', handleTimeUpdate);
+            audio.removeEventListener('ended', handleEnded);
+        };
+    }, []);
+
+    const togglePlay = () => {
+        const audio = audioRef.current;
+        if (isPlaying) {
+            audio.pause();
+        } else {
+            audio.play();
+        }
+        setIsPlaying(!isPlaying);
+    };
+
+    const handleSeek = (e) => {
+        const audio = audioRef.current;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const percentage = x / rect.width;
+        audio.currentTime = percentage * duration;
+    };
+
+    const formatTime = (time) => {
+        if (isNaN(time)) return '0:00';
+        const minutes = Math.floor(time / 60);
+        const seconds = Math.floor(time % 60);
+        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    };
+
+    const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+    return (
+        <div className="flex items-center gap-2 min-w-[250px] max-w-[350px]">
+            <audio ref={audioRef} src={audioUrl} preload="metadata" />
+
+            {/* Play/Pause Button */}
+            <button
+                onClick={togglePlay}
+                className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${isMe ? 'bg-white bg-opacity-20 hover:bg-opacity-30' : 'bg-gray-600 hover:bg-gray-500'
+                    }`}
+            >
+                {isPlaying ? (
+                    <IoPause className="text-white text-lg" />
+                ) : (
+                    <IoPlay className="text-white text-lg ml-0.5" />
+                )}
+            </button>
+
+            {/* Waveform/Progress Bar */}
+            <div className="flex-1 flex flex-col gap-1">
+                <div
+                    onClick={handleSeek}
+                    className="h-8 flex items-center cursor-pointer group"
+                >
+                    <div className="w-full h-1 bg-white bg-opacity-20 rounded-full overflow-hidden">
+                        <div
+                            className={`h-full transition-all ${isMe ? 'bg-white' : 'bg-red-400'}`}
+                            style={{ width: `${progress}%` }}
+                        />
+                    </div>
+                </div>
+
+                {/* Duration */}
+                <div className="flex items-center justify-between">
+                    <span className={`text-xs ${isMe ? 'text-white opacity-70' : 'text-gray-400'}`}>
+                        {formatTime(currentTime)} / {formatTime(duration)}
+                    </span>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 // Typing Indicator Component
 const TypingIndicator = () => {
@@ -75,6 +191,26 @@ export default function ChatDetailScreen() {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
 
+    // File upload states
+    const [showAttachMenu, setShowAttachMenu] = useState(false);
+    const [selectedFiles, setSelectedFiles] = useState([]);
+    const [showFilePreview, setShowFilePreview] = useState(false);
+    const [uploadingFiles, setUploadingFiles] = useState(false);
+    const fileInputRef = useRef(null);
+    const photoInputRef = useRef(null);
+
+    // Audio recording states
+    const [isRecording, setIsRecording] = useState(false);
+    const [isPaused, setIsPaused] = useState(false);
+    const [recordingTime, setRecordingTime] = useState(0);
+    const [audioBlob, setAudioBlob] = useState(null);
+    const [audioURL, setAudioURL] = useState(null);
+    const [showAudioPreview, setShowAudioPreview] = useState(false);
+    const mediaRecorderRef = useRef(null);
+    const audioChunksRef = useRef([]);
+    const recordingIntervalRef = useRef(null);
+    const audioPreviewRef = useRef(null);
+
     const receiverUserId = parseInt(receiverId);
 
     // Use the global online status hook
@@ -119,11 +255,14 @@ export default function ChatDetailScreen() {
             if (showEmojiPicker && !event.target.closest('.emoji-picker-container')) {
                 setShowEmojiPicker(false);
             }
+            if (showAttachMenu && !event.target.closest('.attach-menu-container')) {
+                setShowAttachMenu(false);
+            }
         };
 
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [showMessageMenu, showEmojiPicker]);
+    }, [showMessageMenu, showEmojiPicker, showAttachMenu]);
 
     // Mark messages as read when they appear (only once per message)
     useEffect(() => {
@@ -190,6 +329,10 @@ export default function ChatDetailScreen() {
                 isEdited: wsMessage.isEdited || false,
                 editedAt: wsMessage.editedAt || null,
                 replyTo: wsMessage.replyTo || null,
+                attachments: (wsMessage.attachments || []).map(att => ({
+                    fileURL: att.fileURL || att.fileUrl,
+                    fileType: att.fileType
+                })),
             };
 
             if (wsMessage.replyTo) {
@@ -399,6 +542,10 @@ export default function ChatDetailScreen() {
                 isDeleted: msg.content === null || msg.isDeleted === true,
                 deletedAt: msg.deletedAt || (msg.content === null ? msg.sentAt : null),
                 replyTo: msg.replyTo || null,
+                attachments: (msg.attachments || []).map(att => ({
+                    fileURL: att.fileURL || att.fileUrl,
+                    fileType: att.fileType
+                })),
             }));
 
             setMessages(transformedMessages);
@@ -754,10 +901,17 @@ export default function ChatDetailScreen() {
                         type: 'image/jpeg',
                     });
 
-                    // TODO: Upload file and send as attachment
-                    alert('Photo captured! (Upload functionality to be implemented)');
+                    // Add to selected files for preview
+                    const fileWithPreview = {
+                        file,
+                        preview: URL.createObjectURL(blob),
+                        type: 'image/jpeg',
+                        name: file.name,
+                        size: file.size
+                    };
 
-                    // Close camera
+                    setSelectedFiles([fileWithPreview]);
+                    setShowFilePreview(true);
                     closeCamera();
                 }
             }, 'image/jpeg', 0.95);
@@ -772,6 +926,332 @@ export default function ChatDetailScreen() {
             }
         };
     }, [cameraStream]);
+
+    // File upload functions
+    const handleFileSelect = (event, type = 'file') => {
+        const files = Array.from(event.target.files);
+        if (files.length > 0) {
+            const filesWithPreview = files.map(file => ({
+                file,
+                preview: URL.createObjectURL(file),
+                type: file.type,
+                name: file.name,
+                size: file.size
+            }));
+            setSelectedFiles(filesWithPreview);
+            setShowFilePreview(true);
+            setShowAttachMenu(false);
+        }
+    };
+
+    const removeSelectedFile = (index) => {
+        setSelectedFiles(prev => {
+            const updated = prev.filter((_, i) => i !== index);
+            // Revoke URL to free memory
+            URL.revokeObjectURL(prev[index].preview);
+            return updated;
+        });
+    };
+
+    const uploadFilesToServer = async (files) => {
+        const formData = new FormData();
+        files.forEach(({ file }) => {
+            formData.append('files', file);
+        });
+
+        try {
+            const result = await chatApiService.uploadFiles(formData);
+            return result;
+        } catch (error) {
+            console.error('Error uploading files:', error);
+            throw error;
+        }
+    };
+
+    const sendMessageWithAttachments = async () => {
+        if (selectedFiles.length === 0 && !message.trim()) return;
+
+        setUploadingFiles(true);
+        try {
+            let attachments = [];
+
+            // Upload files if any
+            if (selectedFiles.length > 0) {
+                const uploadResult = await uploadFilesToServer(selectedFiles);
+                // Handle different response structures
+                attachments = Array.isArray(uploadResult) ? uploadResult : [];
+                console.log('Upload result:', uploadResult);
+                console.log('Attachments:', attachments);
+            }
+
+            // Prepare message
+            const messageText = message.trim() || '';
+            const replyToData = replyingToMessage ? {
+                chatMessageId: replyingToMessage.id,
+                content: replyingToMessage.text,
+                senderName: replyingToMessage.senderName,
+            } : null;
+
+            const mappedAttachments = attachments && attachments.length > 0 ? attachments.map(att => ({
+                fileURL: att.fileURL,
+                fileType: att.fileType
+            })) : [];
+
+            console.log('Creating message with attachments:', mappedAttachments);
+
+            const newMessage = {
+                id: `temp-${Date.now()}`,
+                text: messageText,
+                time: new Date().toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true,
+                }),
+                isMe: true,
+                status: 'sending',
+                timestamp: new Date().toISOString(),
+                senderName: 'You',
+                senderId: currentUserId,
+                receiverId: receiverUserId,
+                replyTo: replyToData,
+                attachments: mappedAttachments
+            };
+
+            console.log('New message object:', newMessage);
+
+            // Add to UI immediately
+            setMessages((prev) => [...prev, newMessage]);
+            setMessage('');
+            setReplyingToMessage(null);
+            setSelectedFiles([]);
+            setShowFilePreview(false);
+
+            // Send via WebSocket
+            if (connected && sendSocketMessage) {
+                const payload = {
+                    content: messageText,
+                    messageType: attachments && attachments.length > 0 ? 'ATTACHMENT' : 'TEXT',
+                    replyToId: replyToData ? parseInt(replyToData.chatMessageId) : null,
+                    attachments: attachments && attachments.length > 0 ? attachments.map(att => ({
+                        fileURL: att.fileURL,
+                        fileType: att.fileType
+                    })) : []
+                };
+
+                const success = sendSocketMessage(chatRoomId, currentUserId, receiverUserId, payload);
+
+                if (success) {
+                    const pseudoId = `${currentUserId}-${Date.now()}`;
+                    setMessages((prev) =>
+                        prev.map((msg) =>
+                            msg.id === newMessage.id
+                                ? { ...msg, id: pseudoId, status: 'sent' }
+                                : msg
+                        )
+                    );
+                } else {
+                    setMessages((prev) =>
+                        prev.map((msg) => (msg.id === newMessage.id ? { ...msg, status: 'failed' } : msg))
+                    );
+                }
+            }
+
+            setTimeout(() => scrollToBottom(), 100);
+        } catch (error) {
+            console.error('Error sending message with attachments:', error);
+            alert('Failed to upload files');
+        } finally {
+            setUploadingFiles(false);
+        }
+    };
+
+    // Audio recording functions
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediaRecorder = new MediaRecorder(stream);
+            mediaRecorderRef.current = mediaRecorder;
+            audioChunksRef.current = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunksRef.current.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                const audioUrl = URL.createObjectURL(audioBlob);
+                setAudioBlob(audioBlob);
+                setAudioURL(audioUrl);
+                setShowAudioPreview(true);
+
+                // Stop all tracks
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            mediaRecorder.start();
+            setIsRecording(true);
+            setRecordingTime(0);
+            setShowAttachMenu(false);
+
+            // Start timer
+            recordingIntervalRef.current = setInterval(() => {
+                setRecordingTime(prev => prev + 1);
+            }, 1000);
+        } catch (error) {
+            console.error('Error accessing microphone:', error);
+            alert('Could not access microphone. Please check permissions.');
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+            setIsPaused(false);
+            if (recordingIntervalRef.current) {
+                clearInterval(recordingIntervalRef.current);
+            }
+        }
+    };
+
+    const pauseRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            if (isPaused) {
+                mediaRecorderRef.current.resume();
+                recordingIntervalRef.current = setInterval(() => {
+                    setRecordingTime(prev => prev + 1);
+                }, 1000);
+            } else {
+                mediaRecorderRef.current.pause();
+                if (recordingIntervalRef.current) {
+                    clearInterval(recordingIntervalRef.current);
+                }
+            }
+            setIsPaused(!isPaused);
+        }
+    };
+
+    const cancelRecording = () => {
+        if (mediaRecorderRef.current) {
+            mediaRecorderRef.current.stop();
+            mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+        }
+        setIsRecording(false);
+        setIsPaused(false);
+        setRecordingTime(0);
+        if (recordingIntervalRef.current) {
+            clearInterval(recordingIntervalRef.current);
+        }
+    };
+
+    const sendAudioMessage = async () => {
+        if (!audioBlob) return;
+
+        setUploadingFiles(true);
+        try {
+            // Create file from blob
+            const audioFile = new File([audioBlob], `audio-${Date.now()}.webm`, {
+                type: 'audio/webm'
+            });
+
+            const fileWithPreview = {
+                file: audioFile,
+                preview: audioURL,
+                type: 'audio/webm',
+                name: audioFile.name,
+                size: audioFile.size
+            };
+
+            // Upload to server
+            const uploadResult = await uploadFilesToServer([fileWithPreview]);
+            const attachments = Array.isArray(uploadResult) ? uploadResult : [];
+
+            const messageText = message.trim() || '';
+            const newMessage = {
+                id: `temp-${Date.now()}`,
+                text: messageText,
+                time: new Date().toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true,
+                }),
+                isMe: true,
+                status: 'sending',
+                timestamp: new Date().toISOString(),
+                senderName: 'You',
+                senderId: currentUserId,
+                receiverId: receiverUserId,
+                attachments: attachments.map(att => ({
+                    fileURL: att.fileURL,
+                    fileType: att.fileType
+                }))
+            };
+
+            setMessages((prev) => [...prev, newMessage]);
+            setMessage('');
+            setAudioBlob(null);
+            setAudioURL(null);
+            setShowAudioPreview(false);
+            setRecordingTime(0);
+
+            // Send via WebSocket
+            if (connected && sendSocketMessage) {
+                const payload = {
+                    content: messageText,
+                    messageType: 'ATTACHMENT',
+                    replyToId: null,
+                    attachments: attachments.map(att => ({
+                        fileURL: att.fileURL,
+                        fileType: att.fileType
+                    }))
+                };
+
+                const success = sendSocketMessage(chatRoomId, currentUserId, receiverUserId, payload);
+                if (success) {
+                    const pseudoId = `${currentUserId}-${Date.now()}`;
+                    setMessages((prev) =>
+                        prev.map((msg) =>
+                            msg.id === newMessage.id ? { ...msg, id: pseudoId, status: 'sent' } : msg
+                        )
+                    );
+                }
+            }
+
+            setTimeout(() => scrollToBottom(), 100);
+        } catch (error) {
+            console.error('Error sending audio:', error);
+            alert('Failed to send audio');
+        } finally {
+            setUploadingFiles(false);
+        }
+    };
+
+    const formatRecordingTime = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    const getFileIcon = (fileType) => {
+        if (!fileType) return <IoDocument className="text-gray-400" />;
+        if (fileType.startsWith('image/')) return <IoImages className="text-blue-400" />;
+        if (fileType.startsWith('audio/')) return <IoMusicalNote className="text-purple-400" />;
+        if (fileType.startsWith('video/')) return <IoPlayCircle className="text-red-400" />;
+        if (fileType.includes('pdf')) return <IoDocumentText className="text-red-500" />;
+        if (fileType.includes('sheet') || fileType.includes('excel')) return <IoDocument className="text-green-500" />;
+        if (fileType.includes('word') || fileType.includes('document')) return <IoDocument className="text-blue-500" />;
+        return <IoDocument className="text-gray-400" />;
+    };
+
+    const formatFileSize = (bytes) => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    };
 
     // Get publish function from WebSocket
     const { publish } = useWebSocket();
@@ -801,17 +1281,20 @@ export default function ChatDetailScreen() {
         }
     };
 
+    const { initiateCall } = useCall();
+
     const handleCallPress = (isVideo) => {
         if (!connected) {
             alert('WebSocket not connected. Please wait and try again.');
             return;
         }
 
-        navigate(
-            `/call/outgoing?receiverId=${receiverUserId}&receiverName=${encodeURIComponent(
-                name
-            )}&receiverAvatar=${encodeURIComponent(avatar)}&isVideoCall=${isVideo}`
-        );
+        // Initiate call using CallContext
+        initiateCall({
+            id: receiverUserId,
+            name: name,
+            avatar: avatar
+        }, isVideo);
     };
 
     const scrollToBottom = (instant = false) => {
@@ -941,17 +1424,11 @@ export default function ChatDetailScreen() {
                                 {/* Date Separator - Sticky */}
                                 {showDateSeparator && (
                                     <div key={`date-${item.id}`} className="sticky top-0 z-20 flex justify-center py-3 -mx-3 sm:-mx-5 px-3 sm:px-5 bg-[#1a1a1a]">
-
                                         <div className="bg-[#2d2d2d] px-3 py-1 rounded-lg shadow-lg border border-gray-700">
-
                                             <p className="text-gray-400 text-xs font-medium">
-
                                                 {formatDateSeparator(item.timestamp)}
-
                                             </p>
-
                                         </div>
-
                                     </div>
                                 )}
 
@@ -1002,10 +1479,71 @@ export default function ChatDetailScreen() {
                                                             )}
                                                         </div>
                                                     ) : (
-                                                        <p className={`text-sm sm:text-base leading-relaxed whitespace-pre-wrap ${item.isMe ? 'text-white' : 'text-white'}`}
-                                                            style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
-                                                            {item.text}
-                                                        </p>
+                                                        <>
+                                                            {/* Attachments */}
+                                                            {item.attachments && item.attachments.length > 0 && (
+                                                                <div className="mb-2 space-y-2">
+                                                                    {item.attachments.map((att, idx) => {
+                                                                        // Handle both fileURL and fileUrl from backend
+                                                                        const fileUrl = att.fileURL || att.fileUrl;
+                                                                        const fileType = att.fileType;
+
+                                                                        console.log('Rendering attachment:', att, 'URL:', fileUrl);
+
+                                                                        if (!fileUrl) return null;
+
+                                                                        return (
+                                                                            <div key={idx} className="w-full">
+                                                                                {fileType && fileType.startsWith('image/') ? (
+                                                                                    <img
+                                                                                        src={fileUrl}
+                                                                                        alt="attachment"
+                                                                                        className="max-w-full max-h-96 rounded-lg cursor-pointer hover:opacity-90 object-cover"
+                                                                                        onClick={() => window.open(fileUrl, '_blank')}
+                                                                                        onError={(e) => {
+                                                                                            console.error('Image load error:', fileUrl);
+                                                                                            e.target.style.display = 'none';
+                                                                                        }}
+                                                                                    />
+                                                                                ) : fileType && fileType.startsWith('video/') ? (
+                                                                                    <video
+                                                                                        src={fileUrl}
+                                                                                        controls
+                                                                                        className="max-w-full max-h-96 rounded-lg"
+                                                                                        onError={(e) => {
+                                                                                            console.error('Video load error:', fileUrl);
+                                                                                        }}
+                                                                                    />
+                                                                                ) : fileType && fileType.startsWith('audio/') ? (
+                                                                                    <WhatsAppAudioPlayer audioUrl={fileUrl} isMe={item.isMe} />
+                                                                                ) : (
+                                                                                    <a
+                                                                                        href={fileUrl}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        className={`flex items-center gap-2 p-3 rounded-lg ${item.isMe ? 'bg-white bg-opacity-10' : 'bg-gray-700'} hover:opacity-80 transition-opacity`}
+                                                                                    >
+                                                                                        <span className="text-2xl">{getFileIcon(fileType)}</span>
+                                                                                        <div className="flex-1 min-w-0">
+                                                                                            <p className="text-sm text-white truncate">{fileUrl.split('/').pop()}</p>
+                                                                                            <p className="text-xs text-gray-400">{fileType || 'File'}</p>
+                                                                                        </div>
+                                                                                    </a>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Text message */}
+                                                            {item.text && (
+                                                                <p className={`text-sm sm:text-base leading-relaxed whitespace-pre-wrap ${item.isMe ? 'text-white' : 'text-white'}`}
+                                                                    style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                                                                    {item.text}
+                                                                </p>
+                                                            )}
+                                                        </>
                                                     )}
                                                     {item.isEncrypted && !item.isDeleted && (
                                                         <IoLockClosed className={`ml-2 mt-1 text-xs flex-shrink-0 ${item.isMe ? 'text-white opacity-70' : 'text-gray-400'}`} />
@@ -1214,16 +1752,78 @@ export default function ChatDetailScreen() {
 
                     {!editingMessageId && (
                         <>
-                            <button className="hidden sm:flex w-10 h-10 bg-[#2d2d2d] rounded-full items-center justify-center shadow-lg border border-gray-700 hover:bg-gray-700 transition-colors flex-shrink-0">
-                                <IoAttach className="text-gray-400 text-xl" />
-                            </button>
+                            <div className="relative attach-menu-container">
+                                <button
+                                    onClick={() => setShowAttachMenu(!showAttachMenu)}
+                                    className="w-9 h-9 sm:w-10 sm:h-10 bg-[#2d2d2d] rounded-full flex items-center justify-center shadow-lg border border-gray-700 hover:bg-gray-700 transition-colors flex-shrink-0"
+                                >
+                                    <IoAttach className="text-gray-400 text-lg sm:text-xl" />
+                                </button>
 
-                            <button
-                                onClick={openCamera}
-                                className="hidden sm:flex w-10 h-10 bg-[#2d2d2d] rounded-full items-center justify-center shadow-lg border border-gray-700 hover:bg-gray-700 transition-colors flex-shrink-0"
-                            >
-                                <IoCamera className="text-white text-xl" />
-                            </button>
+                                {/* Attach Menu */}
+                                {showAttachMenu && (
+                                    <div className="absolute bottom-12 left-0 bg-[#2d2d2d] border border-gray-700 rounded-lg shadow-xl z-50 min-w-[150px]">
+                                        <button
+                                            onClick={() => {
+                                                openCamera();
+                                                setShowAttachMenu(false);
+                                            }}
+                                            className="w-full px-4 py-3 text-left text-white hover:bg-gray-700 flex items-center gap-3 rounded-t-lg"
+                                        >
+                                            <IoCamera className="text-xl text-blue-400" />
+                                            <span className="text-sm">Camera</span>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                photoInputRef.current?.click();
+                                                setShowAttachMenu(false);
+                                            }}
+                                            className="w-full px-4 py-3 text-left text-white hover:bg-gray-700 flex items-center gap-3"
+                                        >
+                                            <IoImages className="text-xl text-green-400" />
+                                            <span className="text-sm">Photos</span>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                fileInputRef.current?.click();
+                                                setShowAttachMenu(false);
+                                            }}
+                                            className="w-full px-4 py-3 text-left text-white hover:bg-gray-700 flex items-center gap-3"
+                                        >
+                                            <IoDocument className="text-xl text-purple-400" />
+                                            <span className="text-sm">Files</span>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                startRecording();
+                                                setShowAttachMenu(false);
+                                            }}
+                                            className="w-full px-4 py-3 text-left text-white hover:bg-gray-700 flex items-center gap-3 rounded-b-lg"
+                                        >
+                                            <IoMic className="text-xl text-red-400" />
+                                            <span className="text-sm">Audio</span>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Hidden file inputs */}
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                multiple
+                                onChange={(e) => handleFileSelect(e, 'file')}
+                                className="hidden"
+                                accept="*/*"
+                            />
+                            <input
+                                ref={photoInputRef}
+                                type="file"
+                                multiple
+                                onChange={(e) => handleFileSelect(e, 'photo')}
+                                className="hidden"
+                                accept="image/*,video/*"
+                            />
                         </>
                     )}
 
@@ -1243,6 +1843,259 @@ export default function ChatDetailScreen() {
                     </button>
                 </div>
             </div>
+
+            {/* File Preview Modal */}
+            {showFilePreview && (
+                <div className="fixed inset-0 bg-black bg-opacity-95 z-50 flex flex-col">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-4 py-3 bg-[#1a1a1a] border-b border-gray-700">
+                        <h3 className="text-white text-lg font-semibold">
+                            {selectedFiles.length} {selectedFiles.length === 1 ? 'File' : 'Files'} Selected
+                        </h3>
+                        <button
+                            onClick={() => {
+                                setShowFilePreview(false);
+                                setSelectedFiles([]);
+                            }}
+                            className="w-8 h-8 flex items-center justify-center hover:bg-gray-700 rounded-full"
+                        >
+                            <IoClose className="text-white text-2xl" />
+                        </button>
+                    </div>
+
+                    {/* Preview Area */}
+                    <div className="flex-1 overflow-y-auto p-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                            {selectedFiles.map((file, index) => (
+                                <div key={index} className="relative group">
+                                    {/* Remove button */}
+                                    <button
+                                        onClick={() => removeSelectedFile(index)}
+                                        className="absolute top-2 right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                    >
+                                        <IoClose className="text-white text-sm" />
+                                    </button>
+
+                                    {/* File preview */}
+                                    <div className="bg-[#2d2d2d] rounded-lg overflow-hidden border border-gray-700">
+                                        {file.type.startsWith('image/') ? (
+                                            <img
+                                                src={file.preview}
+                                                alt={file.name}
+                                                className="w-full h-32 object-cover"
+                                            />
+                                        ) : file.type.startsWith('video/') ? (
+                                            <div className="relative w-full h-32 bg-gray-800 flex items-center justify-center">
+                                                <IoPlayCircle className="text-white text-4xl" />
+                                                <video
+                                                    src={file.preview}
+                                                    className="absolute inset-0 w-full h-full object-cover opacity-50"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className="w-full h-32 flex flex-col items-center justify-center gap-2">
+                                                {getFileIcon(file.type)}
+                                                <span className="text-xs text-gray-400">
+                                                    {file.type.includes('pdf') ? 'PDF' :
+                                                        file.type.includes('word') ? 'DOC' :
+                                                            file.type.includes('excel') ? 'XLS' : 'FILE'}
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {/* File info */}
+                                        <div className="p-2">
+                                            <p className="text-white text-xs truncate">{file.name}</p>
+                                            <p className="text-gray-400 text-xs">{formatFileSize(file.size)}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Caption Input */}
+                    <div className="bg-[#1a1a1a] border-t border-gray-700 p-4">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="text"
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value)}
+                                placeholder="Add a caption..."
+                                className="flex-1 bg-[#2d2d2d] border border-gray-700 rounded-full px-4 py-2 text-white placeholder-gray-500 outline-none"
+                            />
+                            <button
+                                onClick={sendMessageWithAttachments}
+                                disabled={uploadingFiles}
+                                className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors ${uploadingFiles ? 'bg-gray-600 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'
+                                    }`}
+                            >
+                                {uploadingFiles ? (
+                                    <IoCloudUploadOutline className="text-white text-xl animate-pulse" />
+                                ) : (
+                                    <IoSend className="text-white text-xl" />
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Audio Recording UI */}
+            {isRecording && (
+                <div className="fixed bottom-20 left-0 right-0 z-50 flex justify-center px-4">
+                    {/* <div className="bg-[#2d2d2d] border border-gray-700 rounded-full px-6 py-4 shadow-2xl flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                            <span className="text-white font-mono text-lg">{formatRecordingTime(recordingTime)}</span>
+                        </div>
+
+                        <button
+                            onClick={pauseRecording}
+                            className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center hover:bg-yellow-600 transition-colors"
+                        >
+                            {isPaused ? <IoPlay className="text-white text-xl" /> : <IoPause className="text-white text-xl" />}
+                        </button>
+
+                        <button
+                            onClick={stopRecording}
+                            className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center hover:bg-green-600 transition-colors"
+                        >
+                            <IoStop className="text-white text-xl" />
+                        </button>
+
+                        <button
+                            onClick={cancelRecording}
+                            className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                        >
+                            <IoClose className="text-white text-xl" />
+                        </button>
+                    </div> */}
+                </div>
+            )}
+
+            {/* Recording UI */}
+            {isRecording && (
+                <div className="fixed bottom-0 left-0 right-0 bg-[#1a1a1a] border-t border-gray-700 p-4 z-50 shadow-2xl">
+                    <div className="flex items-center justify-between max-w-2xl mx-auto">
+                        <div className="flex items-center gap-4">
+                            <div className="relative">
+                                <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
+                                    <IoMic className="text-white text-2xl" />
+                                </div>
+                                {isPaused && (
+                                    <div className="absolute inset-0 bg-gray-900 bg-opacity-50 rounded-full flex items-center justify-center">
+                                        <IoPause className="text-white text-xl" />
+                                    </div>
+                                )}
+                            </div>
+                            <div>
+                                <p className="text-white font-semibold">
+                                    {isPaused ? 'Recording Paused' : 'Recording...'}
+                                </p>
+                                <p className="text-red-400 text-lg font-mono">{formatRecordingTime(recordingTime)}</p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={pauseRecording}
+                                className="w-10 h-10 bg-[#2d2d2d] rounded-full flex items-center justify-center hover:bg-gray-700 transition-colors"
+                                title={isPaused ? 'Resume' : 'Pause'}
+                            >
+                                {isPaused ? (
+                                    <IoPlay className="text-white text-lg" />
+                                ) : (
+                                    <IoPause className="text-white text-lg" />
+                                )}
+                            </button>
+                            <button
+                                onClick={cancelRecording}
+                                className="w-10 h-10 bg-[#2d2d2d] rounded-full flex items-center justify-center hover:bg-gray-700 transition-colors"
+                                title="Cancel"
+                            >
+                                <IoClose className="text-white text-xl" />
+                            </button>
+                            <button
+                                onClick={stopRecording}
+                                className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                                title="Stop & Send"
+                            >
+                                <IoStop className="text-white text-xl" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Audio Preview Modal */}
+            {showAudioPreview && audioURL && (
+                <div className="fixed inset-0 bg-black bg-opacity-95 z-50 flex flex-col">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-4 py-3 bg-[#1a1a1a] border-b border-gray-700">
+                        <h3 className="text-white text-lg font-semibold">Audio Recording</h3>
+                        <button
+                            onClick={() => {
+                                setShowAudioPreview(false);
+                                setAudioBlob(null);
+                                setAudioURL(null);
+                                setRecordingTime(0);
+                            }}
+                            className="w-8 h-8 flex items-center justify-center hover:bg-gray-700 rounded-full"
+                        >
+                            <IoClose className="text-white text-2xl" />
+                        </button>
+                    </div>
+
+                    {/* Audio Preview */}
+                    <div className="flex-1 flex items-center justify-center p-8">
+                        <div className="bg-[#2d2d2d] rounded-2xl p-8 border border-gray-700 shadow-2xl max-w-md w-full">
+                            <div className="flex flex-col items-center gap-6">
+                                <div className="w-24 h-24 bg-purple-500 bg-opacity-20 rounded-full flex items-center justify-center">
+                                    <IoMusicalNote className="text-purple-400 text-5xl" />
+                                </div>
+
+                                <div className="text-center">
+                                    <p className="text-white text-lg font-semibold">Audio Message</p>
+                                    <p className="text-gray-400 text-sm">{formatRecordingTime(recordingTime)}</p>
+                                </div>
+
+                                <audio
+                                    ref={audioPreviewRef}
+                                    src={audioURL}
+                                    controls
+                                    className="w-full"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Send Button */}
+                    <div className="bg-[#1a1a1a] border-t border-gray-700 p-4">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="text"
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value)}
+                                placeholder="Add a caption..."
+                                className="flex-1 bg-[#2d2d2d] border border-gray-700 rounded-full px-4 py-2 text-white placeholder-gray-500 outline-none"
+                            />
+                            <button
+                                onClick={sendAudioMessage}
+                                disabled={uploadingFiles}
+                                className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors ${uploadingFiles ? 'bg-gray-600 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'
+                                    }`}
+                            >
+                                {uploadingFiles ? (
+                                    <IoCloudUploadOutline className="text-white text-xl animate-pulse" />
+                                ) : (
+                                    <IoSend className="text-white text-xl" />
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Camera Modal */}
             {
