@@ -426,6 +426,49 @@ export default function ChatDetailScreen() {
         }
     };
 
+    const formatDateSeparator = (timestamp) => {
+        try {
+            const date = new Date(timestamp);
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+
+            // Reset time to compare only dates
+            today.setHours(0, 0, 0, 0);
+            yesterday.setHours(0, 0, 0, 0);
+            const messageDate = new Date(date);
+            messageDate.setHours(0, 0, 0, 0);
+
+            if (messageDate.getTime() === today.getTime()) {
+                return 'Today';
+            } else if (messageDate.getTime() === yesterday.getTime()) {
+                return 'Yesterday';
+            } else {
+                // Format as "27 October 2025" or day name if within last week
+                const daysDiff = Math.floor((today - messageDate) / (1000 * 60 * 60 * 24));
+                if (daysDiff < 7) {
+                    return date.toLocaleDateString('en-US', { weekday: 'long' });
+                } else {
+                    return date.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+                }
+            }
+        } catch (error) {
+            return '';
+        }
+    };
+
+    const shouldShowDateSeparator = (currentMessage, previousMessage) => {
+        if (!previousMessage) return true;
+
+        const currentDate = new Date(currentMessage.timestamp);
+        const previousDate = new Date(previousMessage.timestamp);
+
+        currentDate.setHours(0, 0, 0, 0);
+        previousDate.setHours(0, 0, 0, 0);
+
+        return currentDate.getTime() !== previousDate.getTime();
+    };
+
     const sendMessage = async () => {
         if (!message.trim()) return;
 
@@ -615,13 +658,40 @@ export default function ChatDetailScreen() {
 
     // Copy message text
     const copyMessageText = (text) => {
-        navigator.clipboard.writeText(text).then(() => {
+        // Try modern clipboard API first
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                setShowMessageMenu(null);
+                alert('Message copied!');
+            }).catch((err) => {
+                // Fallback to older method
+                fallbackCopyText(text);
+            });
+        } else {
+            // Fallback for older browsers or HTTP
+            fallbackCopyText(text);
+        }
+    };
+
+    // Fallback copy method for older browsers or HTTP
+    const fallbackCopyText = (text) => {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+        try {
+            document.execCommand('copy');
             setShowMessageMenu(null);
-            // Optional: Show a toast notification
             alert('Message copied!');
-        }).catch((err) => {
+        } catch (err) {
             alert('Failed to copy message');
-        });
+        }
+
+        document.body.removeChild(textArea);
     };
 
     // Handle emoji selection
@@ -841,7 +911,7 @@ export default function ChatDetailScreen() {
             </div>
 
             {/* Date Separator */}
-            <div className="flex flex-col items-center py-3 sm:py-4 bg-[#1a1a1a]">
+            {/* <div className="flex flex-col items-center py-3 sm:py-4 bg-[#1a1a1a]">
                 <p className="text-gray-400 text-xs sm:text-sm">Today</p>
                 {isEncryptionEnabled && (
                     <div className="flex items-center mt-2 px-2 sm:px-3 py-1 bg-green-500 bg-opacity-10 border border-green-500 border-opacity-30 rounded-full">
@@ -849,7 +919,7 @@ export default function ChatDetailScreen() {
                         <span className="text-green-400 text-xs font-medium">End-to-End Encrypted</span>
                     </div>
                 )}
-            </div>
+            </div> */}
 
             {/* Messages - Scrollable Area */}
             <div ref={messagesContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-3 sm:px-5 pb-3 sm:pb-5 scrollbar-hide">                {loading ? (
@@ -861,189 +931,215 @@ export default function ChatDetailScreen() {
                     <p className="text-gray-400 text-lg">No messages yet</p>
                 </div>
             ) : (
-                messages.map((item) => {
-                    return (
-                        <div key={item.id} className={`flex my-1 sm:my-2 ${item.isMe ? 'justify-end' : 'justify-start'} group w-full`}>
-                            <div className="relative max-w-[85%] sm:max-w-[75%] md:max-w-[65%] lg:max-w-[55%]">
-                                <div
-                                    className={`w-full px-3 sm:px-4 py-2 sm:py-3 rounded-2xl shadow-lg ${item.isDeleted
-                                        ? 'bg-gray-800 border border-gray-700'
-                                        : item.isMe
-                                            ? 'bg-red-500'
-                                            : 'bg-[#2d2d2d] border border-gray-700'
-                                        }`}
-                                    style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                                    onContextMenu={(e) => {
-                                        if (item.isMe && !item.isDeleted) {
-                                            e.preventDefault();
-                                            setSelectedMessage(item);
-                                            setShowMessageMenu(true);
-                                        }
-                                    }}
-                                >
-                                    {/* Message Content */}
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex-1">
-                                            {/* Reply Preview */}
-                                            {item.replyTo && (
-                                                <div className={`mb-2 pl-2 border-l-2 ${item.isMe ? 'border-white border-opacity-50' : 'border-red-500'}`}>
-                                                    <p className={`text-xs font-semibold ${item.isMe ? 'text-white opacity-80' : 'text-red-400'}`}>
-                                                        {item.replyTo.senderName || 'Unknown'}
-                                                    </p>
-                                                    <p className={`text-xs ${item.isMe ? 'text-white opacity-70' : 'text-gray-400'} truncate`}>
-                                                        {item.replyTo.content || 'Message'}
-                                                    </p>
-                                                </div>
-                                            )}
+                <>
+                    {messages.map((item, index) => {
+                        const previousMessage = index > 0 ? messages[index - 1] : null;
+                        const showDateSeparator = shouldShowDateSeparator(item, previousMessage);
 
-                                            {item.isDeleted ? (
-                                                <div className="flex flex-col">
-                                                    <p className="text-sm sm:text-base italic text-gray-500 flex items-center">
-                                                        <IoTrashOutline className="inline mr-2" />
-                                                        This message was deleted
-                                                    </p>
-                                                    {item.deletedAt && (
-                                                        <p className="text-xs text-gray-600 mt-1">
-                                                            Deleted at {formatMessageTime(item.deletedAt)}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <p className={`text-sm sm:text-base leading-relaxed whitespace-pre-wrap ${item.isMe ? 'text-white' : 'text-white'}`}
-                                                    style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
-                                                    {item.text}
-                                                </p>
-                                            )}
-                                            {item.isEncrypted && !item.isDeleted && (
-                                                <IoLockClosed className={`ml-2 mt-1 text-xs flex-shrink-0 ${item.isMe ? 'text-white opacity-70' : 'text-gray-400'}`} />
-                                            )}
+                        return (
+                            <>
+                                {/* Date Separator - Sticky */}
+                                {showDateSeparator && (
+                                    <div key={`date-${item.id}`} className="sticky top-0 z-20 flex justify-center py-3 -mx-3 sm:-mx-5 px-3 sm:px-5 bg-[#1a1a1a]">
+
+                                        <div className="bg-[#2d2d2d] px-3 py-1 rounded-lg shadow-lg border border-gray-700">
+
+                                            <p className="text-gray-400 text-xs font-medium">
+
+                                                {formatDateSeparator(item.timestamp)}
+
+                                            </p>
+
                                         </div>
 
-                                        {/* Three-dot menu (show for all messages except temp ones) */}
-                                        {!item.isDeleted && !item.id.toString().startsWith('temp-') && (
-                                            <div className="ml-2 flex-shrink-0 relative message-menu">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setShowMessageMenu(showMessageMenu === item.id ? null : item.id);
-                                                    }}
-                                                    className="p-1 hover:bg-white hover:bg-opacity-20 rounded transition-opacity"
-                                                    title="Options"
-                                                >
-                                                    <IoEllipsisVertical className="text-white text-base" />
-                                                </button>
+                                    </div>
+                                )}
 
-                                                {/* Dropdown menu */}
-                                                {showMessageMenu === item.id && (
-                                                    <div className="absolute right-0 top-8 bg-[#2d2d2d] border border-gray-700 rounded-lg shadow-xl z-50 min-w-[120px]">
+                                {/* Message */}
+                                <div key={item.id} className={`flex my-1 sm:my-2 ${item.isMe ? 'justify-end' : 'justify-start'} group w-full`}>
+                                    <div className="relative max-w-[85%] sm:max-w-[75%] md:max-w-[65%] lg:max-w-[55%]">
+                                        <div
+                                            className={`w-full px-3 sm:px-4 py-2 sm:py-3 rounded-2xl shadow-lg ${item.isDeleted
+                                                ? 'bg-gray-800 border border-gray-700'
+                                                : item.isMe
+                                                    ? 'bg-red-500'
+                                                    : 'bg-[#2d2d2d] border border-gray-700'
+                                                }`}
+                                            style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                                            onContextMenu={(e) => {
+                                                if (item.isMe && !item.isDeleted) {
+                                                    e.preventDefault();
+                                                    setSelectedMessage(item);
+                                                    setShowMessageMenu(true);
+                                                }
+                                            }}
+                                        >
+                                            {/* Message Content */}
+                                            <div className="flex items-start justify-between">
+                                                <div className="flex-1">
+                                                    {/* Reply Preview */}
+                                                    {item.replyTo && (
+                                                        <div className={`mb-2 pl-2 border-l-2 ${item.isMe ? 'border-white border-opacity-50' : 'border-red-500'}`}>
+                                                            <p className={`text-xs font-semibold ${item.isMe ? 'text-white opacity-80' : 'text-red-400'}`}>
+                                                                {item.replyTo.senderName || 'Unknown'}
+                                                            </p>
+                                                            <p className={`text-xs ${item.isMe ? 'text-white opacity-70' : 'text-gray-400'} truncate`}>
+                                                                {item.replyTo.content || 'Message'}
+                                                            </p>
+                                                        </div>
+                                                    )}
+
+                                                    {item.isDeleted ? (
+                                                        <div className="flex flex-col">
+                                                            <p className="text-sm sm:text-base italic text-gray-500 flex items-center">
+                                                                <IoTrashOutline className="inline mr-2" />
+                                                                This message was deleted
+                                                            </p>
+                                                            {item.deletedAt && (
+                                                                <p className="text-xs text-gray-600 mt-1">
+                                                                    Deleted at {formatMessageTime(item.deletedAt)}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <p className={`text-sm sm:text-base leading-relaxed whitespace-pre-wrap ${item.isMe ? 'text-white' : 'text-white'}`}
+                                                            style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                                                            {item.text}
+                                                        </p>
+                                                    )}
+                                                    {item.isEncrypted && !item.isDeleted && (
+                                                        <IoLockClosed className={`ml-2 mt-1 text-xs flex-shrink-0 ${item.isMe ? 'text-white opacity-70' : 'text-gray-400'}`} />
+                                                    )}
+                                                </div>
+
+                                                {/* Three-dot menu (show for all messages except temp ones) */}
+                                                {!item.isDeleted && !item.id.toString().startsWith('temp-') && (
+                                                    <div className="ml-2 flex-shrink-0 relative message-menu">
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                copyMessageText(item.text);
+                                                                setShowMessageMenu(showMessageMenu === item.id ? null : item.id);
                                                             }}
-                                                            className={`w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2 ${item.isMe ? '' : 'rounded-t-lg'}`}
+                                                            className="p-1 hover:bg-white hover:bg-opacity-20 rounded transition-opacity"
+                                                            title="Options"
                                                         >
-                                                            <IoCopyOutline className="text-base" />
-                                                            <span className="text-sm">Copy</span>
+                                                            <IoEllipsisVertical className="text-white text-base" />
                                                         </button>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                startReplyMessage(item);
-                                                            }}
-                                                            className={`w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2 ${item.isMe ? '' : 'rounded-b-lg'}`}
-                                                        >
-                                                            <IoArrowUndoOutline className="text-base" />
-                                                            <span className="text-sm">Reply</span>
-                                                        </button>
-                                                        {item.isMe && (
-                                                            <>
+
+                                                        {/* Dropdown menu */}
+                                                        {showMessageMenu === item.id && (
+                                                            <div className="absolute right-0 top-8 bg-[#2d2d2d] border border-gray-700 rounded-lg shadow-xl z-50 min-w-[120px]">
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
-                                                                        startEditMessage(item);
-                                                                        setShowMessageMenu(null);
+                                                                        copyMessageText(item.text);
                                                                     }}
-                                                                    className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2"
+                                                                    className={`w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2 ${item.isMe ? '' : 'rounded-t-lg'}`}
                                                                 >
-                                                                    <IoCreateOutline className="text-base" />
-                                                                    <span className="text-sm">Edit</span>
+                                                                    <IoCopyOutline className="text-base" />
+                                                                    <span className="text-sm">Copy</span>
                                                                 </button>
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
-                                                                        handleDeleteMessage(item.id);
-                                                                        setShowMessageMenu(null);
+                                                                        startReplyMessage(item);
                                                                     }}
-                                                                    className="w-full px-4 py-2 text-left text-red-400 hover:bg-gray-700 flex items-center gap-2 rounded-b-lg"
-                                                                    title="Delete"
+                                                                    className={`w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2 ${item.isMe ? '' : 'rounded-b-lg'}`}
                                                                 >
-                                                                    <IoTrashOutline className="text-base" />
-                                                                    <span className="text-sm">Delete</span>
+                                                                    <IoArrowUndoOutline className="text-base" />
+                                                                    <span className="text-sm">Reply</span>
                                                                 </button>
-                                                            </>
+                                                                {item.isMe && (
+                                                                    <>
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                startEditMessage(item);
+                                                                                setShowMessageMenu(null);
+                                                                            }}
+                                                                            className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2"
+                                                                        >
+                                                                            <IoCreateOutline className="text-base" />
+                                                                            <span className="text-sm">Edit</span>
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                handleDeleteMessage(item.id);
+                                                                                setShowMessageMenu(null);
+                                                                            }}
+                                                                            className="w-full px-4 py-2 text-left text-red-400 hover:bg-gray-700 flex items-center gap-2 rounded-b-lg"
+                                                                            title="Delete"
+                                                                        >
+                                                                            <IoTrashOutline className="text-base" />
+                                                                            <span className="text-sm">Delete</span>
+                                                                        </button>
+                                                                    </>
+                                                                )}
+                                                            </div>
                                                         )}
                                                     </div>
                                                 )}
                                             </div>
-                                        )}
-                                    </div>
 
-                                    {/* Time and Status */}
-                                    <div className="flex items-center justify-between mt-1.5">
-                                        <div className="flex items-center gap-1">
-                                            <p className={`text-xs ${item.isMe ? 'text-white opacity-70' : 'text-gray-400'}`}>
-                                                {item.time}
-                                            </p>
-                                            {item.isEdited && !item.isDeleted && (
-                                                <span className={`text-xs italic ${item.isMe ? 'text-white opacity-60' : 'text-gray-500'}`}>
-                                                    (edited)
-                                                </span>
-                                            )}
-                                        </div>
+                                            {/* Time and Status */}
+                                            <div className="flex items-center justify-between mt-1.5">
+                                                <div className="flex items-center gap-1">
+                                                    <p className={`text-xs ${item.isMe ? 'text-white opacity-70' : 'text-gray-400'}`}>
+                                                        {item.time}
+                                                    </p>
+                                                    {item.isEdited && !item.isDeleted && (
+                                                        <span className={`text-xs italic ${item.isMe ? 'text-white opacity-60' : 'text-gray-500'}`}>
+                                                            (edited)
+                                                        </span>
+                                                    )}
+                                                </div>
 
-                                        {/* Read receipts for sent messages */}
-                                        {item.isMe && !item.isDeleted && (
-                                            <div className="ml-2 flex items-center">
-                                                {item.isRead || item.status === 'read' ? (
-                                                    // Double tick - Blue (Read by receiver)
-                                                    <IoCheckmarkDone className="text-blue-500 text-base" title="Read" />
-                                                ) : item.status === 'sending' ? (
-                                                    // Single tick - Gray (Sending)
-                                                    <IoCheckmark className="text-gray-300 text-base animate-pulse" title="Sending" />
-                                                ) : (
-                                                    // Single tick - Gray (Sent but not read)
-                                                    <IoCheckmark className="text-gray-300 text-base" title="Sent" />
+                                                {/* Read receipts for sent messages */}
+                                                {item.isMe && !item.isDeleted && (
+                                                    <div className="ml-2 flex items-center">
+                                                        {item.isRead || item.status === 'read' ? (
+                                                            // Double tick - Blue (Read by receiver)
+                                                            <IoCheckmarkDone className="text-blue-500 text-base" title="Read" />
+                                                        ) : item.status === 'sending' ? (
+                                                            // Single tick - Gray (Sending)
+                                                            <IoCheckmark className="text-gray-300 text-base animate-pulse" title="Sending" />
+                                                        ) : (
+                                                            // Single tick - Gray (Sent but not read)
+                                                            <IoCheckmark className="text-gray-300 text-base" title="Sent" />
+                                                        )}
+                                                    </div>
                                                 )}
                                             </div>
-                                        )}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    );
-                })
+                            </>
+                        );
+                    })}
+                    {typingUsers.length > 0 && <TypingIndicator />}
+                    <div ref={messagesEndRef} />
+                </>
             )}
-
-                {typingUsers.length > 0 && <TypingIndicator />}
-                <div ref={messagesEndRef} />
             </div>
 
             {/* Scroll to Bottom Button - Shows when scrolled up */}
-            {isUserScrolledUp && (
-                <button
-                    onClick={() => scrollToBottom(false)}
-                    className="absolute bottom-24 sm:bottom-28 right-4 sm:right-6 w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center shadow-lg z-50 hover:bg-gray-600 transition-colors"
-                >
-                    <IoArrowDown className="text-white text-xl" />
-                    {/* Red dot badge for unread messages */}
-                    {newMessageCount > 0 && (
-                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full border-2 border-[#1a1a1a] flex items-center justify-center">
-                            <span className="text-white text-xs font-bold"></span>
-                        </span>
-                    )}
-                </button>
-            )}
+            {
+                isUserScrolledUp && (
+                    <button
+                        onClick={() => scrollToBottom(false)}
+                        className="absolute bottom-24 sm:bottom-28 right-4 sm:right-6 w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center shadow-lg z-50 hover:bg-gray-600 transition-colors"
+                    >
+                        <IoArrowDown className="text-white text-xl" />
+                        {/* Red dot badge for unread messages */}
+                        {newMessageCount > 0 && (
+                            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full border-2 border-[#1a1a1a] flex items-center justify-center">
+                                <span className="text-white text-xs font-bold"></span>
+                            </span>
+                        )}
+                    </button>
+                )
+            }
 
             {/* Message Input - Sticky Bottom */}
             <div className="sticky bottom-0 z-10 bg-[#1a1a1a] px-3 sm:px-5 py-3 sm:py-4 border-t border-gray-800 shadow-lg">
@@ -1149,38 +1245,40 @@ export default function ChatDetailScreen() {
             </div>
 
             {/* Camera Modal */}
-            {showCamera && (
-                <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
-                    <div className="relative w-full h-full max-w-2xl max-h-[80vh] flex flex-col items-center justify-center p-4">
-                        {/* Close button */}
-                        <button
-                            onClick={closeCamera}
-                            className="absolute top-4 right-4 w-10 h-10 bg-red-500 rounded-full flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors z-10"
-                        >
-                            <IoCloseCircle className="text-white text-2xl" />
-                        </button>
+            {
+                showCamera && (
+                    <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
+                        <div className="relative w-full h-full max-w-2xl max-h-[80vh] flex flex-col items-center justify-center p-4">
+                            {/* Close button */}
+                            <button
+                                onClick={closeCamera}
+                                className="absolute top-4 right-4 w-10 h-10 bg-red-500 rounded-full flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors z-10"
+                            >
+                                <IoCloseCircle className="text-white text-2xl" />
+                            </button>
 
-                        {/* Video preview */}
-                        <video
-                            ref={videoRef}
-                            autoPlay
-                            playsInline
-                            className="w-full h-auto max-h-[70vh] rounded-lg shadow-2xl"
-                        />
+                            {/* Video preview */}
+                            <video
+                                ref={videoRef}
+                                autoPlay
+                                playsInline
+                                className="w-full h-auto max-h-[70vh] rounded-lg shadow-2xl"
+                            />
 
-                        {/* Capture button */}
-                        <button
-                            onClick={capturePhoto}
-                            className="mt-6 w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg hover:bg-gray-200 transition-colors"
-                        >
-                            <IoCamera className="text-gray-800 text-3xl" />
-                        </button>
+                            {/* Capture button */}
+                            <button
+                                onClick={capturePhoto}
+                                className="mt-6 w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg hover:bg-gray-200 transition-colors"
+                            >
+                                <IoCamera className="text-gray-800 text-3xl" />
+                            </button>
 
-                        {/* Hidden canvas for capturing */}
-                        <canvas ref={canvasRef} className="hidden" />
+                            {/* Hidden canvas for capturing */}
+                            <canvas ref={canvasRef} className="hidden" />
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
         </div>
     );
 }
