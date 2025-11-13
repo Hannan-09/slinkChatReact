@@ -31,19 +31,10 @@ export default function ChatsScreen() {
             const rawUserId = localStorage.getItem('userId');
             const rawUser = localStorage.getItem('user');
             const isLoggedIn = localStorage.getItem('isLoggedIn');
-
-            console.log('Raw userId from localStorage:', rawUserId);
-            console.log('Raw user from localStorage:', rawUser);
-            console.log('IsLoggedIn flag:', isLoggedIn);
-
             // Get stored userId from login
             const userId = await ApiUtils.getCurrentUserId();
-            console.log('Retrieved userId:', userId);
-
             // Also check if user data exists as backup
             const userData = await ApiUtils.getStoredUser();
-            console.log('Retrieved user data:', userData);
-
             // Try to get userId from multiple sources
             let finalUserId = userId || userData?.userId || userData?.id;
 
@@ -53,15 +44,10 @@ export default function ChatsScreen() {
             }
 
             if (!finalUserId) {
-                console.log('No userId found in any format, redirecting to login');
                 alert('User not logged in. Please login again.');
                 navigate('/login');
                 return;
             }
-
-            console.log('Using finalUserId:', finalUserId);
-            console.log('Loading chat rooms for userId:', finalUserId);
-
             // Call the real API
             const response = await chatApiService.getAllChatRooms(finalUserId, {
                 pageNumber: 1,
@@ -69,9 +55,6 @@ export default function ChatsScreen() {
                 sortBy: 'createdAt',
                 sortDirection: 'desc',
             });
-
-            console.log('Chat rooms API response:', response);
-
             // Transform API response to match UI expectations
             const transformedChatRooms =
                 response.data?.map((room) => {
@@ -84,16 +67,6 @@ export default function ChatsScreen() {
                     const otherUserProfileURL = isCurrentUserUser1
                         ? room.user2ProfileURL
                         : room.userProfileURL;
-
-                    console.log('=== CHAT ROOM TRANSFORMATION ===');
-                    console.log('Room data:', room);
-                    console.log('Current user ID:', finalUserId);
-                    console.log('Is current user User1?', isCurrentUserUser1);
-                    console.log('Other user name:', otherUserName);
-                    console.log('Other user ID (receiverId):', otherUserId);
-                    console.log('ChatRoomId:', room.chatRoomId);
-                    console.log('=== END TRANSFORMATION ===');
-
                     return {
                         id: room.chatRoomId?.toString(),
                         chatRoomId: room.chatRoomId,
@@ -153,12 +126,6 @@ export default function ChatsScreen() {
 
     const handleChatClick = (item) => {
         try {
-            console.log('Navigating to chat:', {
-                chatRoomId: item.chatRoomId,
-                receiverId: item.receiverId,
-                name: item.name,
-            });
-
             navigate(
                 `/chat/${item.chatRoomId || 0}?name=${encodeURIComponent(
                     item.name || 'Unknown'

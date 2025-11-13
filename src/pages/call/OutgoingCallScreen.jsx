@@ -17,13 +17,10 @@ export default function OutgoingCallScreen() {
     // Initiate call on mount
     useEffect(() => {
         if (!callInitiated && receiverId) {
-            console.log('=== OUTGOING CALL SCREEN MOUNTED ===');
-            console.log('Receiver ID:', receiverId);
             setCallInitiated(true);
 
             // Simulate call initiation
             (async () => {
-                console.log('Initiating call NOW...');
                 try {
                     // Simulate call states
                     setCallStatus('ringing');
@@ -44,7 +41,6 @@ export default function OutgoingCallScreen() {
     // Cleanup: Stop any ringtone when component unmounts
     useEffect(() => {
         return () => {
-            console.log('Outgoing call screen unmounting - ensuring ringtone stops');
         };
     }, []);
 
@@ -60,7 +56,6 @@ export default function OutgoingCallScreen() {
                 { replace: true }
             );
         } else if (callStatus === 'ended') {
-            console.log('Call ended in outgoing screen, navigating back');
             navigate(-1);
         }
     }, [callStatus]);

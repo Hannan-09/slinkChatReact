@@ -40,9 +40,6 @@ export default function RequestsScreen() {
     const loadRequests = async (userId) => {
         setLoading(true);
         try {
-            console.log('=== LOADING CHAT REQUESTS ===');
-            console.log('Current userId:', userId);
-
             // Load received requests (type = "received")
             const receivedResult = await ChatRequestAPI.getAllChatRequests(
                 userId,
@@ -56,15 +53,8 @@ export default function RequestsScreen() {
                 'PENDING',
                 'sent'
             );
-
-            console.log('=== API RESULTS ===');
-            console.log('Received result:', receivedResult);
-            console.log('Sent result:', sentResult);
-
             if (receivedResult.success) {
                 const receivedRequests = receivedResult.data?.data || [];
-                console.log('Received requests from API:', receivedRequests.length);
-                console.log('Received requests data:', receivedRequests);
                 setReceivedRequests(receivedRequests);
             } else {
                 console.error('Failed to load received requests:', receivedResult.error);
@@ -73,15 +63,11 @@ export default function RequestsScreen() {
 
             if (sentResult.success) {
                 const sentRequests = sentResult.data?.data || [];
-                console.log('Sent requests from API:', sentRequests.length);
-                console.log('Sent requests data:', sentRequests);
                 setSentRequests(sentRequests);
             } else {
                 console.error('Failed to load sent requests:', sentResult.error);
                 setSentRequests([]);
             }
-
-            console.log('=== END LOADING ===');
         } catch (error) {
             console.error('Error loading requests:', error);
             alert('Failed to load chat requests');

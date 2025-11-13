@@ -5,8 +5,6 @@ import SockJS from "sockjs-client";
 const WEBSOCKET_URL = "http://192.168.0.189:8008/ws";
 
 export default function useStompSocket(options = {}) {
-  console.log("🚀 useStompSocket HOOK CALLED with options:", options);
-
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState(null);
@@ -56,22 +54,21 @@ export default function useStompSocket(options = {}) {
     setError(null);
 
     try {
-      console.log("=== WEBSOCKET CONNECTION ATTEMPT ===");
-      console.log("WebSocket URL:", WEBSOCKET_URL);
-      console.log("=== END CONNECTION ATTEMPT ===");
+      // Get userId from localStorage for presence tracking
+      const userId = localStorage.getItem("userId");
+      const connectHeaders = userId ? { userId: userId } : {};
 
       const client = new Client({
         webSocketFactory: () => new SockJS(WEBSOCKET_URL),
-        connectHeaders: {},
+        connectHeaders: connectHeaders,
         debug: config.debug ? (str) => log(str, "debug") : undefined,
-        reconnectDelay: config.reconnectInterval,
-        heartbeatIncoming: 10000,
-        heartbeatOutgoing: 10000,
+        reconnectDelay: 5000,
+        heartbeatIncoming: 20000,
+        heartbeatOutgoing: 20000,
       });
 
       client.onConnect = (frame) => {
         log("✅ Connected to STOMP server");
-        console.log("✅ WebSocket Connected Successfully!");
         setConnected(true);
         setConnecting(false);
         setError(null);
@@ -97,7 +94,6 @@ export default function useStompSocket(options = {}) {
 
       client.onDisconnect = (frame) => {
         log("Disconnected from STOMP server");
-        console.log("⚠️ WebSocket Disconnected");
         setConnected(false);
         setConnecting(false);
 
@@ -117,7 +113,6 @@ export default function useStompSocket(options = {}) {
       };
 
       clientRef.current = client;
-      console.log("🔌 Activating WebSocket client...");
       client.activate();
     } catch (error) {
       log(`Connection failed: ${error.message}`, "error");
@@ -194,8 +189,7 @@ export default function useStompSocket(options = {}) {
                 id:
                   actualMessage.chatMessageId ||
                   actualMessage.id ||
-                  actualMessage.messageId ||
-                  `ws-${Date.now()}-${Math.random()}`,
+                  actualMessage.messageId,
                 timestamp:
                   actualMessage.sentAt ||
                   actualMessage.timestamp ||
@@ -275,8 +269,6 @@ export default function useStompSocket(options = {}) {
   const sendMessage = useCallback(
     (chatRoomId, senderId, receiverId, messageData) => {
       const destination = `/app/chat/${chatRoomId}/${senderId}/${receiverId}`;
-      console.log("📤 Sending message to:", destination);
-
       // Build the payload with all fields from messageData
       const payload = {
         content: messageData.content,
@@ -289,11 +281,6 @@ export default function useStompSocket(options = {}) {
         attachments: messageData.attachments || [],
       };
 
-      console.log(
-        "📤 Full payload being sent:",
-        JSON.stringify(payload, null, 2)
-      );
-
       return publish(destination, payload);
     },
     [publish]
@@ -302,7 +289,6 @@ export default function useStompSocket(options = {}) {
   const subscribeToChat = useCallback(
     (chatRoomId, receiverId, callback) => {
       const destination = `/topic/chat/${chatRoomId}/${receiverId}`;
-      console.log("📡 Subscribing to chat:", destination);
       return subscribe(destination, callback);
     },
     [subscribe]
@@ -326,97 +312,66 @@ export default function useStompSocket(options = {}) {
   }, [log]);
 
   // Initialize connection only once
-  const isInitializedRef = useRef(false);
+  const hasInitializedRef = useRef(false);
 
   useEffect(() => {
-    console.log(
-      "🔌 useStompSocket: Effect triggered - enabled:",
-      config.enabled,
-      "initialized:",
-      isInitializedRef.current
-    );
-
-    // Don't connect if disabled
     if (!config.enabled) {
-      console.log("🔌 useStompSocket: Disabled, skipping connection...");
-      // Reset initialization flag when disabled so it can connect when enabled
-      isInitializedRef.current = false;
+      hasInitializedRef.current = false;
       return;
     }
 
-    // Prevent double initialization
-    if (isInitializedRef.current) {
-      console.log("🔌 useStompSocket: Already initialized, skipping...");
+    // Prevent multiple initializations
+    if (hasInitializedRef.current) {
       return;
     }
 
-    console.log("🔌 useStompSocket: Initializing connection...");
-
-    if (clientRef.current?.connected || connecting) {
-      console.log("Already connected or connecting, skipping...");
-      return;
+    // Only connect if not already connected or connecting
+    if (!clientRef.current?.connected && !connecting) {
+      hasInitializedRef.current = true;
+      connect();
     }
-
-    isInitializedRef.current = true;
-    setConnecting(true);
-    setError(null);
-
-    // Get userId from localStorage for presence tracking
-    const userId = localStorage.getItem("userId");
-    const connectHeaders = userId ? { userId: userId } : {};
-    console.log("Connecting with headers:", connectHeaders);
-
-    const client = new Client({
-      webSocketFactory: () => new SockJS(WEBSOCKET_URL),
-      connectHeaders: connectHeaders,
-      debug: config.debug
-        ? (str) => console.log(`[STOMP DEBUG]:`, str)
-        : undefined,
-      reconnectDelay: 0, // Disable auto-reconnect
-      heartbeatIncoming: 20000, // Expect server heartbeat every 20 seconds
-      heartbeatOutgoing: 20000, // Send client heartbeat every 20 seconds
-    });
-
-    client.onConnect = () => {
-      console.log("✅ WebSocket Connected Successfully!");
-      setConnected(true);
-      setConnecting(false);
-      setError(null);
-    };
-
-    client.onStompError = (frame) => {
-      console.error("❌ STOMP ERROR:", frame);
-      setError(`STOMP error: ${frame.headers?.message || "Unknown error"}`);
-      setConnecting(false);
-    };
-
-    client.onWebSocketError = (evt) => {
-      console.error("❌ WEBSOCKET ERROR:", evt);
-      setError("WebSocket connection error");
-      setConnecting(false);
-    };
-
-    client.onDisconnect = () => {
-      console.log("⚠️ WebSocket Disconnected");
-      setConnected(false);
-      setConnecting(false);
-    };
-
-    clientRef.current = client;
-    console.log("🔌 Activating WebSocket client...");
-    client.activate();
 
     return () => {
-      console.log("🧹 useStompSocket: Cleaning up on unmount...");
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
-      // Disconnect when app closes
       if (clientRef.current) {
         clientRef.current.deactivate();
       }
     };
-  }, [config.enabled]); // React to enabled flag changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.enabled]); // Only depend on enabled flag
+
+  // Handle browser tab visibility changes (sleep/wake)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && config.enabled) {
+        // If not connected, reconnect
+        if (!clientRef.current?.connected && !connecting) {
+          connect();
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.enabled]); // Don't include connect to avoid infinite loops
+
+  // Periodic stale connection check (every 30 seconds)
+  useEffect(() => {
+    if (!config.enabled) return;
+
+    const interval = setInterval(() => {
+      if (clientRef.current && !clientRef.current.connected && !connecting) {
+        connect();
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.enabled, connecting]); // Don't include connect to avoid infinite loops
 
   return {
     connected,

@@ -8,7 +8,6 @@ const CallService = {
    * Store current call globally
    */
   setCurrentCall(callData) {
-    console.log("📞 Storing call data:", callData);
     currentCallData = callData;
   },
 
@@ -23,7 +22,6 @@ const CallService = {
    * Clear stored call data
    */
   clearCurrentCall() {
-    console.log("🧹 Clearing call data");
     currentCallData = null;
   },
 
@@ -32,8 +30,6 @@ const CallService = {
    */
   playRingtone() {
     try {
-      console.log("🔔 Playing ringtone...");
-
       // Stop existing ringtone if already playing
       this.stopRingtone();
 
@@ -48,14 +44,10 @@ const CallService = {
       if (playPromise !== undefined) {
         playPromise
           .then(() => {
-            console.log("✅ Ringtone started");
           })
           .catch((err) => {
             console.warn("⚠️ Ringtone playback failed:", err);
             // Autoplay might be blocked by browser
-            console.log(
-              "Note: Browser may block autoplay. User interaction required."
-            );
           });
       }
     } catch (e) {
@@ -69,11 +61,9 @@ const CallService = {
   stopRingtone() {
     try {
       if (ringtoneAudio) {
-        console.log("🛑 Stopping ringtone...");
         ringtoneAudio.pause();
         ringtoneAudio.currentTime = 0;
         ringtoneAudio = null;
-        console.log("🧹 Ringtone stopped and released");
       }
     } catch (e) {
       console.error("Error stopping ringtone:", e);
@@ -86,8 +76,6 @@ const CallService = {
    */
   playEndTone() {
     try {
-      console.log("🔚 Playing call end tone...");
-
       // Create audio element for end tone
       endToneAudio = new Audio("/sounds/call_end.mp3");
       endToneAudio.volume = 1.0;
@@ -98,7 +86,6 @@ const CallService = {
       if (playPromise !== undefined) {
         playPromise
           .then(() => {
-            console.log("✅ End tone played");
           })
           .catch((err) => {
             console.warn("⚠️ End tone failed:", err);

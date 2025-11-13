@@ -4,7 +4,7 @@ export const Colors = {
   textWhite: '#ffffff',
   textGray: '#9ca3af',
   textLightGray: '#6b7280',
-  accentOrange: '#f97316',
+  accentOrange: '#2907bdff',
   error: '#ef4444',
   success: '#4ade80',
 };

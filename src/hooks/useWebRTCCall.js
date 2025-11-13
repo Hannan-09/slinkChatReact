@@ -31,27 +31,20 @@ export default function useWebRTCCall() {
         }
 
         const destination = `/topic/call/${userId}`;
-        console.log("📡 Subscribing to call signals:", destination);
-
         const subscription = await subscribe(destination, async (message) => {
           const { signalType, signalData } = message || {};
-          console.log("📨 Call Signal Received:", signalType);
-
           switch (signalType) {
             case "call-request":
               await handleIncomingCall(signalData);
               break;
             case "call-accept":
-              console.log("✅ Call accepted by receiver");
               setCallStatus("connecting");
               startTimer();
               break;
             case "call-reject":
-              console.log("❌ Call rejected by receiver");
               endCallCleanup();
               break;
             case "call-end":
-              console.log("📴 Call ended by other user");
               endCallCleanup();
               break;
             case "offer":
@@ -64,7 +57,6 @@ export default function useWebRTCCall() {
               await handleIceCandidate(signalData);
               break;
             default:
-              console.log("Unknown signal type:", signalType);
           }
         });
 
@@ -109,7 +101,6 @@ export default function useWebRTCCall() {
    *  SIGNAL HANDLERS (Offer, Answer, ICE)
    * --------------------------------------------- */
   const handleIncomingCall = async (callData) => {
-    console.log("🔔 Incoming call detected:", callData);
     setCurrentCall(callData);
     setCallStatus("ringing");
 
@@ -120,20 +111,17 @@ export default function useWebRTCCall() {
   };
 
   const handleOffer = async (offerData) => {
-    console.log("📨 Handling WebRTC Offer...");
     // WebRTC offer handling logic
     setCallStatus("connecting");
   };
 
   const handleAnswer = async (answerData) => {
-    console.log("📨 Handling WebRTC Answer...");
     // WebRTC answer handling logic
     setCallStatus("connected");
     startTimer();
   };
 
   const handleIceCandidate = async (candidateData) => {
-    console.log("📨 Handling ICE candidate...");
     // WebRTC ICE candidate handling logic
   };
 
@@ -143,8 +131,6 @@ export default function useWebRTCCall() {
   const initiateOutgoingCall = useCallback(
     async (receiverId, receiverName, receiverAvatar, isVideoCall) => {
       try {
-        console.log("📞 Initiating outgoing call to:", receiverId);
-
         const { ApiUtils } = await import("../services/AuthService");
         const callerId = await ApiUtils.getCurrentUserId();
         const callerName = localStorage.getItem("userName") || "You";
@@ -186,8 +172,6 @@ export default function useWebRTCCall() {
 
   const acceptIncomingCall = useCallback(async () => {
     try {
-      console.log("✅ Accepting call...");
-
       const call = currentCall;
       if (!call) throw new Error("No call to accept");
 
@@ -212,8 +196,6 @@ export default function useWebRTCCall() {
   const rejectIncomingCall = useCallback(
     async (reason = "declined") => {
       try {
-        console.log("❌ Rejecting call...");
-
         const call = currentCall;
         if (!call) return;
 
@@ -237,8 +219,6 @@ export default function useWebRTCCall() {
 
   const endCurrentCall = useCallback(async () => {
     try {
-      console.log("📴 Ending call...");
-
       const call = currentCall;
       if (!call) return endCallCleanup();
 
@@ -263,13 +243,11 @@ export default function useWebRTCCall() {
    * --------------------------------------------- */
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => !prev);
-    console.log("Mute toggled:", !isMuted);
     // WebRTC mute logic here
   }, [isMuted]);
 
   const toggleSpeaker = useCallback(() => {
     setIsSpeakerOn((prev) => !prev);
-    console.log("Speaker toggled:", !isSpeakerOn);
     // WebRTC speaker logic here
   }, [isSpeakerOn]);
 

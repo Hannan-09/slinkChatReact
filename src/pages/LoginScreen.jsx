@@ -22,7 +22,6 @@ export default function LoginScreen() {
 
     // Clear login state when component mounts (user is on login page)
     useEffect(() => {
-        console.log('🔐 LoginScreen mounted - clearing login state');
         localStorage.removeItem('isLoggedIn');
         // Dispatch logout event to disconnect WebSocket
         window.dispatchEvent(new Event('userLoggedOut'));
@@ -31,12 +30,8 @@ export default function LoginScreen() {
     const handleLogin = async () => {
         setLoading(true);
         try {
-            console.log(email, password);
             const result = await AuthAPI.login(email, password);
-            console.log('result', result);
-
             if (result.success) {
-                console.log('Login successful, showing private key verification');
                 setShowPrivateKeyModal(true);
             } else {
                 alert(result.error || 'Login Failed');
@@ -80,22 +75,12 @@ export default function LoginScreen() {
                 setVerifyingKey(false);
                 return;
             }
-
-            console.log('Verifying private key...');
-            console.log('User entered key:', privateKey);
-
             // Decrypt the stored private key
             const storedPlainKey = EncryptionService.decrypt(storedEncryptedKey);
-            console.log("Decrypted stored key:", storedPlainKey);
-
             // Compare the entered key with the decrypted stored key
             if (privateKey === storedPlainKey) {
-                console.log('Private key verification successful!');
-
                 try {
                     localStorage.setItem('isLoggedIn', 'true');
-                    console.log('User session confirmed after private key verification');
-
                     // Dispatch custom event to trigger WebSocket connection
                     window.dispatchEvent(new Event('userLoggedIn'));
                 } catch (sessionError) {
@@ -105,7 +90,6 @@ export default function LoginScreen() {
                 setShowPrivateKeyModal(false);
                 navigate('/chats');
             } else {
-                console.log('Private key verification failed!');
                 setPrivateKeyError('Invalid private key. Please try again.');
             }
         } catch (error) {

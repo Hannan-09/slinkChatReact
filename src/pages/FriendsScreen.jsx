@@ -65,8 +65,6 @@ export default function FriendsScreen() {
                 } else if (Array.isArray(responseData)) {
                     requests = responseData;
                 }
-
-                console.log('Received chat requests for badge:', requests.length);
                 setChatRequests(requests);
             } else {
                 console.error('Failed to load chat requests:', result.error);
@@ -94,18 +92,12 @@ export default function FriendsScreen() {
 
         setSearchLoading(true);
         try {
-            console.log('Searching users with query:', query);
-            console.log('Current user ID:', currentUserId);
-
             const result = await UserAPI.searchUsers(
                 query,
                 currentUserId,
                 pageNumber,
                 size
             );
-
-            console.log('Search API response:', result);
-
             if (result.success) {
                 const responseData = result.data;
                 let users = [];
@@ -115,9 +107,6 @@ export default function FriendsScreen() {
                 } else if (Array.isArray(responseData)) {
                     users = responseData;
                 }
-
-                console.log('Processed search results:', users);
-
                 const transformedUsers = users.map((user) => ({
                     id: user.userId || user.id,
                     name:
@@ -134,8 +123,6 @@ export default function FriendsScreen() {
                     chatRequestStatus: user.chatRequestStatus || null,
                     friendRequestSent: user.friendRequestSent || false,
                 }));
-
-                console.log('Transformed users:', transformedUsers);
                 setSearchResults(transformedUsers);
             } else {
                 console.error('Search failed:', result.error);
@@ -170,16 +157,10 @@ export default function FriendsScreen() {
 
     const startChat = async (friend) => {
         try {
-            console.log('=== STARTING CHAT ===');
-            console.log('Friend data:', friend);
-            console.log('Current user ID:', currentUserId);
-
             if (!currentUserId) {
                 alert('User not logged in');
                 return;
             }
-
-            console.log('Looking for existing chat room...');
             try {
                 const chatRoomsResult = await chatApiService.getAllChatRooms(
                     currentUserId,
@@ -200,7 +181,6 @@ export default function FriendsScreen() {
                     });
 
                     if (existingChatRoom) {
-                        console.log('Found existing chat room:', existingChatRoom.chatRoomId);
                         navigate(
                             `/chat/${existingChatRoom.chatRoomId}?name=${encodeURIComponent(
                                 friend.name
@@ -212,10 +192,7 @@ export default function FriendsScreen() {
                     }
                 }
             } catch (chatRoomError) {
-                console.log('Error loading chat rooms:', chatRoomError);
             }
-
-            console.log('No existing chat room found, navigating with friend ID...');
             navigate(
                 `/chat/${friend.id}?name=${encodeURIComponent(
                     friend.name
@@ -235,10 +212,6 @@ export default function FriendsScreen() {
         }
 
         try {
-            console.log('=== SENDING CHAT REQUEST ===');
-            console.log('SenderId (currentUserId):', currentUserId);
-            console.log('ReceiverId:', receiverId);
-
             const requestData = {
                 message: "Hi! I'd like to connect with you on SlinkChat.",
             };
@@ -248,9 +221,6 @@ export default function FriendsScreen() {
                 receiverId,
                 requestData
             );
-
-            console.log('Chat request API result:', result);
-
             if (result.success) {
                 alert('Chat request sent!');
                 setSearchResults((prev) =>

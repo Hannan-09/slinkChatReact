@@ -121,7 +121,6 @@ class ChatApiService {
     });
 
     const url = `${this.baseUrl}/chat/rooms/get-all/${userId}?${params}`;
-    console.log("Making API request to:", url);
     return this.fetchWithErrorHandling(url);
   }
 
@@ -135,21 +134,12 @@ class ChatApiService {
     });
 
     const url = `${this.baseUrl}/chat/rooms/messages/${chatRoomId}/${userId}?${params}`;
-    console.log("Making API request to:", url);
     return this.fetchWithErrorHandling(url);
   }
 
   // Send message via API (fallback if WebSocket fails)
   async sendMessage(chatRoomId, senderId, receiverId, messageData) {
     const url = `${this.baseUrl}/chat/rooms/messages/send`;
-
-    console.log("Sending message via API:", {
-      chatRoomId,
-      senderId,
-      receiverId,
-      messageData,
-    });
-
     return this.fetchWithErrorHandling(url, {
       method: "POST",
       body: JSON.stringify({
@@ -165,13 +155,6 @@ class ChatApiService {
   // Mark messages as read
   async markMessagesAsRead(chatRoomId, userId, messageIds) {
     const url = `${this.baseUrl}/chat/rooms/messages/mark-read`;
-
-    console.log("Marking messages as read:", {
-      chatRoomId,
-      userId,
-      messageIds,
-    });
-
     return this.fetchWithErrorHandling(url, {
       method: "POST",
       body: JSON.stringify({

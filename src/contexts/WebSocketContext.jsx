@@ -44,7 +44,6 @@ export function WebSocketProvider({ children }) {
             const userId = localStorage.getItem('userId');
             const isLoggedInFlag = localStorage.getItem('isLoggedIn');
             const loggedIn = !!(userId && isLoggedInFlag === 'true');
-            console.log('🔐 Login status check:', { userId, isLoggedInFlag, loggedIn });
             setIsLoggedIn(loggedIn);
         };
 
@@ -55,7 +54,6 @@ export function WebSocketProvider({ children }) {
 
         // Custom event for login
         const handleLogin = () => {
-            console.log('🔐 userLoggedIn event received');
             checkLoginStatus();
         };
         window.addEventListener('userLoggedIn', handleLogin);
@@ -67,9 +65,6 @@ export function WebSocketProvider({ children }) {
             window.removeEventListener('userLoggedOut', handleLogin);
         };
     }, []);
-
-    console.log('🔐 WebSocketProvider render - isLoggedIn:', isLoggedIn);
-
     // Only initialize WebSocket if user is logged in
     const socket = useStompSocket({
         maxReconnectAttempts: 5,
@@ -89,17 +84,13 @@ export function WebSocketProvider({ children }) {
 
         // Prevent multiple subscriptions
         if (hasSubscribedRef.current) {
-            console.log('🌐 Already subscribed to presence, skipping...');
             return;
         }
 
-        console.log('🌐 Subscribing to global presence updates (ONCE)');
         hasSubscribedRef.current = true;
 
         // Subscribe to presence topic globally - only one subscription for entire app
         const presenceSubscription = socket.subscribe('/topic/presence', (presenceMsg) => {
-            console.log('🌐 Global presence update:', presenceMsg);
-
             // Parse the message: "userId is ONLINE" or "userId is OFFLINE"
             const messageStr = typeof presenceMsg === 'string' ? presenceMsg : String(presenceMsg);
             const parts = messageStr.split(' is ');
@@ -110,10 +101,8 @@ export function WebSocketProvider({ children }) {
 
                 if (status === 'ONLINE') {
                     onlineUsersState.setOnline(userId);
-                    console.log(`✅ User ${userId} is now ONLINE`);
                 } else if (status === 'OFFLINE') {
                     onlineUsersState.setOffline(userId);
-                    console.log(`❌ User ${userId} is now OFFLINE`);
                 }
             }
         });
@@ -121,7 +110,6 @@ export function WebSocketProvider({ children }) {
         return () => {
             if (presenceSubscription) {
                 socket.unsubscribe('/topic/presence');
-                console.log('🌐 Unsubscribed from global presence');
                 hasSubscribedRef.current = false;
             }
         };
@@ -155,7 +143,6 @@ export function useUserOnlineStatus(userId) {
         // If not in state and socket is connected, assume online initially
         // (they might have connected before we subscribed)
         if (!currentlyOnline && socket.connected && userId) {
-            console.log(`🔍 User ${userId} not in state, assuming online initially`);
             // Optimistically set as online, will be corrected if they go offline
             onlineUsersState.setOnline(userId);
             setIsOnline(true);

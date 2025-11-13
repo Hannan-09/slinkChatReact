@@ -16,15 +16,12 @@ export default function IncomingCallScreen() {
 
     // Cleanup: Stop ringtone when component unmounts
     useEffect(() => {
-        console.log('Incoming call screen mounted');
-
         // Play ringtone (you can add audio here)
         // const audio = new Audio('/ringtone.mp3');
         // audio.loop = true;
         // audio.play();
 
         return () => {
-            console.log('Incoming call screen unmounting - FORCE STOP RINGTONE');
             // Stop ringtone
             // audio.pause();
             // audio.currentTime = 0;
@@ -37,7 +34,6 @@ export default function IncomingCallScreen() {
 
         if (callStatus === 'connecting' || callStatus === 'connected') {
             setIsNavigating(true);
-            console.log('Call connecting/connected, navigating to active screen');
             navigate(
                 `/call/active?callerId=${callerId}&callerName=${encodeURIComponent(
                     callerName
@@ -47,7 +43,6 @@ export default function IncomingCallScreen() {
             );
         } else if (callStatus === 'ended') {
             setIsNavigating(true);
-            console.log('Call ended, navigating back');
             navigate(-1);
         }
     }, [callStatus, isNavigating]);
@@ -55,7 +50,6 @@ export default function IncomingCallScreen() {
     // Handle accept call
     const handleAccept = async () => {
         try {
-            console.log('Accept button pressed');
             // Stop ringtone
             setCallStatus('connecting');
         } catch (error) {
@@ -67,7 +61,6 @@ export default function IncomingCallScreen() {
     // Handle reject call
     const handleReject = async () => {
         try {
-            console.log('Reject button pressed');
             setIsNavigating(true);
             setCallStatus('ended');
             navigate(-1);

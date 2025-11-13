@@ -7,12 +7,9 @@ export default function CallListener() {
     const { currentCall, callStatus } = useWebRTCCall();
 
     useEffect(() => {
-        console.log('CallListener - Status:', callStatus);
-        console.log('CallListener - Current Call:', currentCall);
 
         // Navigate to incoming call screen when ringing
         if (callStatus === 'ringing' && currentCall) {
-            console.log('📞 Navigating to incoming call screen');
             navigate(
                 `/call/incoming?callerId=${currentCall.callerId}&callerName=${encodeURIComponent(
                     currentCall.callerName || 'Unknown'

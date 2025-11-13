@@ -39,7 +39,6 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${authToken}`;
     }
 
-    console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
     return config;
   },
   (error) => {
@@ -51,7 +50,6 @@ apiClient.interceptors.request.use(
 // Response interceptor for error handling
 apiClient.interceptors.response.use(
   (response) => {
-    console.log(`API Response: ${response.status} ${response.config.url}`);
     return response;
   },
   async (error) => {
@@ -74,25 +72,14 @@ export const AuthAPI = {
   // Login user
   login: async (email, password) => {
     try {
-      console.log("Attempting login with:", {
-        userName: email,
-        password: "***",
-      });
-
       const response = await apiClient.post("/users/login", {
         userName: email,
         password: password,
       });
-
-      console.log("Login API response:", response.data);
-
       if (response.data && response.data.statusCode === 200) {
         const userData = response.data.data;
 
         try {
-          console.log("Storing user data:", userData);
-          console.log("Storing userId:", userData.userId.toString());
-
           // Store user data in localStorage
           localStorage.setItem("user", JSON.stringify(userData));
           localStorage.setItem("userId", userData.userId.toString());
@@ -102,9 +89,6 @@ export const AuthAPI = {
           // Verify storage
           const storedUserId = localStorage.getItem("userId");
           const storedUser = localStorage.getItem("user");
-          console.log("Verified stored userId:", storedUserId);
-          console.log("Verified stored user:", storedUser);
-          console.log("User data stored successfully");
         } catch (storageError) {
           console.error("Storage error:", storageError);
         }
@@ -202,14 +186,9 @@ export const AuthAPI = {
   // Register private key for user
   registerPrivateKey: async (userId, encryptedPrivateKey) => {
     try {
-      console.log("Registering private key for userId:", userId);
-      console.log("Encrypted private key:", encryptedPrivateKey);
-
       const response = await apiClient.post(
         `/users/register/private-key/${userId}?pvt-key=${encryptedPrivateKey}`
       );
-
-      console.log("Private key registration response:", response.data);
       return { success: true, data: response.data };
     } catch (error) {
       console.error("Private key registration error:", error);
@@ -256,17 +235,7 @@ export const UserAPI = {
       const endpoint = `/users/search/${encodeURIComponent(
         searchText
       )}/${userId}?pageNumber=${pageNumber}&size=${size}`;
-
-      console.log("=== SEARCH USERS API CALL ===");
-      console.log("Endpoint:", endpoint);
-      console.log("SearchText:", searchText);
-      console.log("UserId:", userId);
-
       const response = await apiClient.get(endpoint);
-
-      console.log("Search API Response:", response.data);
-      console.log("=== END SEARCH USERS API CALL ===");
-
       return { success: true, data: response.data };
     } catch (error) {
       console.error("=== SEARCH USERS API ERROR ===");
@@ -301,18 +270,7 @@ export const ChatRequestAPI = {
   createChatRequest: async (senderId, receiverId, requestData) => {
     try {
       const endpoint = `/chat/requests/create/${senderId}/${receiverId}`;
-
-      console.log("=== CHAT REQUEST API CALL ===");
-      console.log("Endpoint:", endpoint);
-      console.log("SenderId:", senderId);
-      console.log("ReceiverId:", receiverId);
-      console.log("Request data:", requestData);
-
       const response = await apiClient.post(endpoint, requestData);
-
-      console.log("API Response:", response.data);
-      console.log("=== END CHAT REQUEST API CALL ===");
-
       return { success: true, data: response.data };
     } catch (error) {
       console.error("=== CHAT REQUEST API ERROR ===");
@@ -369,17 +327,7 @@ export const ChatRequestAPI = {
   ) => {
     try {
       const endpoint = `/chat/requests/get-all/${userId}?chatRequestStatus=${chatRequestStatus}&type=${type}&pageNumber=${pageNumber}&size=${size}&sortBy=${sortBy}&sortDirection=${sortDirection}`;
-
-      console.log("=== CHAT REQUESTS API CALL ===");
-      console.log("Endpoint:", endpoint);
-      console.log("UserId:", userId);
-      console.log("Status:", chatRequestStatus);
-      console.log("Type:", type);
-      console.log("=== END API CALL ===");
-
       const response = await apiClient.get(endpoint);
-
-      console.log("Chat requests API response:", response.data);
       return { success: true, data: response.data };
     } catch (error) {
       console.error("Chat requests API error:", error);
@@ -571,17 +519,13 @@ export const ApiUtils = {
     try {
       const userId = localStorage.getItem("userId");
       if (!userId) {
-        console.log("No userId found in localStorage");
         return null;
       }
 
       const parsedUserId = parseInt(userId);
       if (isNaN(parsedUserId)) {
-        console.log("Invalid userId format:", userId);
         return null;
       }
-
-      console.log("Retrieved userId from storage:", parsedUserId);
       return parsedUserId;
     } catch (error) {
       console.error("Error getting userId from storage:", error);

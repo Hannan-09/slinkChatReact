@@ -12,10 +12,6 @@ const WebRTCService = {
    * @returns {MediaStream}
    */
   async initLocalStream(isVideoCall = false) {
-    console.log("🎥 WebRTCService: Initializing local stream...", {
-      isVideoCall,
-    });
-
     try {
       const constraints = {
         audio: {
@@ -34,10 +30,6 @@ const WebRTCService = {
       };
 
       localStream = await navigator.mediaDevices.getUserMedia(constraints);
-
-      console.log("✅ Local stream initialized successfully");
-      console.log("Audio tracks:", localStream.getAudioTracks().length);
-      console.log("Video tracks:", localStream.getVideoTracks().length);
 
       return localStream;
     } catch (err) {
@@ -65,28 +57,24 @@ const WebRTCService = {
     // Handle ICE candidates
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        console.log("📨 WebRTCService: ICE candidate generated");
         if (onIceCandidate) onIceCandidate(event.candidate);
       }
     };
 
     // Handle remote track
     pc.ontrack = (event) => {
-      console.log("📹 WebRTCService: Remote track received");
       remoteStream = event.streams && event.streams[0];
       if (onRemoteTrack && remoteStream) onRemoteTrack(remoteStream);
     };
 
     // Monitor connection state
     pc.onconnectionstatechange = () => {
-      console.log("🔗 Connection state:", pc.connectionState);
       if (pc.connectionState === "failed") {
         console.error("❌ Connection failed - attempting ICE restart");
       }
     };
 
     pc.oniceconnectionstatechange = () => {
-      console.log("🧊 ICE connection state:", pc.iceConnectionState);
       if (pc.iceConnectionState === "disconnected") {
         console.warn("⚠️ ICE connection disconnected");
       } else if (pc.iceConnectionState === "failed") {
@@ -115,7 +103,6 @@ const WebRTCService = {
 
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    console.log("✅ SDP offer created");
     return offer;
   },
 
@@ -128,7 +115,6 @@ const WebRTCService = {
 
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
-    console.log("✅ SDP answer created");
     return answer;
   },
 
@@ -140,7 +126,6 @@ const WebRTCService = {
       );
 
     await pc.setRemoteDescription(desc);
-    console.log("✅ Remote description set");
   },
 
   /** Add an ICE candidate from peer */
@@ -152,7 +137,6 @@ const WebRTCService = {
 
     try {
       await pc.addIceCandidate(candidate);
-      console.log("✅ ICE candidate added");
     } catch (err) {
       console.warn("⚠️ Error adding ICE candidate:", err);
     }
@@ -165,7 +149,6 @@ const WebRTCService = {
     const audioTrack = localStream.getAudioTracks()[0];
     if (audioTrack) {
       audioTrack.enabled = !audioTrack.enabled;
-      console.log(`🎤 Microphone ${audioTrack.enabled ? "unmuted" : "muted"}`);
       return !audioTrack.enabled;
     }
     return false;
@@ -176,7 +159,6 @@ const WebRTCService = {
     try {
       // Web doesn't have direct speakerphone control
       // Audio output is managed by the browser
-      console.log(`🔊 Speakerphone ${enabled ? "ON" : "OFF"} (web default)`);
     } catch (err) {
       console.warn("⚠️ Error setting speakerphone state:", err);
     }
@@ -198,7 +180,6 @@ const WebRTCService = {
       if (pc) {
         pc.close();
         pc = null;
-        console.log("🧹 PeerConnection closed");
       }
 
       if (localStream && localStream.getTracks) {

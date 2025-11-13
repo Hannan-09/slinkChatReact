@@ -68,34 +68,21 @@ export default function SignupScreen() {
                 setPrivateKeyError('User ID not found. Please register again.');
                 return;
             }
-
-            console.log('Creating private key for userId:', storedUserId);
-
             // Encrypt the private key before sending to backend
             const EncryptionService = (await import('../services/EncryptionService')).default;
             const encryptedPrivateKey = EncryptionService.encrypt(privateKey);
-            console.log('Private key encrypted successfully');
-
             // Call the backend API to register the private key
             const result = await AuthAPI.registerPrivateKey(storedUserId, encryptedPrivateKey);
 
             if (result.success) {
-                console.log('Private key registered successfully on backend');
-                console.log('Backend response data:', result.data);
-
                 try {
                     const encryptedResponseData = result.data.data;
-                    console.log('Encrypted response data:', encryptedResponseData);
-
                     const decryptedData = EncryptionService.decrypt(encryptedResponseData);
-                    console.log('Decrypted response data:', decryptedData);
-
                     let extractedPrivateKey = null;
                     try {
                         const privateKeyMatch = decryptedData.match(/privateKey=([^,}]+)/);
                         if (privateKeyMatch && privateKeyMatch[1]) {
                             extractedPrivateKey = privateKeyMatch[1].trim();
-                            console.log('Extracted private key from backend data');
                         } else {
                             console.warn('Could not extract private key from decrypted data');
                             extractedPrivateKey = decryptedData;
@@ -107,13 +94,10 @@ export default function SignupScreen() {
 
                     localStorage.setItem('userPrivateKey', encryptedPrivateKey);
                     localStorage.setItem('decryptedBackendData', extractedPrivateKey);
-
-                    console.log('Private key data saved locally');
                 } catch (decryptionError) {
                     console.error('Error processing backend response:', decryptionError);
                     try {
                         localStorage.setItem('userPrivateKey', encryptedPrivateKey);
-                        console.log('Encrypted private key saved despite decryption error');
                     } catch (storageError) {
                         console.error('Error saving encrypted private key locally:', storageError);
                     }
@@ -152,8 +136,6 @@ export default function SignupScreen() {
             };
 
             const result = await AuthAPI.register(userData);
-            console.log('result of signup', result);
-
             if (result.success) {
                 const userData = result.data.data;
 
@@ -163,9 +145,6 @@ export default function SignupScreen() {
                     localStorage.setItem('userName', userData.userName);
                     localStorage.setItem('firstName', userData.firstName);
                     localStorage.setItem('lastName', userData.lastName);
-
-                    console.log('User data saved to localStorage successfully');
-                    console.log('Saved userId:', userData.userId);
                 } catch (storageError) {
                     console.error('Error saving user data to storage:', storageError);
                 }

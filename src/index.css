@@ -12,3 +12,15 @@
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
 }
+
+/* Hide scrollbar in emoji picker */
+.emoji-picker-container aside::-webkit-scrollbar,
+.emoji-picker-container div::-webkit-scrollbar {
+  display: none;
+}
+
+.emoji-picker-container aside,
+.emoji-picker-container div {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

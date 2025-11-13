@@ -17,8 +17,6 @@ class EncryptionService {
    */
   static encrypt(data) {
     try {
-      console.log("Encrypting data...");
-
       // Convert secret key and IV to WordArray
       const key = CryptoJS.enc.Utf8.parse(this.SECRET_KEY);
       const iv = CryptoJS.enc.Utf8.parse(this.INIT_VECTOR);
@@ -36,8 +34,6 @@ class EncryptionService {
         .replace(/\+/g, "-")
         .replace(/\//g, "_")
         .replace(/=/g, "");
-
-      console.log("Encryption successful");
       return urlSafeBase64;
     } catch (error) {
       console.error("Encryption error:", error);
@@ -53,8 +49,6 @@ class EncryptionService {
    */
   static decrypt(encryptedData) {
     try {
-      console.log("Decrypting data...");
-
       // Convert URL-safe Base64 back to regular Base64
       let base64 = encryptedData.replace(/-/g, "+").replace(/_/g, "/");
 
@@ -82,8 +76,6 @@ class EncryptionService {
           "Decryption resulted in empty text - invalid key or corrupted data"
         );
       }
-
-      console.log("Decryption successful");
       return decryptedText;
     } catch (error) {
       console.error("Decryption error:", error);
@@ -98,18 +90,9 @@ class EncryptionService {
    */
   static testEncryption(testData = "Hello, this is a test!") {
     try {
-      console.log("🧪 Testing encryption/decryption...");
-      console.log("Original:", testData);
-
       const encrypted = this.encrypt(testData);
-      console.log("Encrypted:", encrypted);
-
       const decrypted = this.decrypt(encrypted);
-      console.log("Decrypted:", decrypted);
-
       const isMatch = testData === decrypted;
-      console.log("Match:", isMatch ? "✅" : "❌");
-
       return {
         success: true,
         original: testData,
