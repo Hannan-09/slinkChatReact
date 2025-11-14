@@ -5,11 +5,35 @@ class WebRTCCallService {
     this.peerConnection = null;
     this.localStream = null;
     this.remoteStream = null;
+    this.retryCount = 0;
+    this.maxRetries = 10;
+    this.retryTimeout = null;
+    this.onRetryCallback = null;
     this.configuration = {
       iceServers: [
+        // STUN servers (for discovering public IP)
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
+        { urls: "stun:stun2.l.google.com:19302" },
+        // TURN server (for relaying traffic when direct connection fails)
+        {
+          urls: "turn:openrelay.metered.ca:80",
+          username: "openrelayproject",
+          credential: "openrelayproject",
+        },
+        {
+          urls: "turn:openrelay.metered.ca:443",
+          username: "openrelayproject",
+          credential: "openrelayproject",
+        },
+        {
+          urls: "turn:openrelay.metered.ca:443?transport=tcp",
+          username: "openrelayproject",
+          credential: "openrelayproject",
+        },
       ],
+      iceCandidatePoolSize: 10,
+      iceTransportPolicy: "all", // Try all connection types
     };
   }
 
@@ -102,16 +126,119 @@ class WebRTCCallService {
 
     // Track event (remote stream)
     this.peerConnection.ontrack = (event) => {
+      console.log(
+        "🎵 ontrack event received:",
+        event.track.kind,
+        event.streams[0]
+      );
       event.streams[0].getTracks().forEach((track) => {
+        console.log(
+          "  Adding track:",
+          track.kind,
+          track.id,
+          "enabled:",
+          track.enabled
+        );
         this.remoteStream.addTrack(track);
       });
+      console.log(
+        "🎵 Remote stream now has",
+        this.remoteStream.getTracks().length,
+        "tracks"
+      );
       onTrack(this.remoteStream);
     };
 
-    // Connection state change
-    this.peerConnection.onconnectionstatechange = () => {
-      onConnectionStateChange(this.peerConnection.connectionState);
+    // ICE connection state change (more reliable for audio)
+    this.peerConnection.oniceconnectionstatechange = () => {
+      const iceState = this.peerConnection.iceConnectionState;
+      console.log("🧊 ICE connection state changed:", iceState);
+
+      // Clear any pending retry
+      if (this.retryTimeout) {
+        clearTimeout(this.retryTimeout);
+        this.retryTimeout = null;
+      }
+
+      // Treat ICE connected/completed as successful connection
+      if (iceState === "connected" || iceState === "completed") {
+        console.log("✅ ICE connection established - audio should work");
+        this.retryCount = 0; // Reset retry count on success
+        onConnectionStateChange("connected");
+      } else if (iceState === "failed") {
+        console.log("❌ ICE connection failed");
+        this.handleConnectionFailure(onConnectionStateChange);
+      } else if (iceState === "disconnected") {
+        console.log("⚠️ ICE connection disconnected");
+        // Wait a bit before considering it failed
+        this.retryTimeout = setTimeout(() => {
+          if (this.peerConnection?.iceConnectionState === "disconnected") {
+            console.log("⚠️ ICE still disconnected, attempting retry...");
+            this.handleConnectionFailure(onConnectionStateChange);
+          }
+        }, 3000);
+        onConnectionStateChange("disconnected");
+      } else if (iceState === "checking") {
+        console.log("🔍 ICE connection checking...");
+        onConnectionStateChange("connecting");
+      }
     };
+
+    // Connection state change (for logging only, ICE state is more reliable)
+    this.peerConnection.onconnectionstatechange = () => {
+      console.log(
+        "🔗 Connection state changed:",
+        this.peerConnection.connectionState
+      );
+      console.log(
+        "   ICE connection state:",
+        this.peerConnection.iceConnectionState
+      );
+      console.log("   Signaling state:", this.peerConnection.signalingState);
+
+      // Only use connection state if ICE state is not connected/completed
+      const iceState = this.peerConnection.iceConnectionState;
+      if (iceState !== "connected" && iceState !== "completed") {
+        // Only report connection state if ICE hasn't succeeded yet
+        if (this.peerConnection.connectionState === "failed") {
+          console.log("⚠️ Overall connection failed (but checking ICE state)");
+        }
+      }
+    };
+  }
+
+  // Handle connection failure with retry
+  handleConnectionFailure(onConnectionStateChange) {
+    if (this.retryCount < this.maxRetries) {
+      this.retryCount++;
+      console.log(
+        `🔄 Attempting to reconnect (${this.retryCount}/${this.maxRetries})...`
+      );
+      onConnectionStateChange("reconnecting");
+
+      // Trigger retry callback if provided
+      if (this.onRetryCallback) {
+        this.retryTimeout = setTimeout(() => {
+          console.log("🔄 Executing retry...");
+          this.onRetryCallback();
+        }, 2000); // Wait 2 seconds before retry
+      } else {
+        onConnectionStateChange("failed");
+      }
+    } else {
+      console.log("❌ Max retries reached, connection failed");
+      this.retryCount = 0;
+      onConnectionStateChange("failed");
+    }
+  }
+
+  // Reset retry mechanism
+  resetRetry() {
+    this.retryCount = 0;
+    if (this.retryTimeout) {
+      clearTimeout(this.retryTimeout);
+      this.retryTimeout = null;
+    }
   }
 
   // Toggle audio
@@ -134,6 +261,8 @@ class WebRTCCallService {
 
   // Close connection
   closeConnection() {
+    this.resetRetry();
+
     if (this.localStream) {
       this.localStream.getTracks().forEach((track) => track.stop());
       this.localStream = null;
@@ -148,6 +277,8 @@ class WebRTCCallService {
       this.peerConnection.close();
       this.peerConnection = null;
     }
+
+    this.onRetryCallback = null;
   }
 }
 

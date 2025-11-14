@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { IoCall, IoMic, IoMicOff, IoVideocam, IoVideocamOff } from 'react-icons/io5';
+import { useEffect, useRef, useState } from 'react';
+import { IoCall, IoMic, IoMicOff, IoVideocam, IoVideocamOff, IoVolumeHigh, IoVolumeMedium } from 'react-icons/io5';
 import { useCall } from '../contexts/CallContext';
 
 export default function ActiveCallScreen() {
@@ -19,6 +19,10 @@ export default function ActiveCallScreen() {
 
     const localVideoRef = useRef(null);
     const remoteVideoRef = useRef(null);
+    const remoteAudioRef = useRef(null);
+    const localAudioRef = useRef(null);
+
+    const [isSpeakerOn, setIsSpeakerOn] = useState(true);
 
     const otherUser = callerInfo || receiverInfo;
 
@@ -35,8 +39,45 @@ export default function ActiveCallScreen() {
         }
     }, [remoteStream]);
 
+    // Setup audio streams
+    useEffect(() => {
+        if (remoteAudioRef.current && remoteStream) {
+            console.log('🔊 Connecting remote audio stream', remoteStream);
+            console.log('   Remote stream tracks:', remoteStream.getTracks().map(t => `${t.kind} (${t.id})`));
+            remoteAudioRef.current.srcObject = remoteStream;
+            remoteAudioRef.current.volume = isSpeakerOn ? 1.0 : 0.3;
+            remoteAudioRef.current.play().then(() => {
+                console.log('✅ Remote audio playing successfully');
+            }).catch(err => {
+                console.error('❌ Error playing remote audio:', err);
+            });
+        }
+    }, [remoteStream, isSpeakerOn]);
+
+    useEffect(() => {
+        if (localAudioRef.current && localStream) {
+            console.log('🎤 Connecting local audio stream');
+            localAudioRef.current.srcObject = localStream;
+        }
+    }, [localStream]);
+
+    // Handle toggle speaker
+    const handleToggleSpeaker = () => {
+        const newSpeakerState = !isSpeakerOn;
+        setIsSpeakerOn(newSpeakerState);
+
+        if (remoteAudioRef.current) {
+            remoteAudioRef.current.volume = newSpeakerState ? 1.0 : 0.3;
+            console.log('🔊 Speaker', newSpeakerState ? 'ON (100%)' : 'OFF (30%)');
+        }
+    };
+
     return (
         <div className="fixed inset-0 bg-black z-50 flex flex-col">
+            {/* Audio elements */}
+            <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
+            <audio ref={localAudioRef} muted className="hidden" />
+
             {/* Remote Video/Avatar */}
             <div className="flex-1 relative">
                 {isVideoCall && remoteStream ? (
@@ -97,6 +138,19 @@ export default function ActiveCallScreen() {
                             <IoMicOff className="text-white text-2xl" />
                         ) : (
                             <IoMic className="text-white text-2xl" />
+                        )}
+                    </button>
+
+                    {/* Speaker Button */}
+                    <button
+                        onClick={handleToggleSpeaker}
+                        className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all ${isSpeakerOn ? 'bg-gray-700' : 'bg-red-500'
+                            }`}
+                    >
+                        {isSpeakerOn ? (
+                            <IoVolumeHigh className="text-white text-2xl" />
+                        ) : (
+                            <IoVolumeMedium className="text-white text-2xl" />
                         )}
                     </button>
 

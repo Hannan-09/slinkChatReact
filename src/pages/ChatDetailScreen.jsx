@@ -211,6 +211,11 @@ export default function ChatDetailScreen() {
     const recordingIntervalRef = useRef(null);
     const audioPreviewRef = useRef(null);
 
+    // Media viewer states
+    const [showMediaViewer, setShowMediaViewer] = useState(false);
+    const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+    const [viewerMediaList, setViewerMediaList] = useState([]);
+
     const receiverUserId = parseInt(receiverId);
 
     // Use the global online status hook
@@ -1234,6 +1239,27 @@ export default function ChatDetailScreen() {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
+    // Media viewer functions
+    const openMediaViewer = (mediaList, startIndex) => {
+        setViewerMediaList(mediaList);
+        setCurrentMediaIndex(startIndex);
+        setShowMediaViewer(true);
+    };
+
+    const closeMediaViewer = () => {
+        setShowMediaViewer(false);
+        setCurrentMediaIndex(0);
+        setViewerMediaList([]);
+    };
+
+    const goToNextMedia = () => {
+        setCurrentMediaIndex((prev) => (prev + 1) % viewerMediaList.length);
+    };
+
+    const goToPrevMedia = () => {
+        setCurrentMediaIndex((prev) => (prev - 1 + viewerMediaList.length) % viewerMediaList.length);
+    };
+
     const getFileIcon = (fileType) => {
         if (!fileType) return <IoDocument className="text-gray-400" />;
         if (fileType.startsWith('image/')) return <IoImages className="text-blue-400" />;
@@ -1284,17 +1310,23 @@ export default function ChatDetailScreen() {
     const { initiateCall } = useCall();
 
     const handleCallPress = (isVideo) => {
+        console.log('🎯 Call button pressed!');
+        console.log('Is Video:', isVideo);
+        console.log('Receiver User ID:', receiverUserId);
+        console.log('WebSocket Connected:', connected);
+
         if (!connected) {
             alert('WebSocket not connected. Please wait and try again.');
             return;
         }
 
-        // Initiate call using CallContext
+        console.log('✅ Calling initiateCall...');
         initiateCall({
             id: receiverUserId,
             name: name,
             avatar: avatar
         }, isVideo);
+        console.log('✅ initiateCall function called');
     };
 
     const scrollToBottom = (instant = false) => {
@@ -1481,60 +1513,127 @@ export default function ChatDetailScreen() {
                                                     ) : (
                                                         <>
                                                             {/* Attachments */}
-                                                            {item.attachments && item.attachments.length > 0 && (
-                                                                <div className="mb-2 space-y-2">
-                                                                    {item.attachments.map((att, idx) => {
-                                                                        // Handle both fileURL and fileUrl from backend
-                                                                        const fileUrl = att.fileURL || att.fileUrl;
-                                                                        const fileType = att.fileType;
+                                                            {item.attachments && item.attachments.length > 0 && (() => {
+                                                                // Separate images/videos from other files
+                                                                const mediaAttachments = item.attachments.filter(att => {
+                                                                    const fileType = att.fileType;
+                                                                    return fileType && (fileType.startsWith('image/') || fileType.startsWith('video/'));
+                                                                });
+                                                                const otherAttachments = item.attachments.filter(att => {
+                                                                    const fileType = att.fileType;
+                                                                    return fileType && !fileType.startsWith('image/') && !fileType.startsWith('video/');
+                                                                });
 
-                                                                        console.log('Rendering attachment:', att, 'URL:', fileUrl);
+                                                                return (
+                                                                    <div className="mb-2">
+                                                                        {/* Media Grid (Images/Videos) */}
+                                                                        {mediaAttachments.length > 0 && (
+                                                                            <div className={`
+                                                                                ${mediaAttachments.length === 1 ? 'w-full max-w-[280px]' : ''}
+                                                                                ${mediaAttachments.length === 2 ? 'grid grid-cols-2 gap-0.5 max-w-[280px]' : ''}
+                                                                                ${mediaAttachments.length === 3 ? 'grid grid-cols-2 gap-0.5 max-w-[280px]' : ''}
+                                                                                ${mediaAttachments.length >= 4 ? 'grid grid-cols-2 gap-0.5 max-w-[280px]' : ''}
+                                                                                rounded-lg overflow-hidden
+                                                                            `}>
+                                                                                {mediaAttachments.slice(0, 4).map((att, idx) => {
+                                                                                    const fileUrl = att.fileURL || att.fileUrl;
+                                                                                    const fileType = att.fileType;
+                                                                                    const isLast = idx === 3 && mediaAttachments.length > 4;
+                                                                                    const remaining = mediaAttachments.length - 4;
 
-                                                                        if (!fileUrl) return null;
+                                                                                    // Prepare media list for viewer
+                                                                                    const mediaList = mediaAttachments.map(a => ({
+                                                                                        url: a.fileURL || a.fileUrl,
+                                                                                        type: a.fileType
+                                                                                    }));
 
-                                                                        return (
-                                                                            <div key={idx} className="w-full">
-                                                                                {fileType && fileType.startsWith('image/') ? (
-                                                                                    <img
-                                                                                        src={fileUrl}
-                                                                                        alt="attachment"
-                                                                                        className="max-w-full max-h-96 rounded-lg cursor-pointer hover:opacity-90 object-cover"
-                                                                                        onClick={() => window.open(fileUrl, '_blank')}
-                                                                                        onError={(e) => {
-                                                                                            console.error('Image load error:', fileUrl);
-                                                                                            e.target.style.display = 'none';
-                                                                                        }}
-                                                                                    />
-                                                                                ) : fileType && fileType.startsWith('video/') ? (
-                                                                                    <video
-                                                                                        src={fileUrl}
-                                                                                        controls
-                                                                                        className="max-w-full max-h-96 rounded-lg"
-                                                                                        onError={(e) => {
-                                                                                            console.error('Video load error:', fileUrl);
-                                                                                        }}
-                                                                                    />
-                                                                                ) : fileType && fileType.startsWith('audio/') ? (
-                                                                                    <WhatsAppAudioPlayer audioUrl={fileUrl} isMe={item.isMe} />
-                                                                                ) : (
-                                                                                    <a
-                                                                                        href={fileUrl}
-                                                                                        target="_blank"
-                                                                                        rel="noopener noreferrer"
-                                                                                        className={`flex items-center gap-2 p-3 rounded-lg ${item.isMe ? 'bg-white bg-opacity-10' : 'bg-gray-700'} hover:opacity-80 transition-opacity`}
-                                                                                    >
-                                                                                        <span className="text-2xl">{getFileIcon(fileType)}</span>
-                                                                                        <div className="flex-1 min-w-0">
-                                                                                            <p className="text-sm text-white truncate">{fileUrl.split('/').pop()}</p>
-                                                                                            <p className="text-xs text-gray-400">{fileType || 'File'}</p>
+                                                                                    return (
+                                                                                        <div
+                                                                                            key={idx}
+                                                                                            className={`
+                                                                                                relative overflow-hidden
+                                                                                                ${mediaAttachments.length === 1 ? 'h-[200px]' : ''}
+                                                                                                ${mediaAttachments.length === 2 ? 'h-[140px]' : ''}
+                                                                                                ${mediaAttachments.length === 3 && idx === 0 ? 'row-span-2 h-[280px]' : 'h-[140px]'}
+                                                                                                ${mediaAttachments.length >= 4 ? 'h-[140px]' : ''}
+                                                                                            `}
+                                                                                        >
+                                                                                            {fileType.startsWith('image/') ? (
+                                                                                                <img
+                                                                                                    src={fileUrl}
+                                                                                                    alt="attachment"
+                                                                                                    className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                                                                                    onClick={() => openMediaViewer(mediaList, idx)}
+                                                                                                    onError={(e) => {
+                                                                                                        console.error('Image load error:', fileUrl);
+                                                                                                        e.target.style.display = 'none';
+                                                                                                    }}
+                                                                                                />
+                                                                                            ) : (
+                                                                                                <div
+                                                                                                    className="relative w-full h-full cursor-pointer group"
+                                                                                                    onClick={() => openMediaViewer(mediaList, idx)}
+                                                                                                >
+                                                                                                    <video
+                                                                                                        src={fileUrl}
+                                                                                                        className="w-full h-full object-cover pointer-events-none"
+                                                                                                        onError={(e) => {
+                                                                                                            console.error('Video load error:', fileUrl);
+                                                                                                        }}
+                                                                                                    />
+                                                                                                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 group-hover:bg-opacity-50 transition-all">
+                                                                                                        <IoPlayCircle className="text-white text-5xl group-hover:scale-110 transition-transform" />
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            )}
+
+                                                                                            {/* Show +N overlay on 4th image if more than 4 */}
+                                                                                            {isLast && (
+                                                                                                <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
+                                                                                                    <span className="text-white text-4xl font-bold">+{remaining}</span>
+                                                                                                </div>
+                                                                                            )}
                                                                                         </div>
-                                                                                    </a>
-                                                                                )}
+                                                                                    );
+                                                                                })}
                                                                             </div>
-                                                                        );
-                                                                    })}
-                                                                </div>
-                                                            )}
+                                                                        )}
+
+                                                                        {/* Other Attachments (Audio, Documents, etc.) */}
+                                                                        {otherAttachments.length > 0 && (
+                                                                            <div className={`space-y-2 ${mediaAttachments.length > 0 ? 'mt-2' : ''}`}>
+                                                                                {otherAttachments.map((att, idx) => {
+                                                                                    const fileUrl = att.fileURL || att.fileUrl;
+                                                                                    const fileType = att.fileType;
+
+                                                                                    if (!fileUrl) return null;
+
+                                                                                    return (
+                                                                                        <div key={idx}>
+                                                                                            {fileType.startsWith('audio/') ? (
+                                                                                                <WhatsAppAudioPlayer audioUrl={fileUrl} isMe={item.isMe} />
+                                                                                            ) : (
+                                                                                                <a
+                                                                                                    href={fileUrl}
+                                                                                                    target="_blank"
+                                                                                                    rel="noopener noreferrer"
+                                                                                                    className={`flex items-center gap-2 p-3 rounded-lg ${item.isMe ? 'bg-white bg-opacity-10' : 'bg-gray-700'} hover:opacity-80 transition-opacity`}
+                                                                                                >
+                                                                                                    <span className="text-2xl">{getFileIcon(fileType)}</span>
+                                                                                                    <div className="flex-1 min-w-0">
+                                                                                                        <p className="text-sm text-white truncate">{fileUrl.split('/').pop()}</p>
+                                                                                                        <p className="text-xs text-gray-400">{fileType || 'File'}</p>
+                                                                                                    </div>
+                                                                                                </a>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })()}
 
                                                             {/* Text message */}
                                                             {item.text && (
@@ -2132,6 +2231,89 @@ export default function ChatDetailScreen() {
                     </div>
                 )
             }
+
+            {/* Media Viewer Modal */}
+            {showMediaViewer && viewerMediaList.length > 0 && (
+                <div className="fixed inset-0 bg-black z-[60] flex flex-col">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-4 py-3 bg-black bg-opacity-50">
+                        <button
+                            onClick={closeMediaViewer}
+                            className="w-10 h-10 flex items-center justify-center hover:bg-white hover:bg-opacity-10 rounded-full transition-colors"
+                        >
+                            <IoClose className="text-white text-2xl" />
+                        </button>
+                        <span className="text-white text-sm">
+                            {currentMediaIndex + 1} / {viewerMediaList.length}
+                        </span>
+                        <div className="w-10"></div>
+                    </div>
+
+                    {/* Media Display */}
+                    <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+                        {viewerMediaList[currentMediaIndex]?.type.startsWith('image/') ? (
+                            <img
+                                src={viewerMediaList[currentMediaIndex]?.url}
+                                alt="media"
+                                className="max-w-full max-h-full object-contain"
+                            />
+                        ) : (
+                            <video
+                                src={viewerMediaList[currentMediaIndex]?.url}
+                                controls
+                                autoPlay
+                                className="max-w-full max-h-full"
+                            />
+                        )}
+
+                        {/* Navigation Arrows */}
+                        {viewerMediaList.length > 1 && (
+                            <>
+                                <button
+                                    onClick={goToPrevMedia}
+                                    className="absolute left-4 w-12 h-12 bg-black bg-opacity-50 hover:bg-opacity-70 rounded-full flex items-center justify-center transition-all"
+                                >
+                                    <IoArrowBack className="text-white text-2xl" />
+                                </button>
+                                <button
+                                    onClick={goToNextMedia}
+                                    className="absolute right-4 w-12 h-12 bg-black bg-opacity-50 hover:bg-opacity-70 rounded-full flex items-center justify-center transition-all"
+                                >
+                                    <IoArrowBack className="text-white text-2xl transform rotate-180" />
+                                </button>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Thumbnail Strip */}
+                    {viewerMediaList.length > 1 && (
+                        <div className="bg-black bg-opacity-50 p-4 overflow-x-auto">
+                            <div className="flex gap-2 justify-center">
+                                {viewerMediaList.map((media, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => setCurrentMediaIndex(idx)}
+                                        className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${idx === currentMediaIndex ? 'border-white scale-110' : 'border-transparent opacity-60'
+                                            }`}
+                                    >
+                                        {media.type.startsWith('image/') ? (
+                                            <img
+                                                src={media.url}
+                                                alt={`thumb-${idx}`}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+                                                <IoPlayCircle className="text-white text-2xl" />
+                                            </div>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }

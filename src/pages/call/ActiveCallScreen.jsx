@@ -8,10 +8,24 @@ import {
     IoCall,
     IoVideocamOff,
 } from 'react-icons/io5';
+import { useCall } from '../../contexts/CallContext';
 
 export default function ActiveCallScreen() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+
+    // Get call context
+    const {
+        callState,
+        localStream,
+        remoteStream,
+        isMuted,
+        callDuration,
+        toggleMute,
+        endCall,
+        callerInfo,
+        receiverInfo,
+    } = useCall();
 
     const receiverId = searchParams.get('receiverId') || '';
     const receiverName = searchParams.get('receiverName') || 'Unknown';
@@ -22,9 +36,6 @@ export default function ActiveCallScreen() {
     const isVideoCall = searchParams.get('isVideoCall') === 'true';
     const isIncoming = searchParams.get('isIncoming') === 'true';
 
-    const [callStatus, setCallStatus] = useState('connecting');
-    const [callDuration, setCallDuration] = useState(0);
-    const [isMuted, setIsMuted] = useState(false);
     const [isSpeakerOn, setIsSpeakerOn] = useState(true);
     const [showControls, setShowControls] = useState(true);
 
@@ -36,29 +47,32 @@ export default function ActiveCallScreen() {
     const displayName = isIncoming ? callerName : receiverName;
     const displayAvatar = isIncoming ? callerAvatar : receiverAvatar;
 
-    // Simulate call connection
+    // Connect remote stream to audio element
     useEffect(() => {
-        setTimeout(() => {
-            setCallStatus('connected');
-        }, 1500);
-    }, []);
-
-    // Call duration timer
-    useEffect(() => {
-        if (callStatus === 'connected') {
-            const interval = setInterval(() => {
-                setCallDuration((prev) => prev + 1);
-            }, 1000);
-            return () => clearInterval(interval);
+        if (remoteStream && remoteAudioRef.current) {
+            console.log('🔊 Connecting remote stream to audio element', remoteStream);
+            remoteAudioRef.current.srcObject = remoteStream;
+            remoteAudioRef.current.volume = isSpeakerOn ? 1.0 : 0.3;
+            remoteAudioRef.current.play().catch(err => {
+                console.error('Error playing remote audio:', err);
+            });
         }
-    }, [callStatus]);
+    }, [remoteStream, isSpeakerOn]);
+
+    // Connect local stream to audio element (for monitoring)
+    useEffect(() => {
+        if (localStream && localAudioRef.current) {
+            console.log('🎤 Connecting local stream to audio element', localStream);
+            localAudioRef.current.srcObject = localStream;
+        }
+    }, [localStream]);
 
     // Navigate back when call ends
     useEffect(() => {
-        if (callStatus === 'ended') {
+        if (callState === 'idle') {
             navigate(-1);
         }
-    }, [callStatus]);
+    }, [callState, navigate]);
 
     // Auto-hide controls after 5 seconds
     useEffect(() => {
@@ -77,18 +91,10 @@ export default function ActiveCallScreen() {
         };
     }, [showControls]);
 
-    // Format duration
-    const formatDuration = (seconds) => {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    };
-
     // Handle end call
     const handleEndCall = async () => {
         try {
-            setCallStatus('ended');
-            navigate(-1);
+            endCall();
         } catch (error) {
             console.error('Error ending call:', error);
             navigate(-1);
@@ -97,12 +103,19 @@ export default function ActiveCallScreen() {
 
     // Handle toggle mute
     const handleToggleMute = () => {
-        setIsMuted(!isMuted);
+        toggleMute();
     };
 
-    // Handle toggle speaker
+    // Handle toggle speaker (controls volume in web)
     const handleToggleSpeaker = () => {
-        setIsSpeakerOn(!isSpeakerOn);
+        const newSpeakerState = !isSpeakerOn;
+        setIsSpeakerOn(newSpeakerState);
+
+        // Control remote audio volume
+        if (remoteAudioRef.current) {
+            remoteAudioRef.current.volume = newSpeakerState ? 1.0 : 0.3;
+            console.log('🔊 Speaker', newSpeakerState ? 'ON (100%)' : 'OFF (30%)');
+        }
     };
 
     // Toggle controls visibility
@@ -143,8 +156,8 @@ export default function ActiveCallScreen() {
                         }}
                     >
                         <p className="text-white text-base mb-1">
-                            {callStatus === 'connected'
-                                ? formatDuration(callDuration)
+                            {callState === 'active'
+                                ? callDuration
                                 : 'Connecting...'}
                         </p>
                         <h3 className="text-white text-2xl font-bold">{displayName || 'Unknown'}</h3>
@@ -161,8 +174,8 @@ export default function ActiveCallScreen() {
                                 handleToggleMute();
                             }}
                             className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center shadow-2xl transition-all active:scale-95 ${isMuted
-                                    ? 'bg-red-500 bg-opacity-80'
-                                    : 'bg-white bg-opacity-20 backdrop-blur-sm'
+                                ? 'bg-red-500 bg-opacity-80'
+                                : 'bg-white bg-opacity-20 backdrop-blur-sm'
                                 }`}
                         >
                             {isMuted ? (
@@ -179,8 +192,8 @@ export default function ActiveCallScreen() {
                                 handleToggleSpeaker();
                             }}
                             className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center shadow-2xl transition-all active:scale-95 ${isSpeakerOn
-                                    ? 'bg-red-500 bg-opacity-80'
-                                    : 'bg-white bg-opacity-20 backdrop-blur-sm'
+                                ? 'bg-red-500 bg-opacity-80'
+                                : 'bg-white bg-opacity-20 backdrop-blur-sm'
                                 }`}
                         >
                             {isSpeakerOn ? (
