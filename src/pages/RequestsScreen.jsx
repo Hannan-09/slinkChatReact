@@ -138,27 +138,27 @@ export default function RequestsScreen() {
         <div className="h-screen bg-[#1a1a1a] flex flex-col overflow-hidden">
             {/* Header */}
             <div className="flex items-center px-5 py-4">
-                {/* Back button - neumorphic */}
+                {/* Back button - match ChatDetailScreen 3D back button */}
                 <button
                     onClick={() => navigate(-1)}
-                    className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 mr-4"
+                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 mr-2 sm:mr-4 flex-shrink-0"
                 >
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
-                        <IoArrowBack className="text-white text-xl" />
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
+                        <IoArrowBack className="text-white text-lg sm:text-xl" />
                     </div>
                 </button>
 
                 <h1 className="text-2xl font-bold text-white flex-1">Chat Requests</h1>
 
-                {/* Refresh button - neumorphic */}
+                {/* Refresh button - 3D nav-style with grey theme (no blue) */}
                 <button
                     onClick={() => currentUserId && loadRequests(currentUserId)}
                     disabled={loading}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 flex-shrink-0 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center bg-gradient-to-b from-[#0a84ff] to-[#0040dd] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
                         <IoRefresh
-                            className={`text-xl ${loading ? 'text-gray-200 animate-spin' : 'text-white'}`}
+                            className={`text-lg sm:text-xl text-white ${loading ? 'animate-spin' : ''}`}
                         />
                     </div>
                 </button>
@@ -211,7 +211,7 @@ export default function RequestsScreen() {
                     currentRequests.map((item) => (
                         <div
                             key={item.chatRequestId}
-                            className="flex items-center px-5 py-4 hover:bg-gray-900 transition-colors"
+                            className="flex items-center px-5 py-4 hover:bg-white/5 transition-colors"
                         >
                             <img
                                 src={
@@ -246,25 +246,34 @@ export default function RequestsScreen() {
 
                             {activeTab === 'received' ? (
                                 <div className="flex gap-2">
+                                    {/* Accept - 3D nav-style button with green icon */}
                                     <button
                                         onClick={() => acceptRequest(item.chatRequestId)}
-                                        className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center shadow-lg hover:bg-green-600 transition-colors"
+                                        className="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 transition-transform hover:scale-105"
                                     >
-                                        <IoCheckmark className="text-white text-xl" />
+                                        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                                            <IoCheckmark className="text-[#34c759] text-lg" />
+                                        </div>
                                     </button>
+
+                                    {/* Reject - 3D nav-style button with red icon */}
                                     <button
                                         onClick={() => rejectRequest(item.chatRequestId)}
-                                        className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors"
+                                        className="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 transition-transform hover:scale-105"
                                     >
-                                        <IoClose className="text-white text-xl" />
+                                        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                                            <IoClose className="text-[#ff3b30] text-lg" />
+                                        </div>
                                     </button>
                                 </div>
                             ) : (
                                 <button
                                     onClick={() => deleteRequest(item.chatRequestId)}
-                                    className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors"
+                                    className="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 transition-transform hover:scale-105"
                                 >
-                                    <IoTrashOutline className="text-white text-xl" />
+                                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                                        <IoTrashOutline className="text-[#ff3b30] text-lg" />
+                                    </div>
                                 </button>
                             )}
                         </div>
