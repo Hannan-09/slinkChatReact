@@ -7,7 +7,7 @@ export default function OutgoingCallScreen() {
     if (!receiverInfo) return null;
 
     return (
-        <div className="fixed inset-0 bg-gradient-to-b from-gray-900 to-black z-50 flex flex-col items-center justify-center p-6">
+        <div className="fixed inset-0 bg-[#1a1a1a] z-50 flex flex-col items-center justify-center p-6">
             {/* Receiver Info */}
                 <div className="flex flex-col items-center mb-12">
                 <div className="relative mb-6">
@@ -36,18 +36,11 @@ export default function OutgoingCallScreen() {
                 </p>
             </div>
 
-            {/* Calling Animation */}
+            {/* Calling Animation - equalizer style */}
             <div className="mb-12">
-                <div className="flex gap-2">
+                <div className="calling-bars">
                     {[...Array(5)].map((_, i) => (
-                        <div
-                            key={i}
-                            className="w-2 h-16 bg-blue-500 rounded-full animate-pulse"
-                            style={{
-                                animationDelay: `${i * 0.15}s`,
-                                animationDuration: '1s'
-                            }}
-                        ></div>
+                        <div key={i} className="calling-bar" />
                     ))}
                 </div>
             </div>

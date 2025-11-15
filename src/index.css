@@ -24,3 +24,95 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Safe-area padding for top (status bar / notch) */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+  /* Ensure at least some padding even on devices without a notch */
+  padding-top: max(env(safe-area-inset-top), 0.75rem);
+}
+
+/* ChatDetailScreen animated background */
+.chat-detail-bg {
+  position: relative;
+  /* Base solid grey background to match app theme */
+  background-color: #1a1a1a;
+  /* Very subtle moving light patches for "live" effect */
+  background-image:
+    radial-gradient(circle at 10% 0%, rgba(255, 255, 255, 0.04) 0, transparent 55%),
+    radial-gradient(circle at 90% 0%, rgba(255, 255, 255, 0.03) 0, transparent 55%);
+  background-size: 140% 140%;
+  animation: chat-detail-bg-shift 30s ease-in-out infinite;
+}
+
+@keyframes chat-detail-bg-shift {
+  0% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 100%;
+  }
+}
+
+/* Outgoing call equalizer animation */
+.calling-bars {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.calling-bar {
+  width: 0.5rem;
+  height: 4rem;
+  border-radius: 9999px;
+  background: linear-gradient(to top, #0a84ff, #4cc3ff);
+  box-shadow: 0 0 12px rgba(10, 132, 255, 0.7);
+  animation: calling-bar-bounce 1.1s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+.calling-bar:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.calling-bar:nth-child(3) {
+  animation-delay: 0.2s;
+}
+.calling-bar:nth-child(4) {
+  animation-delay: 0.3s;
+}
+.calling-bar:nth-child(5) {
+  animation-delay: 0.4s;
+}
+
+@keyframes calling-bar-bounce {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+/* Incoming call sliders - subtle theme-based shimmer */
+.incoming-slide-track {
+  background-image: linear-gradient(120deg, #232323, #343434, #232323);
+  background-size: 200% 100%;
+  animation: incoming-slide-shimmer 2.2s ease-in-out infinite;
+}
+
+@keyframes incoming-slide-shimmer {
+  0% {
+    background-position: 0% 0;
+  }
+  50% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0% 0;
+  }
+}

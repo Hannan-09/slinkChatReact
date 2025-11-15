@@ -319,7 +319,7 @@ export default function ChatsScreen() {
     };
 
     return (
-        <div className="h-screen bg-[#1a1a1a] flex flex-col overflow-hidden">
+        <div className="h-screen bg-[#1a1a1a] flex flex-col overflow-hidden safe-area-top">
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4">
                 <div className="flex items-center">

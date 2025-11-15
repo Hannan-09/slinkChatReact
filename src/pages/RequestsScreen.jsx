@@ -9,8 +9,8 @@ import {
     IoMailOutline,
     IoChatbubblesOutline,
     IoCamera,
-    IoPeopleOutline,
-    IoMail,
+    IoPeople,
+    IoSettingsOutline,
 } from 'react-icons/io5';
 import { Colors } from '../constants/Colors';
 import { ChatRequestAPI, ApiUtils } from '../services/AuthService';
@@ -135,7 +135,7 @@ export default function RequestsScreen() {
     const currentRequests = activeTab === 'received' ? receivedRequests : sentRequests;
 
     return (
-        <div className="min-h-screen bg-[#1a1a1a] flex flex-col">
+        <div className="h-screen bg-[#1a1a1a] flex flex-col overflow-hidden">
             {/* Header */}
             <div className="flex items-center px-5 py-4">
                 {/* Back button - neumorphic */}
@@ -189,7 +189,7 @@ export default function RequestsScreen() {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto scrollbar-hide">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-24">
                         <IoMailOutline className="text-gray-400 text-6xl mb-4" />
@@ -291,20 +291,17 @@ export default function RequestsScreen() {
                     </div>
                 </button>
 
-                {/* Friends */}
-                <button
-                    onClick={() => navigate('/friends')}
-                    className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 hover:bg-[#1d1d1d] transition-colors"
-                >
+                {/* Requests (active) - use filled IoPeople */}
+                <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 animate-pulse">
                     <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
-                        <IoPeopleOutline className="text-gray-300 text-2xl" />
+                        <IoPeople className="text-white text-3xl" />
                     </div>
                 </button>
 
-                {/* Requests (active) */}
-                <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 animate-pulse">
+                {/* Settings */}
+                <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 hover:bg-[#1d1d1d] transition-colors">
                     <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
-                        <IoMail className="text-white text-3xl" />
+                        <IoSettingsOutline className="text-gray-300 text-2xl" />
                     </div>
                 </button>
             </div>

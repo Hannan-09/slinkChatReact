@@ -1480,7 +1480,7 @@ export default function ChatDetailScreen() {
     };
 
     return (
-        <div className="h-screen bg-[#1a1a1a] flex flex-col overflow-hidden">
+        <div className="h-screen flex flex-col overflow-hidden chat-detail-bg safe-area-top">
             {/* Header - Sticky Top */}
             <div className="sticky top-0 z-10 flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 bg-[#1a1a1a] border-b border-gray-800 shadow-lg">
                 <div className="flex items-center flex-1 min-w-0">
@@ -1589,14 +1589,12 @@ export default function ChatDetailScreen() {
 
                         return (
                             <>
-                                {/* Date Separator - Sticky */}
+                                {/* Date Separator - simple centered label (no full-width bar) */}
                                 {showDateSeparator && (
-                                    <div key={`date-${item.id}`} className="sticky top-0 z-20 flex justify-center py-3 -mx-3 sm:-mx-5 px-3 sm:px-5 bg-[#1a1a1a]">
-                                        <div className="bg-[#2d2d2d] px-3 py-1 rounded-lg shadow-lg border border-gray-700">
-                                            <p className="text-gray-400 text-xs font-medium">
-                                                {formatDateSeparator(item.timestamp)}
-                                            </p>
-                                        </div>
+                                    <div key={`date-${item.id}`} className="flex justify-center my-3">
+                                        <span className="text-gray-500 text-xs font-medium">
+                                            {formatDateSeparator(item.timestamp)}
+                                        </span>
                                     </div>
                                 )}
 
@@ -1790,7 +1788,7 @@ export default function ChatDetailScreen() {
 
                                                 {/* Three-dot menu (show for all messages except temp ones) */}
                                                 {!item.isDeleted && !item.id.toString().startsWith('temp-') && (
-                                                    <div className="ml-2 flex-shrink-0 relative z-[60] message-menu">
+                                                    <div className="ml-2 flex-shrink-0 relative z-[90] message-menu">
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
@@ -1804,13 +1802,17 @@ export default function ChatDetailScreen() {
 
                                                         {/* Dropdown menu */}
                                                         {showMessageMenu === item.id && (
-                                                            <div className="absolute right-0 top-8 bg-[#2d2d2d] border border-gray-700 rounded-lg shadow-xl z-[70] min-w-[120px]">
+                                                            <div
+                                                                className={`absolute top-8 bg-gradient-to-b from-white/16 via-white/10 to-white/6 border border-white/25 rounded-2xl shadow-[0_16px_32px_rgba(0,0,0,0.98),0_0_0_1px_rgba(255,255,255,0.12),inset_0_2px_4px_rgba(255,255,255,0.22),inset_0_-3px_6px_rgba(0,0,0,0.92)] backdrop-blur-2xl bg-clip-padding z-[120] min-w-[180px] ${
+                                                                    item.isMe ? 'right-0' : 'left-0'
+                                                                }`}
+                                                            >
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         copyMessageText(item.text);
                                                                     }}
-                                                                    className={`w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2 ${item.isMe ? '' : 'rounded-t-lg'}`}
+                                                                    className="w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3 rounded-t-2xl"
                                                                 >
                                                                     <IoCopyOutline className="text-base" />
                                                                     <span className="text-sm">Copy</span>
@@ -1820,7 +1822,7 @@ export default function ChatDetailScreen() {
                                                                         e.stopPropagation();
                                                                         startReplyMessage(item);
                                                                     }}
-                                                                    className={`w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2 ${item.isMe ? '' : 'rounded-b-lg'}`}
+                                                                    className={`w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3 ${item.isMe ? '' : 'rounded-b-2xl'}`}
                                                                 >
                                                                     <IoArrowUndoOutline className="text-base" />
                                                                     <span className="text-sm">Reply</span>
@@ -1833,7 +1835,7 @@ export default function ChatDetailScreen() {
                                                                                 startEditMessage(item);
                                                                                 setShowMessageMenu(null);
                                                                             }}
-                                                                            className="w-full px-4 py-2 text-left text-white hover:bg-gray-700 flex items-center gap-2"
+                                                                            className="w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3"
                                                                         >
                                                                             <IoCreateOutline className="text-base" />
                                                                             <span className="text-sm">Edit</span>
@@ -1844,7 +1846,7 @@ export default function ChatDetailScreen() {
                                                                                 handleDeleteMessage(item.id);
                                                                                 setShowMessageMenu(null);
                                                                             }}
-                                                                            className="w-full px-4 py-2 text-left text-red-400 hover:bg-gray-700 flex items-center gap-2 rounded-b-lg"
+                                                                            className="w-full px-4 py-3 text-left text-red-400 hover:bg-red-900/40 flex items-center gap-3 rounded-b-2xl"
                                                                             title="Delete"
                                                                         >
                                                                             <IoTrashOutline className="text-base" />
@@ -1900,22 +1902,22 @@ export default function ChatDetailScreen() {
             </div>
 
             {/* Scroll to Bottom Button - Shows when scrolled up */}
-            {
-                isUserScrolledUp && (
-                    <button
-                        onClick={() => scrollToBottom(false)}
-                        className="absolute bottom-24 sm:bottom-28 right-4 sm:right-6 w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center shadow-lg z-50 hover:bg-gray-600 transition-colors"
+            {isUserScrolledUp && (
+                <button
+                    onClick={() => scrollToBottom(false)}
+                    className="absolute bottom-24 sm:bottom-28 right-4 sm:right-6 w-12 h-12 sm:w-13 sm:h-13 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 z-50 transition-transform hover:scale-105"
+                >
+                    <div
+                        className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)] ${
+                            newMessageCount > 0
+                                ? 'bg-gradient-to-b from-[#0a84ff] to-[#0040dd]'
+                                : 'bg-gradient-to-b from-[#3a3a3a] to-[#111111]'
+                        }`}
                     >
                         <IoArrowDown className="text-white text-xl" />
-                        {/* Red dot badge for unread messages */}
-                        {newMessageCount > 0 && (
-                            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full border-2 border-[#1a1a1a] flex items-center justify-center">
-                                <span className="text-white text-xs font-bold"></span>
-                            </span>
-                        )}
-                    </button>
-                )
-            }
+                    </div>
+                </button>
+            )}
 
             {/* Message Input - Sticky Bottom */}
             <div className="sticky bottom-0 z-10 bg-[#1a1a1a] px-3 sm:px-5 py-3 sm:py-4 border-t border-gray-800 shadow-lg">
@@ -2007,13 +2009,13 @@ export default function ChatDetailScreen() {
 
                                 {/* Attach Menu */}
                                 {showAttachMenu && (
-                                    <div className="absolute bottom-12 left-0 bg-[#2d2d2d] border border-gray-700 rounded-lg shadow-xl z-50 min-w-[150px]">
+                                    <div className="absolute bottom-16 right-0 sm:right-2 bg-gradient-to-b from-white/16 via-white/10 to-white/6 border border-white/25 rounded-2xl shadow-[0_16px_32px_rgba(0,0,0,0.98),0_0_0_1px_rgba(255,255,255,0.12),inset_0_2px_4px_rgba(255,255,255,0.22),inset_0_-3px_6px_rgba(0,0,0,0.92)] backdrop-blur-2xl bg-clip-padding z-50 min-w-[180px]">
                                         <button
                                             onClick={() => {
                                                 openCamera();
                                                 setShowAttachMenu(false);
                                             }}
-                                            className="w-full px-4 py-3 text-left text-white hover:bg-gray-700 flex items-center gap-3 rounded-t-lg"
+                                            className="w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3 rounded-t-2xl"
                                         >
                                             <IoCamera className="text-xl text-blue-400" />
                                             <span className="text-sm">Camera</span>
@@ -2023,7 +2025,7 @@ export default function ChatDetailScreen() {
                                                 photoInputRef.current?.click();
                                                 setShowAttachMenu(false);
                                             }}
-                                            className="w-full px-4 py-3 text-left text-white hover:bg-gray-700 flex items-center gap-3"
+                                            className="w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3"
                                         >
                                             <IoImages className="text-xl text-green-400" />
                                             <span className="text-sm">Photos</span>
@@ -2033,7 +2035,7 @@ export default function ChatDetailScreen() {
                                                 fileInputRef.current?.click();
                                                 setShowAttachMenu(false);
                                             }}
-                                            className="w-full px-4 py-3 text-left text-white hover:bg-gray-700 flex items-center gap-3"
+                                            className="w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3"
                                         >
                                             <IoDocument className="text-xl text-purple-400" />
                                             <span className="text-sm">Files</span>
@@ -2043,7 +2045,7 @@ export default function ChatDetailScreen() {
                                                 startRecording();
                                                 setShowAttachMenu(false);
                                             }}
-                                            className="w-full px-4 py-3 text-left text-white hover:bg-gray-700 flex items-center gap-3 rounded-b-lg"
+                                            className="w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3 rounded-b-2xl"
                                         >
                                             <IoMic className="text-xl text-red-400" />
                                             <span className="text-sm">Audio</span>
@@ -2079,9 +2081,17 @@ export default function ChatDetailScreen() {
                     >
                         <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
                             {editingMessageId ? (
-                                <IoCheckmarkCircle className={`text-lg sm:text-xl ${message.trim() ? 'text-[#34c759]' : 'text-gray-500'}`} />
+                                <IoCheckmarkCircle
+                                    className={`text-lg sm:text-xl ${
+                                        message.trim() ? 'text-[#34c759]' : 'text-gray-500'
+                                    }`}
+                                />
                             ) : (
-                                <IoSend className={`text-lg sm:text-xl ${message.trim() ? 'text-[#ff3b30]' : 'text-gray-500'}`} />
+                                <IoSend
+                                    className={`text-lg sm:text-xl ${
+                                        message.trim() ? 'text-[#34c759]' : 'text-gray-500'
+                                    }`}
+                                />
                             )}
                         </div>
                     </button>
@@ -2171,7 +2181,7 @@ export default function ChatDetailScreen() {
                             <button
                                 onClick={sendMessageWithAttachments}
                                 disabled={uploadingFiles}
-                                className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors ${uploadingFiles ? 'bg-gray-600 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'
+                                className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors ${uploadingFiles ? 'bg-gray-600 cursor-not-allowed' : 'bg-green-500 hover:bg-red-600'
                                     }`}
                             >
                                 {uploadingFiles ? (

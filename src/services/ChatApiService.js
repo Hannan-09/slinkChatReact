@@ -3,13 +3,13 @@
 // Base API configuration
 const API_CONFIG = {
   development: {
-    baseUrl: "https://9qkz9glq-8008.inc1.devtunnels.ms/api/v1",
+    baseUrl: "http://192.168.0.108:8008/api/v1",
   },
   staging: {
-    baseUrl: "https://9qkz9glq-8008.inc1.devtunnels.ms/api/v1",
+    baseUrl: "http://192.168.0.108:8008/api/v1",
   },
   production: {
-    baseUrl: "https://9qkz9glq-8008.inc1.devtunnels.ms/api/v1",
+    baseUrl: "http://192.168.0.108:8008/api/v1",
   },
 };
 

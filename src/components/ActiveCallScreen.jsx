@@ -75,13 +75,13 @@ export default function ActiveCallScreen() {
     };
 
     return (
-        <div className="fixed inset-0 bg-black z-50 flex flex-col">
+        <div className="fixed inset-0 bg-[#1a1a1a] z-50 flex flex-col">
             {/* Audio elements */}
             <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
             <audio ref={localAudioRef} muted className="hidden" />
 
             {/* Remote Video/Avatar */}
-            <div className="flex-1 relative bg-black flex items-center justify-center">
+            <div className="flex-1 relative bg-[#1a1a1a] flex items-center justify-center">
                 {isVideoCall && remoteStream ? (
                     <div className="w-full max-w-5xl aspect-video">
                         <video
@@ -92,7 +92,7 @@ export default function ActiveCallScreen() {
                         />
                     </div>
                 ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-gray-900 to-black">
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-[#1a1a1a]">
                         <div className="w-32 h-32 rounded-full bg-gradient-to-b from-[#2e2e2e] via-[#151515] to-[#050505] shadow-[0_18px_32px_rgba(0,0,0,0.9),inset_0_2px_3px_rgba(255,255,255,0.18),inset_0_-3px_6px_rgba(0,0,0,0.9)] border border-white/25 flex items-center justify-center mb-4">
                             <img
                                 src={otherUser?.avatar || 'https://via.placeholder.com/150'}
@@ -132,7 +132,7 @@ export default function ActiveCallScreen() {
             </div>
 
             {/* Controls */}
-            <div className="bg-gradient-to-t from-black to-transparent p-6">
+            <div className="bg-gradient-to-t from-[#1a1a1a] to-transparent p-6">
                 <div className="flex justify-center items-center gap-6">
                     {/* Mute Button - 3D nav-style */}
                     <button
