@@ -149,14 +149,15 @@ export default function ChatsScreen() {
 
                     // Backend fields:
                     // - lastMessage: full last message object (with content, attachments & sentAt)
-                    // - lastMessageAt / lastMessageTime / createdAt: timestamps
+                    // - lastMessageAt / lastMessageTime: timestamps for last message
+                    // - createdAt: room creation time (used ONLY for "no messages yet" state)
                     // - unseenMessageCount: number of unread messages for current user
                     const lastMessage = room.lastMessage || null;
                     const lastMessageAt =
                         (lastMessage && lastMessage.sentAt) ||
                         room.lastMessageAt ||
                         room.lastMessageTime ||
-                        room.createdAt;
+                        null;
                     const unseenCount =
                         typeof room.unseenMessageCount === 'number'
                             ? room.unseenMessageCount
@@ -216,7 +217,9 @@ export default function ChatsScreen() {
                         chatRoomId: room.chatRoomId,
                         name: otherUserName || 'Unknown User',
                         message: messagePreview,
-                        time: lastMessageAt ? formatTime(lastMessageAt) : '—',
+                        // Show time ONLY if we have a real last message timestamp;
+                        // for rooms with no messages, keep this empty so UI can just show "No messages yet".
+                        time: lastMessageAt ? formatTime(lastMessageAt) : '',
                         unreadCount: unseenCount,
                         avatar: otherUserProfileURL || null,
                         receiverId: otherUserId,
@@ -394,7 +397,7 @@ export default function ChatsScreen() {
                                 <div
                                     key={item.id || item.chatRoomId?.toString() || `chat-${index}`}
                                     onClick={() => handleChatClick(item)}
-                                    className="flex items-center px-5 py-3 h-20 mb-2 sm:mb-3 cursor-pointer transition-all rounded-2xl bg-gradient-to-b from-white/8 via-white/4 to-white/2 border border-white/15 shadow-[0_16px_30px_rgba(0,0,0,0.85),0_0_0_1px_rgba(255,255,255,0.04),inset_0_1px_2px_rgba(255,255,255,0.2),inset_0_-2px_4px_rgba(0,0,0,0.85)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.08),inset_0_2px_3px_rgba(255,255,255,0.24),inset_0_-3px_5px_rgba(0,0,0,0.9)] hover:bg-white/8"
+                                    className="flex items-center px-5 py-3 cursor-pointer transition-all border-b border-white/10 last:border-b-0 rounded-2xl hover:bg-white/5"
                                 >
                                     <div className="w-12 h-12 mr-4 rounded-full bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_16px_24px_rgba(0,0,0,0.97),0_0_0_1px_rgba(255,255,255,0.16),inset_0_3px_4px_rgba(255,255,255,0.24),inset_0_-4px_7px_rgba(0,0,0,0.96),inset_3px_0_4px_rgba(255,255,255,0.18),inset_-3px_0_4px_rgba(0,0,0,0.82)] border border-black/70 flex items-center justify-center flex-shrink-0">
                                         <div className="w-10 h-10 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center overflow-hidden">
