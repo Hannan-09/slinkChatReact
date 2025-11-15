@@ -22,10 +22,15 @@ export const CallProvider = ({ children, currentUserId }) => {
 
     // Call state
     const [callState, setCallState] = useState('idle');
+    const callStateRef = useRef('idle'); // Track call state immediately (not async like useState)
     const pendingIceCandidates = useRef([]);
     const processedOfferRef = useRef(false);
     const processedAnswerRef = useRef(false);
     const processedAcceptRef = useRef(false);
+    const processedRejectRef = useRef(false);
+    const processedBusyRef = useRef(false);
+    const isProcessingOffer = useRef(false);
+    const isProcessingAnswer = useRef(false);
     const [isVideoCall, setIsVideoCall] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoEnabled, setIsVideoEnabled] = useState(true);
@@ -44,16 +49,23 @@ export const CallProvider = ({ children, currentUserId }) => {
     // Call history ID
     const [callHistoryId, setCallHistoryId] = useState(null);
 
+    // UI messages
+    const [busyMessage, setBusyMessage] = useState(null);
+
     // Refs
     const callTimerRef = useRef(null);
     const ringtoneRef = useRef(null);
     const callStartSoundRef = useRef(null);
     const callEndSoundRef = useRef(null);
-    const callTimeoutRef = useRef(null);
 
     // Refs to store IDs immediately (state updates are async)
     const callerIdRef = useRef(null);
     const receiverIdRef = useRef(null);
+    
+    // Refs for audio/video elements
+    const remoteAudioRef = useRef(null);
+    const localVideoRef = useRef(null);
+    const remoteVideoRef = useRef(null);
 
     // Initialize sounds
     useEffect(() => {
@@ -88,21 +100,22 @@ export const CallProvider = ({ children, currentUserId }) => {
                     }
                     break;
                 case 'call-accept':
-                    if (callState === 'outgoing') {
+                    // Only the CALLER should process accept signal (when in 'outgoing' state)
+                    if (callStateRef.current === 'outgoing') {
                         handleCallAccepted();
                     }
                     break;
                 case 'call-reject':
-                    handleCallRejected();
+                    // Only process reject if we're in a call state
+                    if (callStateRef.current !== 'idle') {
+                        handleCallRejected();
+                    }
                     break;
                 case 'call-end':
                     handleCallEnded();
                     break;
                 case 'call-busy':
                     handleCallBusy(signalData);
-                    break;
-                case 'call-not-answered':
-                    handleCallNotAnsweredSignal();
                     break;
                 case 'offer':
                     await handleOffer(message);
@@ -170,6 +183,15 @@ export const CallProvider = ({ children, currentUserId }) => {
 
     // Timer functions
     const startCallTimer = () => {
+        // Always clear any existing timer before starting a new one
+        if (callTimerRef.current) {
+            clearInterval(callTimerRef.current);
+            callTimerRef.current = null;
+        }
+
+        // Reset duration at the start of each call
+        setCallDuration(0);
+
         callTimerRef.current = setInterval(() => {
             setCallDuration(prev => prev + 1);
         }, 1000);
@@ -182,11 +204,12 @@ export const CallProvider = ({ children, currentUserId }) => {
         }
     };
 
-    const clearCallTimeout = () => {
-        if (callTimeoutRef.current) {
-            clearTimeout(callTimeoutRef.current);
-            callTimeoutRef.current = null;
-        }
+
+    // Helper to update call state (both state and ref)
+    const updateCallState = (newState) => {
+        console.log('Updating call state from', callStateRef.current, 'to', newState);
+        callStateRef.current = newState;
+        setCallState(newState);
     };
 
     // Initiate call
@@ -195,7 +218,7 @@ export const CallProvider = ({ children, currentUserId }) => {
         callerIdRef.current = currentUserId;
         receiverIdRef.current = receiver.id;
 
-        setCallState('outgoing');
+        updateCallState('outgoing');
         setIsVideoCall(isVideo);
         setCallerId(currentUserId);
         setReceiverId(receiver.id);
@@ -245,13 +268,6 @@ export const CallProvider = ({ children, currentUserId }) => {
                 callerAvatar: ''
             }
         });
-
-        // Start 30-second timeout
-        callTimeoutRef.current = setTimeout(() => {
-            if (callState === 'outgoing' || callState === 'incoming') {
-                handleCallNotAnswered();
-            }
-        }, 30000);
     };
 
     // Handle incoming call
@@ -262,7 +278,7 @@ export const CallProvider = ({ children, currentUserId }) => {
         callerIdRef.current = signalData.callerId;
         receiverIdRef.current = currentUserId;
 
-        setCallState('incoming');
+        updateCallState('incoming');
         setIsVideoCall(signalData.isVideoCall);
         setCallerId(signalData.callerId);
         setReceiverId(currentUserId);
@@ -273,19 +289,11 @@ export const CallProvider = ({ children, currentUserId }) => {
         });
         setCallHistoryId(historyId);
         playRingtone();
-
-        // Start 30-second timeout for receiver too
-        callTimeoutRef.current = setTimeout(() => {
-            if (callState === 'incoming') {
-                handleCallNotAnswered();
-            }
-        }, 30000);
     };
 
     // Accept call
     const acceptCall = async () => {
         stopRingtone();
-        clearCallTimeout();
 
         setTimeout(() => playCallStartSound(), 200);
 
@@ -293,65 +301,33 @@ export const CallProvider = ({ children, currentUserId }) => {
         const callerUserId = callerIdRef.current;
         const receiverUserId = receiverIdRef.current;
 
-        // Initialize WebRTC FIRST before sending accept
+        // Set up local stream but DON'T create peer connection yet
+        // Peer connection will be created when we receive the offer from caller
         try {
-            const { localStream: stream } = await webRTCCallService.initializePeerConnection(isVideoCall);
+            const stream = await webRTCCallService.getLocalStream(isVideoCall);
             setLocalStream(stream);
-
-            webRTCCallService.setupEventHandlers(
-                (candidate) => {
-                    // Use ref values instead of state
-                    const otherUserId = callerUserId;
-                    if (!otherUserId || !receiverUserId) {
-                        console.error('Cannot send ICE candidate - missing user IDs');
-                        return;
-                    }
-                    publish(`/app/call/${receiverUserId}/${otherUserId}`, {
-                        signalType: 'ice-candidate',
-                        candidate
-                    });
-                },
-                (stream) => {
-                    console.log('🎵 Receiver: Remote stream received', stream);
-                    setRemoteStream(stream);
-                },
-                (state) => {
-                    console.log('🔗 Receiver: Connection state:', state);
-                    if (state === 'connected') startCallTimer();
-                    else if (state === 'reconnecting') {
-                        console.log('🔄 Receiver: Reconnecting...');
-                    }
-                },
-                async () => {
-                    // Retry callback - wait for new offer from caller
-                    console.log('🔄 Receiver: Waiting for retry from caller...');
-                    // Receiver doesn't need to do anything, just wait for new offer
-                }
-            );
-
-            // Now set state to active and send accept
-            setCallState('active');
-
-            // Send accept to backend
-            publish(`/app/call/${callerUserId}/${receiverUserId}/accept`, {
-                signalData: {},
-                callHistoryId: callHistoryId
-            });
         } catch (error) {
-            console.error('WebRTC init error:', error);
-            // If WebRTC fails, still accept the call
-            setCallState('active');
-            publish(`/app/call/${callerUserId}/${receiverUserId}/accept`, {
-                signalData: {},
-                callHistoryId: callHistoryId
-            });
+            console.error('Error getting local stream:', error);
+            alert(`Please allow ${isVideoCall ? 'camera and microphone' : 'microphone'} access to make calls`);
+            resetCallState();
+            return;
         }
+
+        // Update state to connected (but not active yet - will be active when offer is received)
+        updateCallState('connected');
+
+        // Send accept to backend
+        publish(`/app/call/${callerUserId}/${receiverUserId}/accept`, {
+            signalData: {},
+            callHistoryId: callHistoryId
+        });
+
+        console.log('✅ Call accept sent, waiting for offer from caller...');
     };
 
     // Reject call
     const rejectCall = () => {
         stopRingtone();
-        clearCallTimeout();
 
         publish(`/app/call/${callerId}/${currentUserId}/reject`, {
             signalData: {},
@@ -365,7 +341,6 @@ export const CallProvider = ({ children, currentUserId }) => {
     const endCall = () => {
         stopCallTimer();
         stopRingtone();
-        clearCallTimeout();
 
         if (callState === 'active') {
             playCallEndSound();
@@ -393,29 +368,8 @@ export const CallProvider = ({ children, currentUserId }) => {
         setTimeout(() => resetCallState(), 500);
     };
 
-    // Handle call not answered (timeout)
-    const handleCallNotAnswered = () => {
-        stopRingtone();
-        clearCallTimeout();
 
-        if ((callState === 'outgoing' || callState === 'incoming') && callerId && receiverId && callHistoryId) {
-            publish(`/app/call/${callerId}/${receiverId}/notAnswered`, {
-                signalData: {},
-                callHistoryId: callHistoryId
-            });
-        }
-    };
-
-    // Handle call not answered signal from backend
-    const handleCallNotAnsweredSignal = () => {
-        stopRingtone();
-        clearCallTimeout();
-        webRTCCallService.closeConnection();
-        alert('Call not answered');
-        resetCallState();
-    };
-
-    // Handle call accepted
+    // Handle call accepted (caller receives this when receiver accepts)
     const handleCallAccepted = async () => {
         // Prevent processing accept multiple times (from multiple subscriptions)
         if (processedAcceptRef.current) {
@@ -424,15 +378,24 @@ export const CallProvider = ({ children, currentUserId }) => {
         }
         processedAcceptRef.current = true;
 
-        clearCallTimeout();
-        setCallState('active');
+        updateCallState('active');
+        startCallTimer();
 
         setTimeout(() => playCallStartSound(), 200);
 
+        // Only the CALLER should create an offer when they receive accept signal
+        // The peer connection should already exist from initiateCall
+        if (!webRTCCallService.peerConnection) {
+            console.error('No peer connection exists when trying to create offer');
+            return;
+        }
+
         // Create and send offer
         try {
+            console.log('📤 Caller: Creating offer after receiver accepted');
             const offer = await webRTCCallService.createOffer();
             sendSignal('offer', { offer });
+            console.log('✅ Caller: Offer sent');
         } catch (error) {
             console.error('Error creating offer:', error);
         }
@@ -440,14 +403,23 @@ export const CallProvider = ({ children, currentUserId }) => {
 
     // Handle call rejected
     const handleCallRejected = () => {
-        clearCallTimeout();
-        alert('Call was rejected');
-        resetCallState();
+        // Prevent processing reject multiple times
+        if (processedRejectRef.current) {
+            console.log('Reject already processed, ignoring duplicate');
+            return;
+        }
+        
+        // Only show alert if we're actually in a call
+        if (callStateRef.current !== 'idle') {
+            processedRejectRef.current = true;
+            // Remove alert - just reset state silently
+            // alert('Call was rejected');
+            resetCallState();
+        }
     };
 
     // Handle call ended
     const handleCallEnded = () => {
-        clearCallTimeout();
         stopCallTimer();
         stopRingtone();
 
@@ -461,14 +433,34 @@ export const CallProvider = ({ children, currentUserId }) => {
 
     // Handle call busy
     const handleCallBusy = (signalData) => {
-        clearCallTimeout();
-        alert(signalData.message || 'User is on another call');
+        // Prevent processing busy multiple times for the same event burst
+        if (processedBusyRef.current) {
+            console.log('Busy already processed, ignoring duplicate');
+            return;
+        }
+
+        processedBusyRef.current = true;
+
+        const message =
+            signalData?.message ||
+            `${receiverInfo?.name || 'User'} is on another call. Please try again later.`;
+
+        // Show UI popup via state instead of alert
+        setBusyMessage(message);
+
+        // Clean up any ongoing call UI/state
         resetCallState();
     };
 
-    // Handle WebRTC offer
+    // Handle WebRTC offer (receiver receives this from caller)
     const handleOffer = async (message) => {
         try {
+            // Prevent duplicate processing
+            if (isProcessingOffer.current) {
+                console.log('⚠️ Already processing an offer, ignoring duplicate');
+                return;
+            }
+
             // Prevent processing the same offer multiple times (from multiple subscriptions)
             if (processedOfferRef.current) {
                 console.log('Offer already processed, ignoring duplicate');
@@ -476,37 +468,111 @@ export const CallProvider = ({ children, currentUserId }) => {
             }
 
             // The offer is in the message root, not in signalData
-            const offer = message.offer;
-            if (offer && webRTCCallService.peerConnection) {
-                console.log('📥 Receiver: Processing offer');
-                processedOfferRef.current = true;
-                await webRTCCallService.setRemoteDescription(offer);
-                console.log('✅ Receiver: Remote description set');
-                const answer = await webRTCCallService.createAnswer();
-                console.log('📤 Receiver: Sending answer');
+            const offer = message.offer || message;
+            
+            if (!offer || !offer.type) {
+                console.error('Invalid offer data:', message);
+                return;
+            }
 
-                // Send answer directly - receiver sends to caller
-                // Use refs instead of state (guaranteed to be set)
+            console.log('📥 Receiver: Processing offer from caller');
+
+            // Check if we already have a remote description (duplicate offer)
+            if (webRTCCallService.peerConnection && 
+                webRTCCallService.peerConnection.signalingState !== 'stable') {
+                console.log('Already processing offer, ignoring duplicate. State:', 
+                    webRTCCallService.peerConnection.signalingState);
+                return;
+            }
+
+            isProcessingOffer.current = true;
+            processedOfferRef.current = true;
+
+            // Create peer connection now (we have local stream from acceptCall)
+            if (!webRTCCallService.peerConnection) {
+                console.log('📡 Receiver: Creating peer connection with existing local stream');
+                await webRTCCallService.createPeerConnectionWithStream();
+
+                // Setup event handlers
                 const callerUserId = callerIdRef.current;
                 const receiverUserId = receiverIdRef.current;
 
-                if (callerUserId && receiverUserId) {
-                    publish(`/app/call/${receiverUserId}/${callerUserId}`, {
-                        signalType: 'answer',
-                        answer
-                    });
-                } else {
-                    console.error('Cannot send answer - missing user IDs:', { callerUserId, receiverUserId });
-                }
+                webRTCCallService.setupEventHandlers(
+                    (candidate) => {
+                        if (callerUserId && receiverUserId) {
+                            publish(`/app/call/${receiverUserId}/${callerUserId}`, {
+                                signalType: 'ice-candidate',
+                                candidate
+                            });
+                        }
+                    },
+                    (stream) => {
+                        console.log('🎵 Receiver: Remote stream received', stream);
+                        setRemoteStream(stream);
+                    },
+                    (state) => {
+                        console.log('🔗 Receiver: Connection state:', state);
+                        if (state === 'connected') {
+                            startCallTimer();
+                            // State is already 'active', just ensure timer starts
+                        } else if (state === 'reconnecting') {
+                            console.log('🔄 Receiver: Reconnecting...');
+                        }
+                    },
+                    null // No retry callback for receiver
+                );
+
+                // Set state to active immediately when peer connection is created
+                // This ensures the ActiveCallScreen appears right away
+                updateCallState('active');
+                startCallTimer();
+            }
+
+            // Set remote description (the offer)
+            await webRTCCallService.setRemoteDescription(offer);
+            console.log('✅ Receiver: Remote description set');
+
+            // Create and send answer
+            const answer = await webRTCCallService.createAnswer();
+            console.log('📤 Receiver: Sending answer');
+
+            // Send answer - receiver sends to caller
+            const callerUserId = callerIdRef.current;
+            const receiverUserId = receiverIdRef.current;
+
+            if (callerUserId && receiverUserId) {
+                publish(`/app/call/${receiverUserId}/${callerUserId}`, {
+                    signalType: 'answer',
+                    answer
+                });
+                console.log('✅ Receiver: Answer sent');
+            } else {
+                console.error('Cannot send answer - missing user IDs:', { callerUserId, receiverUserId });
+            }
+
+            // Process any pending ICE candidates
+            console.log('🧊 Receiver: Processing', pendingIceCandidates.current.length, 'pending ICE candidates');
+            while (pendingIceCandidates.current.length > 0) {
+                const candidate = pendingIceCandidates.current.shift();
+                await webRTCCallService.addIceCandidate(candidate);
             }
         } catch (error) {
             console.error('Error handling offer:', error);
+            processedOfferRef.current = false; // Allow retry on error
+        } finally {
+            isProcessingOffer.current = false;
         }
     };
 
     // Handle WebRTC answer
     const handleAnswer = async (message) => {
         try {
+            // Prevent duplicate processing
+            if (isProcessingAnswer.current) {
+                console.log('⚠️ Already processing an answer, ignoring duplicate');
+                return;
+            }
+
             // Prevent processing the same answer multiple times
             if (processedAnswerRef.current) {
                 console.log('Answer already processed, ignoring duplicate');
@@ -525,6 +591,7 @@ export const CallProvider = ({ children, currentUserId }) => {
                 }
 
                 console.log('📥 Caller: Processing answer');
+                isProcessingAnswer.current = true;
                 processedAnswerRef.current = true;
                 await webRTCCallService.setRemoteDescription(answer);
                 console.log('✅ Caller: Remote description set');
@@ -538,6 +605,8 @@ export const CallProvider = ({ children, currentUserId }) => {
             }
         } catch (error) {
             console.error('Error handling answer:', error);
+        } finally {
+            isProcessingAnswer.current = false;
         }
     };
 
@@ -605,18 +674,30 @@ export const CallProvider = ({ children, currentUserId }) => {
         webRTCCallService.toggleVideo(newEnabled);
     };
 
+    // Rotate / switch camera (front ↔ back)
+    const rotateCamera = async () => {
+        try {
+            await webRTCCallService.switchCamera();
+        } catch (err) {
+            console.error('Error rotating camera:', err);
+        }
+    };
+
     // Reset call state
     const resetCallState = () => {
-        clearCallTimeout();
         stopCallTimer();
         stopRingtone();
         pendingIceCandidates.current = [];
         processedOfferRef.current = false;
         processedAnswerRef.current = false;
         processedAcceptRef.current = false;
+        processedRejectRef.current = false;
+        // Don't reset processedBusyRef here so duplicates are still blocked
+        isProcessingOffer.current = false;
+        isProcessingAnswer.current = false;
         callerIdRef.current = null;
         receiverIdRef.current = null;
-        setCallState('idle');
+        updateCallState('idle');
         setIsVideoCall(false);
         setIsMuted(false);
         setIsVideoEnabled(true);
@@ -637,6 +718,38 @@ export const CallProvider = ({ children, currentUserId }) => {
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
+    // Update remote audio when remote stream changes
+    useEffect(() => {
+        if (remoteAudioRef.current && remoteStream) {
+            console.log('🔊 Setting remote audio stream', remoteStream);
+            remoteAudioRef.current.srcObject = remoteStream;
+            remoteAudioRef.current.play().catch(err => {
+                console.error('Error playing remote audio:', err);
+            });
+        }
+    }, [remoteStream]);
+
+    // Update local video when local stream changes
+    useEffect(() => {
+        if (localVideoRef.current && localStream && isVideoCall) {
+            console.log('📹 Setting local video stream', localStream);
+            localVideoRef.current.srcObject = localStream;
+        }
+    }, [localStream, isVideoCall]);
+
+    // Update remote video when remote stream changes
+    useEffect(() => {
+        if (remoteVideoRef.current && remoteStream && isVideoCall) {
+            console.log('📹 Setting remote video stream', remoteStream);
+            remoteVideoRef.current.srcObject = remoteStream;
+        }
+    }, [remoteStream, isVideoCall]);
+
+    const clearBusyMessage = () => {
+        setBusyMessage(null);
+        processedBusyRef.current = false;
+    };
+
     const value = {
         callState,
         isVideoCall,
@@ -649,13 +762,24 @@ export const CallProvider = ({ children, currentUserId }) => {
         receiverInfo,
         localStream,
         remoteStream,
+        busyMessage,
+        remoteAudio: remoteAudioRef,
+        localVideoRef,
+        remoteVideoRef,
         initiateCall,
         acceptCall,
         rejectCall,
         endCall,
         toggleMute,
         toggleVideo,
+        clearBusyMessage,
+        rotateCamera,
     };
 
-    return <CallContext.Provider value={value}>{children}</CallContext.Provider>;
+    return (
+        <CallContext.Provider value={value}>
+            {children}
+            <audio ref={remoteAudioRef} autoPlay playsInline />
+        </CallContext.Provider>
+    );
 };

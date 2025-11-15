@@ -36,7 +36,7 @@ export default function ActiveCallScreen() {
     const isVideoCall = searchParams.get('isVideoCall') === 'true';
     const isIncoming = searchParams.get('isIncoming') === 'true';
 
-    const [isSpeakerOn, setIsSpeakerOn] = useState(true);
+    const [isSpeakerOn, setIsSpeakerOn] = useState(false);
     const [showControls, setShowControls] = useState(true);
 
     const remoteAudioRef = useRef(null);
@@ -52,7 +52,8 @@ export default function ActiveCallScreen() {
         if (remoteStream && remoteAudioRef.current) {
             console.log('🔊 Connecting remote stream to audio element', remoteStream);
             remoteAudioRef.current.srcObject = remoteStream;
-            remoteAudioRef.current.volume = isSpeakerOn ? 1.0 : 0.3;
+            // Speaker ON -> full volume, OFF -> mute
+            remoteAudioRef.current.volume = isSpeakerOn ? 1.0 : 0.0;
             remoteAudioRef.current.play().catch(err => {
                 console.error('Error playing remote audio:', err);
             });
@@ -113,8 +114,8 @@ export default function ActiveCallScreen() {
 
         // Control remote audio volume
         if (remoteAudioRef.current) {
-            remoteAudioRef.current.volume = newSpeakerState ? 1.0 : 0.3;
-            console.log('🔊 Speaker', newSpeakerState ? 'ON (100%)' : 'OFF (30%)');
+            remoteAudioRef.current.volume = newSpeakerState ? 1.0 : 0.0;
+            console.log('🔊 Speaker', newSpeakerState ? 'ON (speakerphone)' : 'OFF (earpiece/muted)');
         }
     };
 

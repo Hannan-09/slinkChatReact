@@ -1376,20 +1376,29 @@ export default function ChatDetailScreen() {
             {/* Header - Sticky Top */}
             <div className="sticky top-0 z-10 flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 bg-[#1a1a1a] border-b border-gray-800 shadow-lg">
                 <div className="flex items-center flex-1 min-w-0">
+                    {/* Back button - 3D ring matching add-friend button */}
                     <button
                         onClick={() => navigate(-1)}
-                        className="w-9 h-9 sm:w-10 sm:h-10 bg-[#2d2d2d] rounded-full flex items-center justify-center shadow-lg border border-gray-700 mr-2 sm:mr-4 hover:bg-gray-700 transition-colors flex-shrink-0"
+                        className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 mr-2 sm:mr-4 flex-shrink-0"
                     >
-                        <IoArrowBack className="text-white text-lg sm:text-xl" />
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
+                            <IoArrowBack className="text-white text-lg sm:text-xl" />
+                        </div>
                     </button>
-                    <img
-                        src={decodeURIComponent(avatar || '')}
-                        alt={name}
-                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-full mr-2 sm:mr-4 shadow-lg flex-shrink-0"
-                        onError={(e) => {
-                            e.target.src = 'https://via.placeholder.com/40';
-                        }}
-                    />
+
+                    {/* Chat avatar - 3D ring around avatar */}
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full mr-2 sm:mr-4 bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_14px_22px_rgba(0,0,0,0.96),0_0_0_1px_rgba(255,255,255,0.14),inset_0_3px_4px_rgba(255,255,255,0.22),inset_0_-4px_7px_rgba(0,0,0,0.95),inset_3px_0_4px_rgba(255,255,255,0.18),inset_-3px_0_4px_rgba(0,0,0,0.8)] border border-black/70 flex-shrink-0 flex items-center justify-center">
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center">
+                            <img
+                                src={decodeURIComponent(avatar || '')}
+                                alt={name}
+                                className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover"
+                                onError={(e) => {
+                                    e.target.src = 'https://via.placeholder.com/40';
+                                }}
+                            />
+                        </div>
+                    </div>
                     <div className="flex-1 min-w-0">
                         <h2 className="text-white font-bold text-base sm:text-lg truncate">{name || 'Unknown'}</h2>
                         <p className="text-xs sm:text-sm truncate flex items-center">
@@ -1410,17 +1419,24 @@ export default function ChatDetailScreen() {
                     </div>
                 </div>
                 <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                    {/* Video call - 3D ring like add-friend button */}
                     <button
                         onClick={() => handleCallPress(true)}
-                        className="w-9 h-9 sm:w-10 sm:h-10 bg-green-500 rounded-full flex items-center justify-center shadow-lg hover:bg-green-600 transition-colors"
+                        className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70"
                     >
-                        <IoVideocam className="text-white text-lg sm:text-xl" />
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
+                            <IoVideocam className="text-white text-lg sm:text-xl" />
+                        </div>
                     </button>
+
+                    {/* Audio call - 3D ring like add-friend button */}
                     <button
                         onClick={() => handleCallPress(false)}
-                        className="w-9 h-9 sm:w-10 sm:h-10 bg-red-500 rounded-full flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors"
+                        className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70"
                     >
-                        <IoCall className="text-white text-lg sm:text-xl" />
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
+                            <IoCall className="text-white text-lg sm:text-xl" />
+                        </div>
                     </button>
                 </div>
             </div>
@@ -1468,12 +1484,11 @@ export default function ChatDetailScreen() {
                                 <div key={item.id} className={`flex my-1 sm:my-2 ${item.isMe ? 'justify-end' : 'justify-start'} group w-full`}>
                                     <div className="relative max-w-[85%] sm:max-w-[75%] md:max-w-[65%] lg:max-w-[55%]">
                                         <div
-                                            className={`w-full px-3 sm:px-4 py-2 sm:py-3 rounded-2xl shadow-lg ${item.isDeleted
-                                                ? 'bg-gray-800 border border-gray-700'
-                                                : item.isMe
-                                                    ? 'bg-red-500'
-                                                    : 'bg-[#2d2d2d] border border-gray-700'
-                                                }`}
+                                            className={`w-full px-3 sm:px-4 py-2 sm:py-3 rounded-2xl ${
+                                                item.isDeleted
+                                                    ? 'bg-gray-800 border border-gray-700 shadow-lg'
+                                                    : 'bg-gradient-to-b from-white/16 via-white/10 to-white/6 border border-white/25 shadow-[0_22px_44px_rgba(0,0,0,0.98),0_0_0_1px_rgba(255,255,255,0.12),inset_0_3px_5px_rgba(255,255,255,0.26),inset_0_-4px_7px_rgba(0,0,0,0.92),inset_3px_0_4px_rgba(255,255,255,0.14),inset_-3px_0_4px_rgba(0,0,0,0.7)] backdrop-blur-2xl bg-clip-padding'
+                                            }`}
                                             style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
                                             onContextMenu={(e) => {
                                                 if (item.isMe && !item.isDeleted) {
@@ -1832,31 +1847,38 @@ export default function ChatDetailScreen() {
                         </div>
                     )}
 
-                    <button
-                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                        className="w-9 h-9 sm:w-10 sm:h-10 bg-[#2d2d2d] rounded-full flex items-center justify-center shadow-lg border border-gray-700 hover:bg-gray-700 transition-colors flex-shrink-0"
-                    >
-                        <IoHappyOutline className="text-gray-400 text-lg sm:text-xl" />
-                    </button>
+                    {/* Emoji + input container with glassy/search-bar style */}
+                    <div className="flex-1 flex items-center rounded-full px-3 sm:px-5 py-2 sm:py-3 bg-gradient-to-b from-white/16 via-white/10 to-white/6 border border-white/25 shadow-[0_22px_44px_rgba(0,0,0,0.98),0_0_0_1px_rgba(255,255,255,0.12),inset_0_3px_5px_rgba(255,255,255,0.26),inset_0_-4px_7px_rgba(0,0,0,0.92),inset_3px_0_4px_rgba(255,255,255,0.14),inset_-3px_0_4px_rgba(0,0,0,0.7)] backdrop-blur-2xl bg-clip-padding gap-2">
+                        <button
+                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 flex-shrink-0"
+                        >
+                            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                                <IoHappyOutline className="text-gray-300 text-base sm:text-lg" />
+                            </div>
+                        </button>
 
-                    <textarea
-                        ref={textInputRef}
-                        value={message}
-                        onChange={(e) => handleTextChange(e.target.value)}
-                        onKeyPress={handleKeyPress}
-                        placeholder={editingMessageId ? "Edit your message" : "Type a message"}
-                        className="flex-1 bg-[#2d2d2d] border border-gray-700 rounded-3xl px-3 sm:px-5 py-2 sm:py-3 text-sm sm:text-base text-white placeholder-gray-500 outline-none resize-none shadow-lg max-h-24 min-h-[40px] sm:min-h-[44px]"
-                        rows={1}
-                    />
+                        <textarea
+                            ref={textInputRef}
+                            value={message}
+                            onChange={(e) => handleTextChange(e.target.value)}
+                            onKeyPress={handleKeyPress}
+                            placeholder={editingMessageId ? "Edit your message" : "Type a message"}
+                            className="flex-1 bg-transparent text-white placeholder-white text-center outline-none resize-none text-sm sm:text-base max-h-24 min-h-[40px] sm:min-h-[44px]"
+                            rows={1}
+                        />
+                    </div>
 
                     {!editingMessageId && (
                         <>
                             <div className="relative attach-menu-container">
                                 <button
                                     onClick={() => setShowAttachMenu(!showAttachMenu)}
-                                    className="w-9 h-9 sm:w-10 sm:h-10 bg-[#2d2d2d] rounded-full flex items-center justify-center shadow-lg border border-gray-700 hover:bg-gray-700 transition-colors flex-shrink-0"
+                                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 flex-shrink-0 transition-transform hover:scale-105"
                                 >
-                                    <IoAttach className="text-gray-400 text-lg sm:text-xl" />
+                                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                                        <IoAttach className="text-gray-200 text-lg sm:text-xl" />
+                                    </div>
                                 </button>
 
                                 {/* Attach Menu */}
@@ -1929,16 +1951,15 @@ export default function ChatDetailScreen() {
                     <button
                         onClick={sendMessage}
                         disabled={!message.trim()}
-                        className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-lg transition-colors flex-shrink-0 ${message.trim()
-                            ? 'bg-red-500 hover:bg-red-600'
-                            : 'bg-gray-600 cursor-not-allowed'
-                            }`}
+                        className={`w-12 h-12 sm:w-13 sm:h-13 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 flex-shrink-0 transition-transform ${message.trim() ? 'hover:scale-105' : 'opacity-40 cursor-not-allowed'}`}
                     >
-                        {editingMessageId ? (
-                            <IoCheckmarkCircle className="text-white text-lg sm:text-xl" />
-                        ) : (
-                            <IoSend className="text-white text-lg sm:text-xl" />
-                        )}
+                        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
+                            {editingMessageId ? (
+                                <IoCheckmarkCircle className={`text-lg sm:text-xl ${message.trim() ? 'text-[#34c759]' : 'text-gray-500'}`} />
+                            ) : (
+                                <IoSend className={`text-lg sm:text-xl ${message.trim() ? 'text-[#ff3b30]' : 'text-gray-500'}`} />
+                            )}
+                        </div>
                     </button>
                 </div>
             </div>

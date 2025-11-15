@@ -138,42 +138,51 @@ export default function RequestsScreen() {
         <div className="min-h-screen bg-[#1a1a1a] flex flex-col">
             {/* Header */}
             <div className="flex items-center px-5 py-4">
+                {/* Back button - neumorphic */}
                 <button
                     onClick={() => navigate(-1)}
-                    className="w-10 h-10 bg-[#1a1a1a] rounded-full flex items-center justify-center shadow-inner border border-gray-800 mr-4 hover:bg-gray-800 transition-colors"
+                    className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 mr-4"
                 >
-                    <IoArrowBack className="text-white text-xl" />
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                        <IoArrowBack className="text-white text-xl" />
+                    </div>
                 </button>
+
                 <h1 className="text-2xl font-bold text-white flex-1">Chat Requests</h1>
+
+                {/* Refresh button - neumorphic */}
                 <button
                     onClick={() => currentUserId && loadRequests(currentUserId)}
                     disabled={loading}
-                    className={`w-10 h-10 bg-[#1a1a1a] rounded-full flex items-center justify-center shadow-inner border border-gray-800 transition-colors ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-800'
-                        }`}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                    <IoRefresh
-                        className={`text-xl ${loading ? 'text-gray-400 animate-spin' : 'text-white'}`}
-                    />
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center bg-gradient-to-b from-[#0a84ff] to-[#0040dd] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                        <IoRefresh
+                            className={`text-xl ${loading ? 'text-gray-200 animate-spin' : 'text-white'}`}
+                        />
+                    </div>
                 </button>
             </div>
 
-            {/* Tab Selector */}
-            <div className="mx-5 mb-5 bg-[#252525] rounded-full p-1 flex">
+            {/* Tab Selector - glassy pill shell + 3D buttons (no extra border on active) */}
+            <div className="mx-5 mb-5 rounded-full p-1 flex bg-gradient-to-b from-white/16 via-white/10 to-white/6 border border-white/25 shadow-[0_22px_44px_rgba(0,0,0,0.98),0_0_0_1px_rgba(255,255,255,0.12),inset_0_3px_5px_rgba(255,255,255,0.26),inset_0_-4px_7px_rgba(0,0,0,0.92),inset_3px_0_4px_rgba(255,255,255,0.14),inset_-3px_0_4px_rgba(0,0,0,0.7)] backdrop-blur-2xl bg-clip-padding">
                 <button
                     onClick={() => setActiveTab('received')}
-                    className={`flex-1 py-3 rounded-full text-sm font-medium transition-all ${activeTab === 'received'
-                            ? 'bg-orange-500 text-white shadow-lg'
+                    className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all ${
+                        activeTab === 'received'
+                            ? 'bg-gradient-to-b from-[#252525] to-[#101010] text-white shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)]'
                             : 'text-gray-400'
-                        }`}
+                    }`}
                 >
                     Received ({receivedRequests.length})
                 </button>
                 <button
                     onClick={() => setActiveTab('sent')}
-                    className={`flex-1 py-3 rounded-full text-sm font-medium transition-all ${activeTab === 'sent'
-                            ? 'bg-orange-500 text-white shadow-lg'
+                    className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all ${
+                        activeTab === 'sent'
+                            ? 'bg-gradient-to-b from-[#252525] to-[#101010] text-white shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)]'
                             : 'text-gray-400'
-                        }`}
+                    }`}
                 >
                     Sent ({sentRequests.length})
                 </button>
@@ -263,25 +272,40 @@ export default function RequestsScreen() {
                 )}
             </div>
 
-            {/* Bottom Navigation */}
-            <div className="flex items-center justify-around px-5 py-3 bg-[#252525] mx-5 mb-5 rounded-full shadow-2xl">
+            {/* Bottom Navigation - glass / 3D neumorphic (same base as back button, with glassy background) */}
+            <div className="flex items-center justify-around px-6 py-3 mx-4 mb-4 rounded-[28px] bg-gradient-to-b from-white/16 via-white/10 to-white/6 border border-white/25 shadow-[0_22px_44px_rgba(0,0,0,0.98),0_0_0_1px_rgba(255,255,255,0.12),inset_0_3px_5px_rgba(255,255,255,0.26),inset_0_-4px_7px_rgba(0,0,0,0.92),inset_3px_0_4px_rgba(255,255,255,0.14),inset_-3px_0_4px_rgba(0,0,0,0.7)] backdrop-blur-2xl bg-clip-padding">
+                {/* Chats */}
                 <button
                     onClick={() => navigate('/chats')}
-                    className="w-14 h-14 bg-[#1a1a1a] rounded-full flex items-center justify-center shadow-inner border border-gray-800 hover:bg-gray-800 transition-colors"
+                    className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 hover:bg-[#1d1d1d] transition-colors"
                 >
-                    <IoChatbubblesOutline className="text-gray-400 text-2xl" />
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                        <IoChatbubblesOutline className="text-gray-300 text-2xl" />
+                    </div>
                 </button>
-                <button className="w-14 h-14 bg-[#1a1a1a] rounded-full flex items-center justify-center shadow-inner border border-gray-800 hover:bg-gray-800 transition-colors">
-                    <IoCamera className="text-gray-400 text-2xl" />
+
+                {/* Placeholder middle icon */}
+                <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 hover:bg-[#1d1d1d] transition-colors">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                        <IoCamera className="text-gray-300 text-2xl" />
+                    </div>
                 </button>
+
+                {/* Friends */}
                 <button
                     onClick={() => navigate('/friends')}
-                    className="w-14 h-14 bg-[#1a1a1a] rounded-full flex items-center justify-center shadow-inner border border-gray-800 hover:bg-gray-800 transition-colors"
+                    className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 hover:bg-[#1d1d1d] transition-colors"
                 >
-                    <IoPeopleOutline className="text-gray-400 text-2xl" />
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                        <IoPeopleOutline className="text-gray-300 text-2xl" />
+                    </div>
                 </button>
-                <button className="w-14 h-14 bg-orange-500 rounded-full flex items-center justify-center shadow-lg">
-                    <IoMail className="text-white text-2xl" />
+
+                {/* Requests (active) */}
+                <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 animate-pulse">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                        <IoMail className="text-white text-3xl" />
+                    </div>
                 </button>
             </div>
         </div>

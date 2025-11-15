@@ -11,48 +11,53 @@ class WebRTCCallService {
     this.onRetryCallback = null;
     this.configuration = {
       iceServers: [
-        // STUN servers (for discovering public IP)
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-        { urls: "stun:stun2.l.google.com:19302" },
-        // TURN server (for relaying traffic when direct connection fails)
-        {
-          urls: "turn:openrelay.metered.ca:80",
-          username: "openrelayproject",
-          credential: "openrelayproject",
-        },
-        {
-          urls: "turn:openrelay.metered.ca:443",
-          username: "openrelayproject",
-          credential: "openrelayproject",
-        },
-        {
-          urls: "turn:openrelay.metered.ca:443?transport=tcp",
-          username: "openrelayproject",
-          credential: "openrelayproject",
-        },
-      ],
-      iceCandidatePoolSize: 10,
-      iceTransportPolicy: "all", // Try all connection types
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
     };
   }
 
-  // Initialize peer connection
+  // Get local media stream only (without creating peer connection)
+  async getLocalStream(isVideoCall = false) {
+    try {
+      const constraints = {
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        },
+        video: isVideoCall ? {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'user'
+        } : false
+      };
+
+      this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+      return this.localStream;
+    } catch (error) {
+      console.error("Error getting local stream:", error);
+      throw error;
+    }
+  }
+
+  // Initialize peer connection (can be called separately after getting local stream)
   async initializePeerConnection(isVideoCall = false) {
     try {
-      // Get local media stream
-      this.localStream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: isVideoCall ? { facingMode: "user" } : false,
-      });
+      // If local stream not already obtained, get it now
+      if (!this.localStream) {
+        await this.getLocalStream(isVideoCall);
+      }
 
       // Create peer connection
       this.peerConnection = new RTCPeerConnection(this.configuration);
 
       // Add local tracks to peer connection
-      this.localStream.getTracks().forEach((track) => {
-        this.peerConnection.addTrack(track, this.localStream);
-      });
+      if (this.localStream) {
+        this.localStream.getTracks().forEach((track) => {
+          this.peerConnection.addTrack(track, this.localStream);
+        });
+      }
 
       // Create remote stream
       this.remoteStream = new MediaStream();
@@ -62,6 +67,26 @@ class WebRTCCallService {
       console.error("Error initializing peer connection:", error);
       throw error;
     }
+  }
+
+  // Create peer connection with existing local stream (for receiver after accepting)
+  async createPeerConnectionWithStream() {
+    if (!this.localStream) {
+      throw new Error("Local stream must be set before creating peer connection");
+    }
+
+    // Create peer connection
+    this.peerConnection = new RTCPeerConnection(this.configuration);
+
+    // Add local tracks to peer connection
+    this.localStream.getTracks().forEach((track) => {
+      this.peerConnection.addTrack(track, this.localStream);
+    });
+
+    // Create remote stream
+    this.remoteStream = new MediaStream();
+
+    return { localStream: this.localStream, remoteStream: this.remoteStream };
   }
 
   // Create offer (caller side)
@@ -114,8 +139,14 @@ class WebRTCCallService {
   }
 
   // Setup event handlers
-  setupEventHandlers(onIceCandidate, onTrack, onConnectionStateChange) {
-    if (!this.peerConnection) return;
+  setupEventHandlers(onIceCandidate, onTrack, onConnectionStateChange, onRetry = null) {
+    if (!this.peerConnection) {
+      console.warn("Cannot setup event handlers - peer connection not initialized");
+      return;
+    }
+
+    // Store retry callback
+    this.onRetryCallback = onRetry;
 
     // ICE candidate event
     this.peerConnection.onicecandidate = (event) => {
@@ -220,7 +251,9 @@ class WebRTCCallService {
       if (this.onRetryCallback) {
         this.retryTimeout = setTimeout(() => {
           console.log("🔄 Executing retry...");
-          this.onRetryCallback();
+          if (this.onRetryCallback) {
+            this.onRetryCallback();
+          }
         }, 2000); // Wait 2 seconds before retry
       } else {
         onConnectionStateChange("failed");
@@ -256,6 +289,70 @@ class WebRTCCallService {
       this.localStream.getVideoTracks().forEach((track) => {
         track.enabled = enabled;
       });
+    }
+  }
+
+  // Switch / rotate camera (front ↔ back) on supported devices
+  async switchCamera() {
+    try {
+      if (!this.localStream) {
+        console.warn("switchCamera called without localStream");
+        return;
+      }
+
+      const currentVideoTrack = this.localStream.getVideoTracks()[0];
+      if (!currentVideoTrack) {
+        console.warn("No video track to switch");
+        return;
+      }
+
+      // Get list of video input devices
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter((d) => d.kind === "videoinput");
+
+      if (videoDevices.length < 2) {
+        console.warn("Not enough video devices to switch camera");
+        return;
+      }
+
+      const currentSettings = currentVideoTrack.getSettings();
+      const currentDeviceId = currentSettings.deviceId;
+
+      // Pick the next device (different from current)
+      const nextDevice =
+        videoDevices.find((d) => d.deviceId !== currentDeviceId) ||
+        videoDevices[0];
+
+      console.log("🔄 Switching camera to device:", nextDevice.label);
+
+      // Get new video stream from the selected device
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: nextDevice.deviceId } },
+        audio: false,
+      });
+
+      const newVideoTrack = newStream.getVideoTracks()[0];
+      if (!newVideoTrack) {
+        console.warn("Failed to get new video track when switching camera");
+        return;
+      }
+
+      // Replace track in the peer connection (so remote sees new camera)
+      if (this.peerConnection) {
+        const videoSender = this.peerConnection
+          .getSenders()
+          .find((s) => s.track && s.track.kind === "video");
+        if (videoSender) {
+          await videoSender.replaceTrack(newVideoTrack);
+        }
+      }
+
+      // Update localStream: stop old track, remove it, add new one
+      currentVideoTrack.stop();
+      this.localStream.removeTrack(currentVideoTrack);
+      this.localStream.addTrack(newVideoTrack);
+    } catch (err) {
+      console.error("❌ Error switching camera:", err);
     }
   }
 

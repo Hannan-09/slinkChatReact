@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     IoChatbubbles,
-    IoAdd,
+    IoChatbubblesOutline,
+    IoPersonAdd,
     IoSearch,
     IoCamera,
-    IoPeople,
-    IoSettings
+    IoPeopleOutline,
+    IoSettingsOutline
 } from 'react-icons/io5';
 import { Colors } from '../constants/Colors';
 import { ApiUtils } from '../services/AuthService';
@@ -143,26 +144,34 @@ export default function ChatsScreen() {
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4">
                 <div className="flex items-center">
-                    <img
-                        src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face"
-                        alt="Profile"
-                        className="w-10 h-10 rounded-full mr-4 shadow-lg"
-                    />
+                    {/* Header profile - 3D avatar ring */}
+                    <div className="w-10 h-10 rounded-full mr-4 bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_14px_22px_rgba(0,0,0,0.96),0_0_0_1px_rgba(255,255,255,0.14),inset_0_3px_4px_rgba(255,255,255,0.22),inset_0_-4px_7px_rgba(0,0,0,0.95),inset_3px_0_4px_rgba(255,255,255,0.18),inset_-3px_0_4px_rgba(0,0,0,0.8)] border border-black/70 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center">
+                            <img
+                                src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face"
+                                alt="Profile"
+                                className="w-7 h-7 rounded-full object-cover"
+                            />
+                        </div>
+                    </div>
                     <h1 className="text-2xl font-bold text-white">Chats</h1>
                 </div>
-                <button className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center shadow-lg hover:bg-orange-600 transition-colors">
-                    <IoAdd className="text-white text-2xl" />
+                {/* Add friend / new chat button - match ChatDetail header button size */}
+                <button className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
+                        <IoPersonAdd className="text-white text-lg sm:text-xl" />
+                    </div>
                 </button>
             </div>
 
-            {/* Search Bar */}
+            {/* Search Bar - glassy, same background style as bottom nav */}
             <div className="px-5 mb-5">
-                <div className="flex items-center bg-[#1a1a1a] rounded-full px-5 py-3 shadow-inner border border-gray-800">
-                    <IoSearch className="text-gray-500 text-xl mr-4" />
+                <div className="flex items-center rounded-full px-5 py-3 bg-gradient-to-b from-white/16 via-white/10 to-white/6 border border-white/25 shadow-[0_22px_44px_rgba(0,0,0,0.98),0_0_0_1px_rgba(255,255,255,0.12),inset_0_3px_5px_rgba(255,255,255,0.26),inset_0_-4px_7px_rgba(0,0,0,0.92),inset_3px_0_4px_rgba(255,255,255,0.14),inset_-3px_0_4px_rgba(0,0,0,0.7)] backdrop-blur-2xl bg-clip-padding">
+                    <IoSearch className="text-gray-300 text-xl mr-4" />
                     <input
                         type="text"
                         placeholder="Search"
-                        className="flex-1 bg-transparent text-gray-400 outline-none placeholder-gray-500"
+                        className="flex-1 bg-transparent text-gray-200 outline-none placeholder-gray-500"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -188,17 +197,21 @@ export default function ChatsScreen() {
                                 <div
                                     key={item.id || item.chatRoomId?.toString() || `chat-${index}`}
                                     onClick={() => handleChatClick(item)}
-                                    className="flex items-center px-5 py-4 hover:bg-gray-900 cursor-pointer transition-colors"
+                                    className="flex items-center px-5 py-4 cursor-pointer transition-all rounded-2xl bg-gradient-to-b from-white/8 via-white/4 to-white/2 border border-white/15 shadow-[0_16px_30px_rgba(0,0,0,0.85),0_0_0_1px_rgba(255,255,255,0.04),inset_0_1px_2px_rgba(255,255,255,0.2),inset_0_-2px_4px_rgba(0,0,0,0.85)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.08),inset_0_2px_3px_rgba(255,255,255,0.24),inset_0_-3px_5px_rgba(0,0,0,0.9)] hover:bg-white/8"
                                 >
-                                    <img
-                                        src={item.avatar || ''}
-                                        alt={item.name || 'User'}
-                                        className="w-12 h-12 rounded-full mr-4 shadow-lg"
-                                        onError={(e) => {
-                                            e.target.src =
-                                                'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face';
-                                        }}
-                                    />
+                                    <div className="w-12 h-12 mr-4 rounded-full bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_16px_24px_rgba(0,0,0,0.97),0_0_0_1px_rgba(255,255,255,0.16),inset_0_3px_4px_rgba(255,255,255,0.24),inset_0_-4px_7px_rgba(0,0,0,0.96),inset_3px_0_4px_rgba(255,255,255,0.18),inset_-3px_0_4px_rgba(0,0,0,0.82)] border border-black/70 flex items-center justify-center flex-shrink-0">
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center">
+                                            <img
+                                                src={item.avatar || ''}
+                                                alt={item.name || 'User'}
+                                                className="w-8 h-8 rounded-full object-cover"
+                                                onError={(e) => {
+                                                    e.target.src =
+                                                        'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face';
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
                                     <div className="flex-1">
                                         <div className="flex items-center justify-between mb-1">
                                             <h3 className="text-white font-semibold text-base">
@@ -238,22 +251,37 @@ export default function ChatsScreen() {
                 )}
             </div>
 
-            {/* Bottom Navigation */}
-            <div className="flex items-center justify-around px-5 py-3 bg-[#252525] mx-5 mb-5 rounded-full shadow-2xl">
-                <button className="w-14 h-14 bg-orange-500 rounded-full flex items-center justify-center shadow-lg">
-                    <IoChatbubbles className="text-white text-2xl" />
+            {/* Bottom Navigation - glass / 3D neumorphic (same base as back button, with glassy background) */}
+            <div className="flex items-center justify-around px-6 py-3 mx-4 mb-4 rounded-[28px] bg-gradient-to-b from-white/16 via-white/10 to-white/6 border border-white/25 shadow-[0_22px_44px_rgba(0,0,0,0.98),0_0_0_1px_rgba(255,255,255,0.12),inset_0_3px_5px_rgba(255,255,255,0.26),inset_0_-4px_7px_rgba(0,0,0,0.92),inset_3px_0_4px_rgba(255,255,255,0.14),inset_-3px_0_4px_rgba(0,0,0,0.7)] backdrop-blur-2xl bg-clip-padding">
+                {/* Chats (active) */}
+                <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 animate-pulse">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                        <IoChatbubbles className="text-white text-3xl" />
+                    </div>
                 </button>
-                <button className="w-14 h-14 bg-[#1a1a1a] rounded-full flex items-center justify-center shadow-inner border border-gray-800 hover:bg-gray-800 transition-colors">
-                    <IoCamera className="text-gray-400 text-2xl" />
+
+                {/* Placeholder middle icon */}
+                <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] border border-black/70 shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] hover:bg-[#1d1d1d] transition-colors">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                        <IoCamera className="text-gray-300 text-2xl" />
+                    </div>
                 </button>
+
+                {/* Friends */}
                 <button
                     onClick={() => navigate('/friends')}
-                    className="w-14 h-14 bg-[#1a1a1a] rounded-full flex items-center justify-center shadow-inner border border-gray-800 hover:bg-gray-800 transition-colors"
+                    className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] border border-black/70 shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] hover:bg-[#1d1d1d] transition-colors"
                 >
-                    <IoPeople className="text-gray-400 text-2xl" />
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                        <IoPeopleOutline className="text-gray-300 text-2xl" />
+                    </div>
                 </button>
-                <button className="w-14 h-14 bg-[#1a1a1a] rounded-full flex items-center justify-center shadow-inner border border-gray-800 hover:bg-gray-800 transition-colors">
-                    <IoSettings className="text-gray-400 text-2xl" />
+
+                {/* Settings */}
+                <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] border border-black/70 shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] hover:bg-[#1d1d1d] transition-colors">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                        <IoSettingsOutline className="text-gray-300 text-2xl" />
+                    </div>
                 </button>
             </div>
         </div>
