@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
     IoMail,
     IoPersonAdd,
@@ -22,10 +22,14 @@ import chatApiService from '../services/ChatApiService';
 
 export default function FriendsScreen() {
     const navigate = useNavigate();
+    const location = useLocation();
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [searchLoading, setSearchLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState('requests');
+    const [activeTab, setActiveTab] = useState(() => {
+        // Allow navigation to pre-select tab (e.g. from Chats "add friend" button)
+        return location.state?.initialTab === 'search' ? 'search' : 'requests';
+    });
     const [chatRequests, setChatRequests] = useState([]);
     const [requestsLoading, setRequestsLoading] = useState(false);
     const [currentUserId, setCurrentUserId] = useState(null);
@@ -305,8 +309,11 @@ export default function FriendsScreen() {
                         )}
                     </button>
 
-                    {/* Add friend button - neumorphic */}
-                    <button className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70">
+                    {/* Add friend button - switch to Search tab */}
+                    <button
+                        onClick={() => setActiveTab('search')}
+                        className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70"
+                    >
                         <div className="w-7 h-7 rounded-full flex items-center justify-center bg-gradient-to-b from-[#ff9f0a] to-[#c96a00] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
                             <IoPersonAdd className="text-white text-xl" />
                         </div>

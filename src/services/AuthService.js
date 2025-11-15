@@ -4,11 +4,11 @@ import axios from "axios";
 // API Configuration
 const API_CONFIG = {
   development: {
-    baseURL: "http://192.168.0.174:8008/api/v1",
+    baseURL: "https://9qkz9glq-8008.inc1.devtunnels.ms/api/v1",
     timeout: 10000,
   },
   production: {
-    baseURL: "http://192.168.0.174:8008/api/v1",
+    baseURL: "https://9qkz9glq-8008.inc1.devtunnels.ms/api/v1",
     timeout: 15000,
   },
 };
@@ -206,7 +206,8 @@ export const UserAPI = {
   // Get user profile
   getProfile: async (userId) => {
     try {
-      const response = await apiClient.get(`/users/${userId}`);
+      // Backend endpoint: /api/v1/users/get-profile/{userId}
+      const response = await apiClient.get(`/users/get-profile/${userId}`);
       return { success: true, data: response.data };
     } catch (error) {
       return {

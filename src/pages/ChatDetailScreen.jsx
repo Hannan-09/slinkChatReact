@@ -173,6 +173,12 @@ export default function ChatDetailScreen() {
     const [isEncryptionEnabled, setIsEncryptionEnabled] = useState(false);
     const [currentUserId, setCurrentUserId] = useState(null);
 
+    // Pagination state for messages
+    const PAGE_SIZE = 20;
+    const [currentPage, setCurrentPage] = useState(1);
+    const [hasMoreMessages, setHasMoreMessages] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+
     // Edit/Delete message states
     const [editingMessageId, setEditingMessageId] = useState(null);
     const [editingMessageText, setEditingMessageText] = useState('');
@@ -227,6 +233,7 @@ export default function ChatDetailScreen() {
     const lastMessageCountRef = useRef(0);
     const typingTimeoutRef = useRef(null);
     const markedAsReadRef = useRef(new Set()); // Track which messages have been marked as read
+    const canLoadMoreRef = useRef(true); // Prevent multiple auto-loads from layout changes (images, long text)
 
     const chatRoomId = parseInt(id);
 
@@ -521,15 +528,30 @@ export default function ChatDetailScreen() {
         };
     }, [connected, currentUserId, chatRoomId, receiverUserId, subscribe, unsubscribe, isUserScrolledUp]);
 
-    const loadChatMessages = async () => {
+    const loadChatMessages = async (pageToLoad = 1, anchorSnapshot = null) => {
         try {
-            setLoading(true);
+            const isFirstPage = pageToLoad === 1;
+            if (isFirstPage) {
+                setLoading(true);
+                setHasMoreMessages(true);
+            } else {
+                setIsLoadingMore(true);
+            }
+
             const response = await chatApiService.getChatRoomMessages(chatRoomId, currentUserId, {
-                pageNumber: 1,
-                size: 1000,
+                pageNumber: pageToLoad,
+                size: PAGE_SIZE,
                 sortBy: 'sentAt',
+                sortDirection: 'desc',
             });
-            const transformedMessages = (response.data || []).map((msg, index) => ({
+
+            const responseData = Array.isArray(response?.data)
+                ? response.data
+                : Array.isArray(response)
+                ? response
+                : [];
+
+            const pageMessages = responseData.map((msg, index) => ({
                 id: msg.chatMessageId?.toString() || msg.messageId?.toString() || `msg-${index}`,
                 text: msg.content || msg.message || null,
                 time: msg.sentAt ? formatMessageTime(msg.sentAt) : '12:00 AM',
@@ -553,15 +575,62 @@ export default function ChatDetailScreen() {
                 })),
             }));
 
-            setMessages(transformedMessages);
-            lastMessageCountRef.current = transformedMessages.length;
-            // Auto scroll to bottom instantly (no animation on initial load)
-            setTimeout(() => scrollToBottom(true), 100);
+            // Ensure messages are sorted ascending by timestamp for display
+            pageMessages.sort(
+                (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+            );
+
+            if (isFirstPage) {
+                // First page: just set messages and scroll to bottom
+                setMessages(pageMessages);
+            } else if (pageMessages.length > 0) {
+                // Older page: prepend messages at the top.
+                setMessages((prev) => {
+                    const combined = [...pageMessages, ...prev];
+                    combined.sort(
+                        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+                    );
+                    return combined;
+                });
+
+                // After DOM updates, restore the anchor message position so the
+                // user visually stays at the same place in the conversation.
+                if (anchorSnapshot?.id) {
+                    setTimeout(() => {
+                        const containerNow = messagesContainerRef.current;
+                        const anchorElNow = document.getElementById(`msg-${anchorSnapshot.id}`);
+                        if (containerNow && anchorElNow) {
+                            const containerRect = containerNow.getBoundingClientRect();
+                            const anchorRectNow = anchorElNow.getBoundingClientRect();
+                            const currentOffset = anchorRectNow.top - containerRect.top;
+                            const delta = currentOffset - anchorSnapshot.offset;
+                            containerNow.scrollTop += delta;
+                        }
+                    }, 0);
+                }
+            }
+
+            // Update paging flags
+            setCurrentPage(pageToLoad);
+            if (pageMessages.length < PAGE_SIZE) {
+                setHasMoreMessages(false);
+            }
+
+            // Track how many messages we've loaded so far
+            lastMessageCountRef.current = isFirstPage
+                ? pageMessages.length
+                : (lastMessageCountRef.current || 0) + pageMessages.length;
+
+            // Auto scroll to bottom on initial page load
+            if (isFirstPage) {
+                setTimeout(() => scrollToBottom(true), 100);
+            }
         } catch (error) {
             console.error('❌ Error loading messages:', error);
             setMessages([]);
         } finally {
             setLoading(false);
+            setIsLoadingMore(false);
         }
     };
 
@@ -1358,9 +1427,48 @@ export default function ChatDetailScreen() {
         const isNearBottom = scrollTop + clientHeight >= scrollHeight - 100;
         setIsUserScrolledUp(!isNearBottom);
 
+        // Hide "new messages" pill when user reaches bottom
         if (isNearBottom && showNewMessageNotification) {
             setShowNewMessageNotification(false);
             setNewMessageCount(0);
+        }
+
+        // Enable load-more again once user has scrolled down a bit from the top
+        if (scrollTop > 60 && !canLoadMoreRef.current) {
+            canLoadMoreRef.current = true;
+        }
+
+        // Load older messages only when user reaches the very top,
+        // and only once per "reach top" cycle (avoids repeated triggers from image/layout changes)
+        const isAtTop = scrollTop <= 5;
+        if (
+            isAtTop &&
+            hasMoreMessages &&
+            !isLoadingMore &&
+            !loading &&
+            canLoadMoreRef.current
+        ) {
+            canLoadMoreRef.current = false;
+
+            // Capture the current top message as an anchor so we can restore its
+            // position after older messages are prepended.
+            let anchorSnapshot = null;
+            const containerNow = messagesContainerRef.current;
+            if (containerNow && messages.length > 0) {
+                const anchorMessage = messages[0]; // top-most message currently loaded
+                const anchorEl = document.getElementById(`msg-${anchorMessage.id}`);
+                if (anchorEl) {
+                    const containerRect = containerNow.getBoundingClientRect();
+                    const anchorRect = anchorEl.getBoundingClientRect();
+                    anchorSnapshot = {
+                        id: anchorMessage.id,
+                        offset: anchorRect.top - containerRect.top,
+                    };
+                }
+            }
+
+            const nextPage = currentPage + 1;
+            loadChatMessages(nextPage, anchorSnapshot);
         }
     };
 
@@ -1453,7 +1561,12 @@ export default function ChatDetailScreen() {
             </div> */}
 
             {/* Messages - Scrollable Area */}
-            <div ref={messagesContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-3 sm:px-5 pb-3 sm:pb-5 scrollbar-hide">                {loading ? (
+            <div
+                ref={messagesContainerRef}
+                onScroll={handleScroll}
+                className="flex-1 overflow-y-auto px-3 sm:px-5 pb-3 sm:pb-5 scrollbar-hide"
+            >
+                {loading ? (
                 <div className="flex items-center justify-center py-12">
                     <p className="text-gray-400 text-lg">Loading messages...</p>
                 </div>
@@ -1463,6 +1576,13 @@ export default function ChatDetailScreen() {
                 </div>
             ) : (
                 <>
+                    {/* Small loader at top when fetching older pages */}
+                    {isLoadingMore && hasMoreMessages && (
+                        <div className="flex items-center justify-center py-2">
+                            <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+                        </div>
+                    )}
+
                     {messages.map((item, index) => {
                         const previousMessage = index > 0 ? messages[index - 1] : null;
                         const showDateSeparator = shouldShowDateSeparator(item, previousMessage);
@@ -1481,7 +1601,11 @@ export default function ChatDetailScreen() {
                                 )}
 
                                 {/* Message */}
-                                <div key={item.id} className={`flex my-1 sm:my-2 ${item.isMe ? 'justify-end' : 'justify-start'} group w-full`}>
+                                <div
+                                    key={item.id}
+                                    id={`msg-${item.id}`}
+                                    className={`flex my-1 sm:my-2 ${item.isMe ? 'justify-end' : 'justify-start'} group w-full`}
+                                >
                                     <div className="relative max-w-[85%] sm:max-w-[75%] md:max-w-[65%] lg:max-w-[55%]">
                                         <div
                                             className={`w-full px-3 sm:px-4 py-2 sm:py-3 rounded-2xl ${
@@ -1666,7 +1790,7 @@ export default function ChatDetailScreen() {
 
                                                 {/* Three-dot menu (show for all messages except temp ones) */}
                                                 {!item.isDeleted && !item.id.toString().startsWith('temp-') && (
-                                                    <div className="ml-2 flex-shrink-0 relative message-menu">
+                                                    <div className="ml-2 flex-shrink-0 relative z-[60] message-menu">
                                                         <button
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
@@ -1680,7 +1804,7 @@ export default function ChatDetailScreen() {
 
                                                         {/* Dropdown menu */}
                                                         {showMessageMenu === item.id && (
-                                                            <div className="absolute right-0 top-8 bg-[#2d2d2d] border border-gray-700 rounded-lg shadow-xl z-50 min-w-[120px]">
+                                                            <div className="absolute right-0 top-8 bg-[#2d2d2d] border border-gray-700 rounded-lg shadow-xl z-[70] min-w-[120px]">
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
@@ -1864,7 +1988,7 @@ export default function ChatDetailScreen() {
                             onChange={(e) => handleTextChange(e.target.value)}
                             onKeyPress={handleKeyPress}
                             placeholder={editingMessageId ? "Edit your message" : "Type a message"}
-                            className="flex-1 bg-transparent text-white placeholder-white text-center outline-none resize-none text-sm sm:text-base max-h-24 min-h-[40px] sm:min-h-[44px]"
+                            className="flex-1 bg-transparent text-gray-200 placeholder-gray-500 text-left outline-none resize-none text-sm sm:text-base leading-relaxed min-h-[32px] sm:min-h-[36px] py-1.5 sm:py-2"
                             rows={1}
                         />
                     </div>

@@ -9,6 +9,7 @@ import ChatsScreen from './pages/ChatsScreen';
 import FriendsScreen from './pages/FriendsScreen';
 import RequestsScreen from './pages/RequestsScreen';
 import ChatDetailScreen from './pages/ChatDetailScreen';
+import SearchUsersScreen from './pages/SearchUsersScreen';
 import { ApiUtils } from './services/AuthService';
 
 function App() {
@@ -32,6 +33,7 @@ function App() {
             <Route path="/login" element={<LoginScreen />} />
             <Route path="/signup" element={<SignupScreen />} />
             <Route path="/chats" element={<ChatsScreen />} />
+            <Route path="/search" element={<SearchUsersScreen />} />
             <Route path="/friends" element={<FriendsScreen />} />
             <Route path="/requests" element={<RequestsScreen />} />
             <Route path="/chat/:id" element={<ChatDetailScreen />} />

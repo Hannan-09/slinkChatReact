@@ -3,13 +3,13 @@
 // Base API configuration
 const API_CONFIG = {
   development: {
-    baseUrl: "http://192.168.0.174:8008/api/v1",
+    baseUrl: "https://9qkz9glq-8008.inc1.devtunnels.ms/api/v1",
   },
   staging: {
-    baseUrl: "http://192.168.0.174:8008/api/v1",
+    baseUrl: "https://9qkz9glq-8008.inc1.devtunnels.ms/api/v1",
   },
   production: {
-    baseUrl: "http://192.168.0.174:8008/api/v1",
+    baseUrl: "https://9qkz9glq-8008.inc1.devtunnels.ms/api/v1",
   },
 };
 
@@ -125,12 +125,18 @@ class ChatApiService {
   }
 
   async getChatRoomMessages(chatRoomId, userId, options = {}) {
-    const { pageNumber = 1, size = 1000, sortBy = "sentAt" } = options;
+    const {
+      pageNumber = 1,
+      size = 20,
+      sortBy = "sentAt",
+      sortDirection = "asc",
+    } = options;
 
     const params = new URLSearchParams({
       pageNumber: pageNumber.toString(),
       size: size.toString(),
       sortBy,
+      sortDirection,
     });
 
     const url = `${this.baseUrl}/chat/rooms/messages/${chatRoomId}/${userId}?${params}`;

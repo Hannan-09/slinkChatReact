@@ -7,10 +7,14 @@ import {
     IoSearch,
     IoCamera,
     IoPeopleOutline,
-    IoSettingsOutline
+    IoSettingsOutline,
+    IoImages,
+    IoPlayCircle,
+    IoDocumentText,
+    IoMic
 } from 'react-icons/io5';
 import { Colors } from '../constants/Colors';
-import { ApiUtils } from '../services/AuthService';
+import { ApiUtils, UserAPI } from '../services/AuthService';
 import chatApiService from '../services/ChatApiService';
 
 export default function ChatsScreen() {
@@ -19,14 +23,76 @@ export default function ChatsScreen() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [userProfile, setUserProfile] = useState({
+        avatarUrl: '',
+        initials: '',
+    });
+
+    // Pagination state for chat rooms
+    const PAGE_SIZE = 10;
+    const [currentPage, setCurrentPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+    const buildInitials = (firstName, lastName, userName) => {
+        const safeFirst = (firstName || '').trim();
+        const safeLast = (lastName || '').trim();
+        const safeUserName = (userName || '').trim();
+
+        const firstInitial =
+            (safeFirst && safeFirst.charAt(0)) ||
+            (safeUserName && safeUserName.charAt(0)) ||
+            '';
+        const lastInitial = safeLast && safeLast.charAt(0);
+
+        const combined = `${firstInitial}${lastInitial || ''}`;
+        return combined ? combined.toUpperCase() : 'SC';
+    };
+
+    // Helper to truncate long message previews
+    const truncateMessage = (text, maxLength = 20) => {
+        if (!text) return '';
+        const trimmed = text.trim();
+        if (trimmed.length <= maxLength) return trimmed;
+        return `${trimmed.slice(0, maxLength)}...`;
+    };
+
+    const loadUserProfile = async (userId) => {
+        try {
+            const result = await UserAPI.getProfile(userId);
+            if (result.success && result.data?.data) {
+                const profile = result.data.data;
+                const avatarUrl = profile.profileURL || null;
+                const initials = buildInitials(
+                    profile.firstName,
+                    profile.lastName,
+                    profile.userName
+                );
+                setUserProfile({
+                    avatarUrl,
+                    initials,
+                });
+            } else {
+                console.error('Failed to load user profile:', result.error);
+            }
+        } catch (error) {
+            console.error('Error loading user profile:', error);
+        }
+    };
 
     useEffect(() => {
-        loadChatRooms();
+        loadChatRooms(1, true);
     }, []);
 
-    const loadChatRooms = async () => {
+    const loadChatRooms = async (pageToLoad = 1, reset = false) => {
         try {
-            setLoading(true);
+            const isFirstPage = pageToLoad === 1;
+            if (isFirstPage || reset) {
+                setLoading(true);
+                setHasMore(true);
+            } else {
+                setIsLoadingMore(true);
+            }
 
             // Debug: Check all stored data
             const rawUserId = localStorage.getItem('userId');
@@ -49,16 +115,28 @@ export default function ChatsScreen() {
                 navigate('/login');
                 return;
             }
-            // Call the real API
+
+            // Load current user's profile for header avatar (only once on first load)
+            if (isFirstPage && reset) {
+                await loadUserProfile(finalUserId);
+            }
+
+            // Call the real API for the requested page
             const response = await chatApiService.getAllChatRooms(finalUserId, {
-                pageNumber: 1,
-                size: 20,
+                pageNumber: pageToLoad,
+                size: PAGE_SIZE,
                 sortBy: 'createdAt',
                 sortDirection: 'desc',
             });
             // Transform API response to match UI expectations
+            const roomsData = Array.isArray(response?.data)
+                ? response.data
+                : Array.isArray(response)
+                ? response
+                : [];
+
             const transformedChatRooms =
-                response.data?.map((room) => {
+                roomsData.map((room) => {
                     // Determine which user is the "other" user (not the current user)
                     const isCurrentUserUser1 = room.userId === finalUserId;
                     const otherUserName = isCurrentUserUser1
@@ -68,40 +146,123 @@ export default function ChatsScreen() {
                     const otherUserProfileURL = isCurrentUserUser1
                         ? room.user2ProfileURL
                         : room.userProfileURL;
+
+                    // Backend fields:
+                    // - lastMessage: full last message object (with content, attachments & sentAt)
+                    // - lastMessageAt / lastMessageTime / createdAt: timestamps
+                    // - unseenMessageCount: number of unread messages for current user
+                    const lastMessage = room.lastMessage || null;
+                    const lastMessageAt =
+                        (lastMessage && lastMessage.sentAt) ||
+                        room.lastMessageAt ||
+                        room.lastMessageTime ||
+                        room.createdAt;
+                    const unseenCount =
+                        typeof room.unseenMessageCount === 'number'
+                            ? room.unseenMessageCount
+                            : room.unreadCount || 0;
+
+                    // Message preview: show last message content, fallback to time or empty state
+                    const lastMessageContent =
+                        (lastMessage && lastMessage.content) || room.lastMessageText || '';
+
+                    // Attachment-aware preview: if no text but there are attachments, show type label
+                    let previewType = 'text';
+                    let messagePreview = '';
+
+                    const attachments =
+                        lastMessage && Array.isArray(lastMessage.attachments)
+                            ? lastMessage.attachments
+                            : [];
+
+                    if (lastMessageContent && lastMessageContent.trim().length > 0) {
+                        previewType = 'text';
+                        messagePreview = truncateMessage(lastMessageContent);
+                    } else if (attachments.length > 0) {
+                        const firstAttachment = attachments[0];
+                        const fileType = (firstAttachment.fileType || '').toLowerCase();
+
+                        if (fileType.startsWith('image/')) {
+                            previewType = 'image';
+                            messagePreview = 'Photo';
+                        } else if (fileType.startsWith('video/')) {
+                            previewType = 'video';
+                            messagePreview = 'Video';
+                        } else if (fileType.startsWith('audio/')) {
+                            previewType = 'audio';
+                            messagePreview = 'Audio';
+                        } else {
+                            previewType = 'document';
+                            messagePreview = 'Document';
+                        }
+                    } else if (lastMessageAt) {
+                        previewType = 'meta';
+                        messagePreview = formatTime(lastMessageAt);
+                    } else {
+                        previewType = 'meta';
+                        messagePreview = 'No messages yet';
+                    }
+
+                    // Build initials from other user's name (first letter of first & last name)
+                    const nameForInitials = otherUserName || '';
+                    const nameParts = nameForInitials.trim().split(' ').filter(Boolean);
+                    const firstName = nameParts[0] || nameForInitials;
+                    const lastName =
+                        nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+                    const initials = buildInitials(firstName, lastName, otherUserName);
+
                     return {
                         id: room.chatRoomId?.toString(),
                         chatRoomId: room.chatRoomId,
                         name: otherUserName || 'Unknown User',
-                        message: room.lastMessage || 'No messages yet',
-                        time: room.lastMessageTime
-                            ? formatTime(room.lastMessageTime)
-                            : '12:00',
-                        unreadCount: room.unreadCount || 0,
-                        avatar:
-                            otherUserProfileURL ||
-                            'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
+                        message: messagePreview,
+                        time: lastMessageAt ? formatTime(lastMessageAt) : '—',
+                        unreadCount: unseenCount,
+                        avatar: otherUserProfileURL || null,
                         receiverId: otherUserId,
+                        previewType,
+                        initials,
                     };
                 }) || [];
 
-            setChatRooms(transformedChatRooms);
+            if (isFirstPage || reset) {
+                setChatRooms(transformedChatRooms);
+            } else {
+                // Append new page at the bottom, avoiding duplicates by chatRoomId
+                setChatRooms((prev) => {
+                    const existingIds = new Set(
+                        prev.map((room) => room.chatRoomId || room.id)
+                    );
+                    const filteredNew = transformedChatRooms.filter(
+                        (room) =>
+                            !existingIds.has(room.chatRoomId || room.id)
+                    );
+                    return [...prev, ...filteredNew];
+                });
+            }
+
+            setCurrentPage(pageToLoad);
+            if (transformedChatRooms.length < PAGE_SIZE) {
+                setHasMore(false);
+            }
         } catch (error) {
             console.error('Error loading chat rooms:', error);
             alert('Failed to load chat rooms');
             setChatRooms([]);
         } finally {
             setLoading(false);
+            setIsLoadingMore(false);
         }
     };
 
-    // Helper function to format time
+    // Helper function to format time (12-hour format)
     const formatTime = (timestamp) => {
         try {
             const date = new Date(timestamp);
             return date.toLocaleTimeString('en-US', {
                 hour: '2-digit',
                 minute: '2-digit',
-                hour12: false,
+                hour12: true,
             });
         } catch (error) {
             return '12:00';
@@ -110,8 +271,26 @@ export default function ChatsScreen() {
 
     const onRefresh = async () => {
         setRefreshing(true);
-        await loadChatRooms();
+        setCurrentPage(1);
+        await loadChatRooms(1, true);
         setRefreshing(false);
+    };
+
+    const handleScroll = (e) => {
+        const { scrollTop, clientHeight, scrollHeight } = e.target;
+        const isNearBottom = scrollTop + clientHeight >= scrollHeight - 80;
+
+        // Only paginate on main list (not when filtering by search)
+        if (
+            isNearBottom &&
+            hasMore &&
+            !isLoadingMore &&
+            !loading &&
+            !searchQuery.trim()
+        ) {
+            const nextPage = currentPage + 1;
+            loadChatRooms(nextPage);
+        }
     };
 
     const filteredChatRooms = chatRooms.filter((room) => {
@@ -140,24 +319,38 @@ export default function ChatsScreen() {
     };
 
     return (
-        <div className="min-h-screen bg-[#1a1a1a] flex flex-col">
+        <div className="h-screen bg-[#1a1a1a] flex flex-col overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4">
                 <div className="flex items-center">
-                    {/* Header profile - 3D avatar ring */}
+                    {/* Header profile - 3D avatar ring with dynamic user profile */}
                     <div className="w-10 h-10 rounded-full mr-4 bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_14px_22px_rgba(0,0,0,0.96),0_0_0_1px_rgba(255,255,255,0.14),inset_0_3px_4px_rgba(255,255,255,0.22),inset_0_-4px_7px_rgba(0,0,0,0.95),inset_3px_0_4px_rgba(255,255,255,0.18),inset_-3px_0_4px_rgba(0,0,0,0.8)] border border-black/70 flex items-center justify-center">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center">
-                            <img
-                                src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face"
-                                alt="Profile"
-                                className="w-7 h-7 rounded-full object-cover"
-                            />
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center overflow-hidden">
+                            {userProfile.avatarUrl ? (
+                                <img
+                                    src={userProfile.avatarUrl}
+                                    alt="Profile"
+                                    className="w-7 h-7 rounded-full object-cover"
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src =
+                                            'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face';
+                                    }}
+                                />
+                            ) : (
+                                <span className="text-xs font-semibold text-white">
+                                    {userProfile.initials}
+                                </span>
+                            )}
                         </div>
                     </div>
                     <h1 className="text-2xl font-bold text-white">Chats</h1>
                 </div>
-                {/* Add friend / new chat button - match ChatDetail header button size */}
-                <button className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70">
+                {/* Add friend / new chat button - navigate to dedicated Search Users page */}
+                <button
+                    onClick={() => navigate('/search')}
+                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70"
+                >
                     <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
                         <IoPersonAdd className="text-white text-lg sm:text-xl" />
                     </div>
@@ -178,8 +371,11 @@ export default function ChatsScreen() {
                 </div>
             </div>
 
-            {/* Chat List */}
-            <div className="flex-1 overflow-y-auto">
+            {/* Chat List - contained width similar to header/search and bottom nav */}
+            <div
+                className="flex-1 overflow-y-auto px-4 sm:px-5 scrollbar-hide"
+                onScroll={handleScroll}
+            >
                 {loading ? (
                     <div className="flex items-center justify-center py-12">
                         <p className="text-gray-400 text-lg">Loading chats...</p>
@@ -189,7 +385,8 @@ export default function ChatsScreen() {
                         <p className="text-gray-400 text-lg">No chats found</p>
                     </div>
                 ) : (
-                    filteredChatRooms.map((item, index) => {
+                    <>
+                    {filteredChatRooms.map((item, index) => {
                         try {
                             if (!item) return null;
 
@@ -197,19 +394,26 @@ export default function ChatsScreen() {
                                 <div
                                     key={item.id || item.chatRoomId?.toString() || `chat-${index}`}
                                     onClick={() => handleChatClick(item)}
-                                    className="flex items-center px-5 py-4 cursor-pointer transition-all rounded-2xl bg-gradient-to-b from-white/8 via-white/4 to-white/2 border border-white/15 shadow-[0_16px_30px_rgba(0,0,0,0.85),0_0_0_1px_rgba(255,255,255,0.04),inset_0_1px_2px_rgba(255,255,255,0.2),inset_0_-2px_4px_rgba(0,0,0,0.85)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.08),inset_0_2px_3px_rgba(255,255,255,0.24),inset_0_-3px_5px_rgba(0,0,0,0.9)] hover:bg-white/8"
+                                    className="flex items-center px-5 py-3 h-20 mb-2 sm:mb-3 cursor-pointer transition-all rounded-2xl bg-gradient-to-b from-white/8 via-white/4 to-white/2 border border-white/15 shadow-[0_16px_30px_rgba(0,0,0,0.85),0_0_0_1px_rgba(255,255,255,0.04),inset_0_1px_2px_rgba(255,255,255,0.2),inset_0_-2px_4px_rgba(0,0,0,0.85)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.08),inset_0_2px_3px_rgba(255,255,255,0.24),inset_0_-3px_5px_rgba(0,0,0,0.9)] hover:bg-white/8"
                                 >
                                     <div className="w-12 h-12 mr-4 rounded-full bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_16px_24px_rgba(0,0,0,0.97),0_0_0_1px_rgba(255,255,255,0.16),inset_0_3px_4px_rgba(255,255,255,0.24),inset_0_-4px_7px_rgba(0,0,0,0.96),inset_3px_0_4px_rgba(255,255,255,0.18),inset_-3px_0_4px_rgba(0,0,0,0.82)] border border-black/70 flex items-center justify-center flex-shrink-0">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center">
-                                            <img
-                                                src={item.avatar || ''}
-                                                alt={item.name || 'User'}
-                                                className="w-8 h-8 rounded-full object-cover"
-                                                onError={(e) => {
-                                                    e.target.src =
-                                                        'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face';
-                                                }}
-                                            />
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center overflow-hidden">
+                                            {item.avatar ? (
+                                                <img
+                                                    src={item.avatar}
+                                                    alt={item.name || 'User'}
+                                                    className="w-8 h-8 rounded-full object-cover"
+                                                    onError={(e) => {
+                                                        e.target.onerror = null;
+                                                        e.target.src =
+                                                            'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face';
+                                                    }}
+                                                />
+                                            ) : (
+                                                <span className="text-xs font-semibold text-white">
+                                                    {item.initials}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="flex-1">
@@ -217,19 +421,38 @@ export default function ChatsScreen() {
                                             <h3 className="text-white font-semibold text-base">
                                                 {item.name || 'Unknown User'}
                                             </h3>
-                                            <span className="text-orange-500 text-xs">
-                                                {item.time || '12:00'}
+                                            <span className="text-white text-[11px] sm:text-xs whitespace-nowrap">
+                                                {item.time ? item.time : ''}
                                             </span>
                                         </div>
                                         <div className="flex items-center justify-between">
-                                            <p className="text-gray-400 text-sm truncate flex-1 mr-2">
-                                                {item.message || 'No messages yet'}
-                                            </p>
+                                            <div className="flex items-center flex-1 mr-2 overflow-hidden">
+                                                {item.previewType === 'image' && (
+                                                    <IoImages className="text-gray-400 text-sm mr-1.5 flex-shrink-0" />
+                                                )}
+                                                {item.previewType === 'video' && (
+                                                    <IoPlayCircle className="text-gray-400 text-sm mr-1.5 flex-shrink-0" />
+                                                )}
+                                                {item.previewType === 'document' && (
+                                                    <IoDocumentText className="text-gray-400 text-sm mr-1.5 flex-shrink-0" />
+                                                )}
+                                                {item.previewType === 'audio' && (
+                                                    <IoMic className="text-gray-400 text-sm mr-1.5 flex-shrink-0" />
+                                                )}
+                                                <p className="text-gray-400 text-sm truncate">
+                                                    {item.message || 'No messages yet'}
+                                                </p>
+                                            </div>
                                             {item.unreadCount > 0 && (
-                                                <div className="bg-orange-500 rounded-full min-w-[24px] h-6 flex items-center justify-center px-2 shadow-lg">
-                                                    <span className="text-white text-xs font-bold">
-                                                        {item.unreadCount > 99 ? '99+' : item.unreadCount}
-                                                    </span>
+                                                <div className="flex items-center justify-center flex-shrink-0">
+                                                    {/* Outer neumorphic ring, matching header/add-friend theme */}
+                                                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_8px_12px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.18),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70">
+                                                        <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
+                                                            <span className="text-white text-[10px] sm:text-xs font-bold">
+                                                                {item.unreadCount > 9 ? '9+' : item.unreadCount}
+                                                            </span>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
@@ -247,7 +470,13 @@ export default function ChatsScreen() {
                                 </div>
                             );
                         }
-                    })
+                    })}
+                    {isLoadingMore && hasMore && (
+                        <div className="flex items-center justify-center py-3">
+                            <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+                        </div>
+                    )}
+                    </>
                 )}
             </div>
 
@@ -267,9 +496,9 @@ export default function ChatsScreen() {
                     </div>
                 </button>
 
-                {/* Friends */}
+                {/* Friends / Requests entry from Chats - go directly to Requests page */}
                 <button
-                    onClick={() => navigate('/friends')}
+                    onClick={() => navigate('/requests')}
                     className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] border border-black/70 shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] hover:bg-[#1d1d1d] transition-colors"
                 >
                     <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
