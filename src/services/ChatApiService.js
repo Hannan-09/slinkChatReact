@@ -143,6 +143,27 @@ class ChatApiService {
     return this.fetchWithErrorHandling(url);
   }
 
+  async searchChatRooms(searchText, userId, options = {}) {
+    const {
+      pageNumber = 1,
+      size = 10,
+      sortBy = "lastMessageAt",
+      sortDirection = "desc",
+    } = options;
+
+    const params = new URLSearchParams({
+      pageNumber: pageNumber.toString(),
+      size: size.toString(),
+      sortBy,
+      sortDirection,
+    });
+
+    const url = `${this.baseUrl}/chat/rooms/search/${encodeURIComponent(
+      searchText
+    )}/${userId}?${params}`;
+    return this.fetchWithErrorHandling(url);
+  }
+
   // Send message via API (fallback if WebSocket fails)
   async sendMessage(chatRoomId, senderId, receiverId, messageData) {
     const url = `${this.baseUrl}/chat/rooms/messages/send`;

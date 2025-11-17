@@ -74,6 +74,7 @@ export default function SearchUsersScreen() {
                     alreadyFriend: user.alreadyFriend || false,
                     chatRequestStatus: user.chatRequestStatus || null,
                     friendRequestSent: user.friendRequestSent || false,
+                    chatRoomId: user.chatRoomId || null
                 }));
                 setSearchResults(transformedUsers);
             } else {
@@ -113,39 +114,20 @@ export default function SearchUsersScreen() {
                 alert('User not logged in');
                 return;
             }
-            try {
-                const chatRoomsResult = await chatApiService.getAllChatRooms(
-                    currentUserId,
-                    {
-                        pageNumber: 1,
-                        size: 100,
-                        sortBy: 'createdAt',
-                        sortDirection: 'desc',
-                    }
+
+            // If chatRoomId exists in the friend object, use it directly
+            if (friend.chatRoomId) {
+                navigate(
+                    `/chat/${friend.chatRoomId}?name=${encodeURIComponent(
+                        friend.name
+                    )}&avatar=${encodeURIComponent(
+                        friend.avatar || ''
+                    )}&receiverId=${friend.id}`
                 );
-
-                if (chatRoomsResult.success && chatRoomsResult.data) {
-                    const chatRooms = chatRoomsResult.data;
-                    const existingChatRoom = chatRooms.find((room) => {
-                        const isCurrentUserUser1 = room.userId === currentUserId;
-                        const otherUserId = isCurrentUserUser1 ? room.user2Id : room.userId;
-                        return otherUserId === friend.id;
-                    });
-
-                    if (existingChatRoom) {
-                        navigate(
-                            `/chat/${existingChatRoom.chatRoomId}?name=${encodeURIComponent(
-                                friend.name
-                            )}&avatar=${encodeURIComponent(
-                                friend.avatar || ''
-                            )}&receiverId=${friend.id}`
-                        );
-                        return;
-                    }
-                }
-            } catch (chatRoomError) {
-                // Silently ignore chat room lookup errors and fall back to direct chat
+                return;
             }
+
+            // Otherwise, navigate with friend ID (will create new chat room)
             navigate(
                 `/chat/${friend.id}?name=${encodeURIComponent(
                     friend.name

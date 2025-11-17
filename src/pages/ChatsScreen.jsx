@@ -84,6 +84,64 @@ export default function ChatsScreen() {
         loadChatRooms(1, true);
     }, []);
 
+    // Search chat rooms with API
+    const searchChatRooms = async (query) => {
+        if (!query.trim()) {
+            // If search is empty, reload all chat rooms
+            loadChatRooms(1, true);
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const userId = await ApiUtils.getCurrentUserId();
+
+            if (!userId) {
+                console.error('User ID not found');
+                return;
+            }
+
+            const result = await chatApiService.searchChatRooms(query, userId, {
+                pageNumber: 1,
+                size: 50,
+                sortBy: 'lastMessageAt',
+                sortDirection: 'desc',
+            });
+
+            if (result.success && result.data) {
+                const rooms = result.data.data || [];
+                const transformedRooms = rooms.map((room) => ({
+                    chatRoomId: room.chatRoomId,
+                    name: room.chatRoomName || 'Unknown',
+                    message: room.lastMessage || 'No messages yet',
+                    time: room.lastMessageAt || room.createdAt,
+                    avatar: room.otherUserAvatar || '',
+                    receiverId: room.otherUserId,
+                    unreadCount: room.unreadCount || 0,
+                }));
+                setChatRooms(transformedRooms);
+                setHasMore(false); // Disable pagination for search results
+            }
+        } catch (error) {
+            console.error('Error searching chat rooms:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Debounced search effect
+    useEffect(() => {
+        if (searchQuery.length > 0) {
+            const timeoutId = setTimeout(() => {
+                searchChatRooms(searchQuery);
+            }, 500); // Wait 500ms after user stops typing
+            return () => clearTimeout(timeoutId);
+        } else {
+            // Reload all chats when search is cleared
+            loadChatRooms(1, true);
+        }
+    }, [searchQuery]);
+
     const loadChatRooms = async (pageToLoad = 1, reset = false) => {
         try {
             const isFirstPage = pageToLoad === 1;
@@ -132,8 +190,8 @@ export default function ChatsScreen() {
             const roomsData = Array.isArray(response?.data)
                 ? response.data
                 : Array.isArray(response)
-                ? response
-                : [];
+                    ? response
+                    : [];
 
             const transformedChatRooms =
                 roomsData.map((room) => {
@@ -296,16 +354,8 @@ export default function ChatsScreen() {
         }
     };
 
-    const filteredChatRooms = chatRooms.filter((room) => {
-        if (!room || !room.name) {
-            return false;
-        }
-        const message = room.message || 'No messages yet';
-        return (
-            room.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            message.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-    });
+    // Use chatRooms directly since API search is handled
+    const filteredChatRooms = chatRooms;
 
     const handleChatClick = (item) => {
         try {
@@ -389,96 +439,96 @@ export default function ChatsScreen() {
                     </div>
                 ) : (
                     <>
-                    {filteredChatRooms.map((item, index) => {
-                        try {
-                            if (!item) return null;
+                        {filteredChatRooms.map((item, index) => {
+                            try {
+                                if (!item) return null;
 
-                            return (
-                                <div
-                                    key={item.id || item.chatRoomId?.toString() || `chat-${index}`}
-                                    onClick={() => handleChatClick(item)}
-                                    className="flex items-center px-5 py-3 cursor-pointer transition-all border-b border-white/10 last:border-b-0 rounded-2xl hover:bg-white/5"
-                                >
-                                    <div className="w-12 h-12 mr-4 rounded-full bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_16px_24px_rgba(0,0,0,0.97),0_0_0_1px_rgba(255,255,255,0.16),inset_0_3px_4px_rgba(255,255,255,0.24),inset_0_-4px_7px_rgba(0,0,0,0.96),inset_3px_0_4px_rgba(255,255,255,0.18),inset_-3px_0_4px_rgba(0,0,0,0.82)] border border-black/70 flex items-center justify-center flex-shrink-0">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center overflow-hidden">
-                                            {item.avatar ? (
-                                                <img
-                                                    src={item.avatar}
-                                                    alt={item.name || 'User'}
-                                                    className="w-8 h-8 rounded-full object-cover"
-                                                    onError={(e) => {
-                                                        e.target.onerror = null;
-                                                        e.target.src =
-                                                            'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face';
-                                                    }}
-                                                />
-                                            ) : (
-                                                <span className="text-xs font-semibold text-white">
-                                                    {item.initials}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <h3 className="text-white font-semibold text-base">
-                                                {item.name || 'Unknown User'}
-                                            </h3>
-                                            <span className="text-white text-[11px] sm:text-xs whitespace-nowrap">
-                                                {item.time ? item.time : ''}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center flex-1 mr-2 overflow-hidden">
-                                                {item.previewType === 'image' && (
-                                                    <IoImages className="text-gray-400 text-sm mr-1.5 flex-shrink-0" />
+                                return (
+                                    <div
+                                        key={item.id || item.chatRoomId?.toString() || `chat-${index}`}
+                                        onClick={() => handleChatClick(item)}
+                                        className="flex items-center px-5 py-3 cursor-pointer transition-all border-b border-white/10 last:border-b-0 rounded-2xl hover:bg-white/5"
+                                    >
+                                        <div className="w-12 h-12 mr-4 rounded-full bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_16px_24px_rgba(0,0,0,0.97),0_0_0_1px_rgba(255,255,255,0.16),inset_0_3px_4px_rgba(255,255,255,0.24),inset_0_-4px_7px_rgba(0,0,0,0.96),inset_3px_0_4px_rgba(255,255,255,0.18),inset_-3px_0_4px_rgba(0,0,0,0.82)] border border-black/70 flex items-center justify-center flex-shrink-0">
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center overflow-hidden">
+                                                {item.avatar ? (
+                                                    <img
+                                                        src={item.avatar}
+                                                        alt={item.name || 'User'}
+                                                        className="w-8 h-8 rounded-full object-cover"
+                                                        onError={(e) => {
+                                                            e.target.onerror = null;
+                                                            e.target.src =
+                                                                'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face';
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <span className="text-xs font-semibold text-white">
+                                                        {item.initials}
+                                                    </span>
                                                 )}
-                                                {item.previewType === 'video' && (
-                                                    <IoPlayCircle className="text-gray-400 text-sm mr-1.5 flex-shrink-0" />
-                                                )}
-                                                {item.previewType === 'document' && (
-                                                    <IoDocumentText className="text-gray-400 text-sm mr-1.5 flex-shrink-0" />
-                                                )}
-                                                {item.previewType === 'audio' && (
-                                                    <IoMic className="text-gray-400 text-sm mr-1.5 flex-shrink-0" />
-                                                )}
-                                                <p className="text-gray-400 text-sm truncate">
-                                                    {item.message || 'No messages yet'}
-                                                </p>
                                             </div>
-                                            {item.unreadCount > 0 && (
-                                                <div className="flex items-center justify-center flex-shrink-0">
-                                                    {/* Outer neumorphic ring, matching header/add-friend theme */}
-                                                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_8px_12px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.18),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70">
-                                                        <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
-                                                            <span className="text-white text-[10px] sm:text-xs font-bold">
-                                                                {item.unreadCount > 9 ? '9+' : item.unreadCount}
-                                                            </span>
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <h3 className="text-white font-semibold text-base">
+                                                    {item.name || 'Unknown User'}
+                                                </h3>
+                                                <span className="text-white text-[11px] sm:text-xs whitespace-nowrap">
+                                                    {item.time ? item.time : ''}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center flex-1 mr-2 overflow-hidden">
+                                                    {item.previewType === 'image' && (
+                                                        <IoImages className="text-gray-400 text-sm mr-1.5 flex-shrink-0" />
+                                                    )}
+                                                    {item.previewType === 'video' && (
+                                                        <IoPlayCircle className="text-gray-400 text-sm mr-1.5 flex-shrink-0" />
+                                                    )}
+                                                    {item.previewType === 'document' && (
+                                                        <IoDocumentText className="text-gray-400 text-sm mr-1.5 flex-shrink-0" />
+                                                    )}
+                                                    {item.previewType === 'audio' && (
+                                                        <IoMic className="text-gray-400 text-sm mr-1.5 flex-shrink-0" />
+                                                    )}
+                                                    <p className="text-gray-400 text-sm truncate">
+                                                        {item.message || 'No messages yet'}
+                                                    </p>
+                                                </div>
+                                                {item.unreadCount > 0 && (
+                                                    <div className="flex items-center justify-center flex-shrink-0">
+                                                        {/* Outer neumorphic ring, matching header/add-friend theme */}
+                                                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_8px_12px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.18),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70">
+                                                            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
+                                                                <span className="text-white text-[10px] sm:text-xs font-bold">
+                                                                    {item.unreadCount > 9 ? '9+' : item.unreadCount}
+                                                                </span>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            )}
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            );
-                        } catch (error) {
-                            console.error('Error rendering chat item:', error, 'Item:', item);
-                            return (
-                                <div
-                                    key={`error-${index}`}
-                                    className="flex items-center px-5 py-4"
-                                >
-                                    <p className="text-white">Error loading chat</p>
-                                </div>
-                            );
-                        }
-                    })}
-                    {isLoadingMore && hasMore && (
-                        <div className="flex items-center justify-center py-3">
-                            <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
-                        </div>
-                    )}
+                                );
+                            } catch (error) {
+                                console.error('Error rendering chat item:', error, 'Item:', item);
+                                return (
+                                    <div
+                                        key={`error-${index}`}
+                                        className="flex items-center px-5 py-4"
+                                    >
+                                        <p className="text-white">Error loading chat</p>
+                                    </div>
+                                );
+                            }
+                        })}
+                        {isLoadingMore && hasMore && (
+                            <div className="flex items-center justify-center py-3">
+                                <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+                            </div>
+                        )}
                     </>
                 )}
             </div>
