@@ -133,7 +133,7 @@ export default function LoginScreen() {
                             <IoMail className="text-gray-400 text-xl mr-4" />
                             <input
                                 type="email"
-                                placeholder="Email"
+                                placeholder="Username"
                                 className="flex-1 bg-transparent text-white outline-none placeholder-gray-500"
                                 value={email}
                                 onChange={(e) => {

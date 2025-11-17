@@ -4,11 +4,11 @@ import axios from "axios";
 // API Configuration
 const API_CONFIG = {
   development: {
-    baseURL: "http://192.168.0.108:8008/api/v1",
+    baseURL: "http://192.168.0.200:8008/api/v1",
     timeout: 10000,
   },
   production: {
-    baseURL: "http://192.168.0.108:8008/api/v1",
+    baseURL: "http://192.168.0.200:8008/api/v1",
     timeout: 15000,
   },
 };

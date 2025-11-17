@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 
-const WEBSOCKET_URL = "http://192.168.0.108:8008/ws";
+const WEBSOCKET_URL = "http://192.168.0.200:8008/ws";
 
 export default function useStompSocket(options = {}) {
   const [connected, setConnected] = useState(false);

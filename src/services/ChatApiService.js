@@ -3,13 +3,13 @@
 // Base API configuration
 const API_CONFIG = {
   development: {
-    baseUrl: "http://192.168.0.108:8008/api/v1",
+    baseUrl: "http://192.168.0.200:8008/api/v1",
   },
   staging: {
-    baseUrl: "http://192.168.0.108:8008/api/v1",
+    baseUrl: "http://192.168.0.200:8008/api/v1",
   },
   production: {
-    baseUrl: "http://192.168.0.108:8008/api/v1",
+    baseUrl: "http://192.168.0.200:8008/api/v1",
   },
 };
 

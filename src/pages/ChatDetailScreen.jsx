@@ -548,8 +548,8 @@ export default function ChatDetailScreen() {
             const responseData = Array.isArray(response?.data)
                 ? response.data
                 : Array.isArray(response)
-                ? response
-                : [];
+                    ? response
+                    : [];
 
             const pageMessages = responseData.map((msg, index) => ({
                 id: msg.chatMessageId?.toString() || msg.messageId?.toString() || `msg-${index}`,
@@ -1567,338 +1567,336 @@ export default function ChatDetailScreen() {
                 className="flex-1 overflow-y-auto px-3 sm:px-5 pb-3 sm:pb-5 scrollbar-hide"
             >
                 {loading ? (
-                <div className="flex items-center justify-center py-12">
-                    <p className="text-gray-400 text-lg">Loading messages...</p>
-                </div>
-            ) : messages.length === 0 ? (
-                <div className="flex items-center justify-center py-12">
-                    <p className="text-gray-400 text-lg">No messages yet</p>
-                </div>
-            ) : (
-                <>
-                    {/* Small loader at top when fetching older pages */}
-                    {isLoadingMore && hasMoreMessages && (
-                        <div className="flex items-center justify-center py-2">
-                            <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
-                        </div>
-                    )}
+                    <div className="flex items-center justify-center py-12">
+                        <p className="text-gray-400 text-lg">Loading messages...</p>
+                    </div>
+                ) : messages.length === 0 ? (
+                    <div className="flex items-center justify-center py-12">
+                        <p className="text-gray-400 text-lg">No messages yet</p>
+                    </div>
+                ) : (
+                    <>
+                        {/* Small loader at top when fetching older pages */}
+                        {isLoadingMore && hasMoreMessages && (
+                            <div className="flex items-center justify-center py-2">
+                                <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+                            </div>
+                        )}
 
-                    {messages.map((item, index) => {
-                        const previousMessage = index > 0 ? messages[index - 1] : null;
-                        const showDateSeparator = shouldShowDateSeparator(item, previousMessage);
+                        {messages.map((item, index) => {
+                            const previousMessage = index > 0 ? messages[index - 1] : null;
+                            const showDateSeparator = shouldShowDateSeparator(item, previousMessage);
 
-                        return (
-                            <>
-                                {/* Date Separator - simple centered label (no full-width bar) */}
-                                {showDateSeparator && (
-                                    <div key={`date-${item.id}`} className="flex justify-center my-3">
-                                        <span className="text-gray-500 text-xs font-medium">
-                                            {formatDateSeparator(item.timestamp)}
-                                        </span>
-                                    </div>
-                                )}
+                            return (
+                                <>
+                                    {/* Date Separator - simple centered label (no full-width bar) */}
+                                    {showDateSeparator && (
+                                        <div key={`date-${item.id}`} className="flex justify-center my-3">
+                                            <span className="text-gray-500 text-xs font-medium">
+                                                {formatDateSeparator(item.timestamp)}
+                                            </span>
+                                        </div>
+                                    )}
 
-                                {/* Message */}
-                                <div
-                                    key={item.id}
-                                    id={`msg-${item.id}`}
-                                    className={`flex my-1 sm:my-2 ${item.isMe ? 'justify-end' : 'justify-start'} group w-full`}
-                                >
-                                    <div className="relative max-w-[85%] sm:max-w-[75%] md:max-w-[65%] lg:max-w-[55%]">
-                                        <div
-                                            className={`w-full px-3 sm:px-4 py-2 sm:py-3 rounded-2xl ${
-                                                item.isDeleted
+                                    {/* Message */}
+                                    <div
+                                        key={item.id}
+                                        id={`msg-${item.id}`}
+                                        className={`flex my-1 sm:my-2 ${item.isMe ? 'justify-end' : 'justify-start'} group w-full`}
+                                    >
+                                        <div className={`relative max-w-[85%] sm:max-w-[75%] md:max-w-[65%] lg:max-w-[55%] ${showMessageMenu === item.id ? 'z-[99998]' : 'z-10'}`}>
+                                            <div
+                                                className={`w-full px-3 sm:px-4 py-2 sm:py-3 rounded-2xl ${item.isDeleted
                                                     ? 'bg-gray-800 border border-gray-700 shadow-lg'
-                                                    : 'bg-gradient-to-b from-white/16 via-white/10 to-white/6 border border-white/25 shadow-[0_22px_44px_rgba(0,0,0,0.98),0_0_0_1px_rgba(255,255,255,0.12),inset_0_3px_5px_rgba(255,255,255,0.26),inset_0_-4px_7px_rgba(0,0,0,0.92),inset_3px_0_4px_rgba(255,255,255,0.14),inset_-3px_0_4px_rgba(0,0,0,0.7)] backdrop-blur-2xl bg-clip-padding'
-                                            }`}
-                                            style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                                            onContextMenu={(e) => {
-                                                if (item.isMe && !item.isDeleted) {
-                                                    e.preventDefault();
-                                                    setSelectedMessage(item);
-                                                    setShowMessageMenu(true);
-                                                }
-                                            }}
-                                        >
-                                            {/* Message Content */}
-                                            <div className="flex items-start justify-between">
-                                                <div className="flex-1">
-                                                    {/* Reply Preview */}
-                                                    {item.replyTo && (
-                                                        <div className={`mb-2 pl-2 border-l-2 ${item.isMe ? 'border-white border-opacity-50' : 'border-red-500'}`}>
-                                                            <p className={`text-xs font-semibold ${item.isMe ? 'text-white opacity-80' : 'text-red-400'}`}>
-                                                                {item.replyTo.senderName || 'Unknown'}
-                                                            </p>
-                                                            <p className={`text-xs ${item.isMe ? 'text-white opacity-70' : 'text-gray-400'} truncate`}>
-                                                                {item.replyTo.content || 'Message'}
-                                                            </p>
-                                                        </div>
-                                                    )}
-
-                                                    {item.isDeleted ? (
-                                                        <div className="flex flex-col">
-                                                            <p className="text-sm sm:text-base italic text-gray-500 flex items-center">
-                                                                <IoTrashOutline className="inline mr-2" />
-                                                                This message was deleted
-                                                            </p>
-                                                            {item.deletedAt && (
-                                                                <p className="text-xs text-gray-600 mt-1">
-                                                                    Deleted at {formatMessageTime(item.deletedAt)}
+                                                    : 'bg-gradient-to-b from-white/16 via-white/10 to-white/6  border-white/25 shadow-[0_22px_44px_rgba(0,0,0,0.98),0_0_0_1px_rgba(255,255,255,0.12),inset_0_3px_5px_rgba(255,255,255,0.26),inset_0_-4px_7px_rgba(0,0,0,0.92),inset_3px_0_4px_rgba(255,255,255,0.14),inset_-3px_0_4px_rgba(0,0,0,0.7)] backdrop-blur-2xl bg-clip-padding'
+                                                    }`}
+                                                style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                                                onContextMenu={(e) => {
+                                                    if (item.isMe && !item.isDeleted) {
+                                                        e.preventDefault();
+                                                        setSelectedMessage(item);
+                                                        setShowMessageMenu(true);
+                                                    }
+                                                }}
+                                            >
+                                                {/* Message Content */}
+                                                <div className="flex items-start justify-between">
+                                                    <div className="flex-1">
+                                                        {/* Reply Preview */}
+                                                        {item.replyTo && (
+                                                            <div className={`mb-2 pl-2 border-l-2 ${item.isMe ? 'border-white border-opacity-50' : 'border-red-500'}`}>
+                                                                <p className={`text-xs font-semibold ${item.isMe ? 'text-white opacity-80' : 'text-red-400'}`}>
+                                                                    {item.replyTo.senderName || 'Unknown'}
                                                                 </p>
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        <>
-                                                            {/* Attachments */}
-                                                            {item.attachments && item.attachments.length > 0 && (() => {
-                                                                // Separate images/videos from other files
-                                                                const mediaAttachments = item.attachments.filter(att => {
-                                                                    const fileType = att.fileType;
-                                                                    return fileType && (fileType.startsWith('image/') || fileType.startsWith('video/'));
-                                                                });
-                                                                const otherAttachments = item.attachments.filter(att => {
-                                                                    const fileType = att.fileType;
-                                                                    return fileType && !fileType.startsWith('image/') && !fileType.startsWith('video/');
-                                                                });
+                                                                <p className={`text-xs ${item.isMe ? 'text-white opacity-70' : 'text-gray-400'} truncate`}>
+                                                                    {item.replyTo.content || 'Message'}
+                                                                </p>
+                                                            </div>
+                                                        )}
 
-                                                                return (
-                                                                    <div className="mb-2">
-                                                                        {/* Media Grid (Images/Videos) */}
-                                                                        {mediaAttachments.length > 0 && (
-                                                                            <div className={`
+                                                        {item.isDeleted ? (
+                                                            <div className="flex flex-col">
+                                                                <p className="text-sm sm:text-base italic text-gray-500 flex items-center">
+                                                                    <IoTrashOutline className="inline mr-2" />
+                                                                    This message was deleted
+                                                                </p>
+                                                                {item.deletedAt && (
+                                                                    <p className="text-xs text-gray-600 mt-1">
+                                                                        Deleted at {formatMessageTime(item.deletedAt)}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <>
+                                                                {/* Attachments */}
+                                                                {item.attachments && item.attachments.length > 0 && (() => {
+                                                                    // Separate images/videos from other files
+                                                                    const mediaAttachments = item.attachments.filter(att => {
+                                                                        const fileType = att.fileType;
+                                                                        return fileType && (fileType.startsWith('image/') || fileType.startsWith('video/'));
+                                                                    });
+                                                                    const otherAttachments = item.attachments.filter(att => {
+                                                                        const fileType = att.fileType;
+                                                                        return fileType && !fileType.startsWith('image/') && !fileType.startsWith('video/');
+                                                                    });
+
+                                                                    return (
+                                                                        <div className="mb-2">
+                                                                            {/* Media Grid (Images/Videos) */}
+                                                                            {mediaAttachments.length > 0 && (
+                                                                                <div className={`
                                                                                 ${mediaAttachments.length === 1 ? 'w-full max-w-[280px]' : ''}
                                                                                 ${mediaAttachments.length === 2 ? 'grid grid-cols-2 gap-0.5 max-w-[280px]' : ''}
                                                                                 ${mediaAttachments.length === 3 ? 'grid grid-cols-2 gap-0.5 max-w-[280px]' : ''}
                                                                                 ${mediaAttachments.length >= 4 ? 'grid grid-cols-2 gap-0.5 max-w-[280px]' : ''}
                                                                                 rounded-lg overflow-hidden
                                                                             `}>
-                                                                                {mediaAttachments.slice(0, 4).map((att, idx) => {
-                                                                                    const fileUrl = att.fileURL || att.fileUrl;
-                                                                                    const fileType = att.fileType;
-                                                                                    const isLast = idx === 3 && mediaAttachments.length > 4;
-                                                                                    const remaining = mediaAttachments.length - 4;
+                                                                                    {mediaAttachments.slice(0, 4).map((att, idx) => {
+                                                                                        const fileUrl = att.fileURL || att.fileUrl;
+                                                                                        const fileType = att.fileType;
+                                                                                        const isLast = idx === 3 && mediaAttachments.length > 4;
+                                                                                        const remaining = mediaAttachments.length - 4;
 
-                                                                                    // Prepare media list for viewer
-                                                                                    const mediaList = mediaAttachments.map(a => ({
-                                                                                        url: a.fileURL || a.fileUrl,
-                                                                                        type: a.fileType
-                                                                                    }));
+                                                                                        // Prepare media list for viewer
+                                                                                        const mediaList = mediaAttachments.map(a => ({
+                                                                                            url: a.fileURL || a.fileUrl,
+                                                                                            type: a.fileType
+                                                                                        }));
 
-                                                                                    return (
-                                                                                        <div
-                                                                                            key={idx}
-                                                                                            className={`
+                                                                                        return (
+                                                                                            <div
+                                                                                                key={idx}
+                                                                                                className={`
                                                                                                 relative overflow-hidden
                                                                                                 ${mediaAttachments.length === 1 ? 'h-[200px]' : ''}
                                                                                                 ${mediaAttachments.length === 2 ? 'h-[140px]' : ''}
                                                                                                 ${mediaAttachments.length === 3 && idx === 0 ? 'row-span-2 h-[280px]' : 'h-[140px]'}
                                                                                                 ${mediaAttachments.length >= 4 ? 'h-[140px]' : ''}
                                                                                             `}
-                                                                                        >
-                                                                                            {fileType.startsWith('image/') ? (
-                                                                                                <img
-                                                                                                    src={fileUrl}
-                                                                                                    alt="attachment"
-                                                                                                    className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                                                                                                    onClick={() => openMediaViewer(mediaList, idx)}
-                                                                                                    onError={(e) => {
-                                                                                                        console.error('Image load error:', fileUrl);
-                                                                                                        e.target.style.display = 'none';
-                                                                                                    }}
-                                                                                                />
-                                                                                            ) : (
-                                                                                                <div
-                                                                                                    className="relative w-full h-full cursor-pointer group"
-                                                                                                    onClick={() => openMediaViewer(mediaList, idx)}
-                                                                                                >
-                                                                                                    <video
+                                                                                            >
+                                                                                                {fileType.startsWith('image/') ? (
+                                                                                                    <img
                                                                                                         src={fileUrl}
-                                                                                                        className="w-full h-full object-cover pointer-events-none"
+                                                                                                        alt="attachment"
+                                                                                                        className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                                                                                        onClick={() => openMediaViewer(mediaList, idx)}
                                                                                                         onError={(e) => {
-                                                                                                            console.error('Video load error:', fileUrl);
+                                                                                                            console.error('Image load error:', fileUrl);
+                                                                                                            e.target.style.display = 'none';
                                                                                                         }}
                                                                                                     />
-                                                                                                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 group-hover:bg-opacity-50 transition-all">
-                                                                                                        <IoPlayCircle className="text-white text-5xl group-hover:scale-110 transition-transform" />
+                                                                                                ) : (
+                                                                                                    <div
+                                                                                                        className="relative w-full h-full cursor-pointer group"
+                                                                                                        onClick={() => openMediaViewer(mediaList, idx)}
+                                                                                                    >
+                                                                                                        <video
+                                                                                                            src={fileUrl}
+                                                                                                            className="w-full h-full object-cover pointer-events-none"
+                                                                                                            onError={(e) => {
+                                                                                                                console.error('Video load error:', fileUrl);
+                                                                                                            }}
+                                                                                                        />
+                                                                                                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 group-hover:bg-opacity-50 transition-all">
+                                                                                                            <IoPlayCircle className="text-white text-5xl group-hover:scale-110 transition-transform" />
+                                                                                                        </div>
                                                                                                     </div>
-                                                                                                </div>
-                                                                                            )}
+                                                                                                )}
 
-                                                                                            {/* Show +N overlay on 4th image if more than 4 */}
-                                                                                            {isLast && (
-                                                                                                <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
-                                                                                                    <span className="text-white text-4xl font-bold">+{remaining}</span>
-                                                                                                </div>
-                                                                                            )}
-                                                                                        </div>
-                                                                                    );
-                                                                                })}
-                                                                            </div>
-                                                                        )}
-
-                                                                        {/* Other Attachments (Audio, Documents, etc.) */}
-                                                                        {otherAttachments.length > 0 && (
-                                                                            <div className={`space-y-2 ${mediaAttachments.length > 0 ? 'mt-2' : ''}`}>
-                                                                                {otherAttachments.map((att, idx) => {
-                                                                                    const fileUrl = att.fileURL || att.fileUrl;
-                                                                                    const fileType = att.fileType;
-
-                                                                                    if (!fileUrl) return null;
-
-                                                                                    return (
-                                                                                        <div key={idx}>
-                                                                                            {fileType.startsWith('audio/') ? (
-                                                                                                <WhatsAppAudioPlayer audioUrl={fileUrl} isMe={item.isMe} />
-                                                                                            ) : (
-                                                                                                <a
-                                                                                                    href={fileUrl}
-                                                                                                    target="_blank"
-                                                                                                    rel="noopener noreferrer"
-                                                                                                    className={`flex items-center gap-2 p-3 rounded-lg ${item.isMe ? 'bg-white bg-opacity-10' : 'bg-gray-700'} hover:opacity-80 transition-opacity`}
-                                                                                                >
-                                                                                                    <span className="text-2xl">{getFileIcon(fileType)}</span>
-                                                                                                    <div className="flex-1 min-w-0">
-                                                                                                        <p className="text-sm text-white truncate">{fileUrl.split('/').pop()}</p>
-                                                                                                        <p className="text-xs text-gray-400">{fileType || 'File'}</p>
+                                                                                                {/* Show +N overlay on 4th image if more than 4 */}
+                                                                                                {isLast && (
+                                                                                                    <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
+                                                                                                        <span className="text-white text-4xl font-bold">+{remaining}</span>
                                                                                                     </div>
-                                                                                                </a>
-                                                                                            )}
-                                                                                        </div>
-                                                                                    );
-                                                                                })}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                );
-                                                            })()}
+                                                                                                )}
+                                                                                            </div>
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+                                                                            )}
 
-                                                            {/* Text message */}
-                                                            {item.text && (
-                                                                <p className={`text-sm sm:text-base leading-relaxed whitespace-pre-wrap ${item.isMe ? 'text-white' : 'text-white'}`}
-                                                                    style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
-                                                                    {item.text}
-                                                                </p>
-                                                            )}
-                                                        </>
-                                                    )}
-                                                    {item.isEncrypted && !item.isDeleted && (
-                                                        <IoLockClosed className={`ml-2 mt-1 text-xs flex-shrink-0 ${item.isMe ? 'text-white opacity-70' : 'text-gray-400'}`} />
-                                                    )}
-                                                </div>
+                                                                            {/* Other Attachments (Audio, Documents, etc.) */}
+                                                                            {otherAttachments.length > 0 && (
+                                                                                <div className={`space-y-2 ${mediaAttachments.length > 0 ? 'mt-2' : ''}`}>
+                                                                                    {otherAttachments.map((att, idx) => {
+                                                                                        const fileUrl = att.fileURL || att.fileUrl;
+                                                                                        const fileType = att.fileType;
 
-                                                {/* Three-dot menu (show for all messages except temp ones) */}
-                                                {!item.isDeleted && !item.id.toString().startsWith('temp-') && (
-                                                    <div className="ml-2 flex-shrink-0 relative z-[90] message-menu">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setShowMessageMenu(showMessageMenu === item.id ? null : item.id);
-                                                            }}
-                                                            className="p-1 hover:bg-white hover:bg-opacity-20 rounded transition-opacity"
-                                                            title="Options"
-                                                        >
-                                                            <IoEllipsisVertical className="text-white text-base" />
-                                                        </button>
+                                                                                        if (!fileUrl) return null;
 
-                                                        {/* Dropdown menu */}
-                                                        {showMessageMenu === item.id && (
-                                                            <div
-                                                                className={`absolute top-8 bg-gradient-to-b from-white/16 via-white/10 to-white/6 border border-white/25 rounded-2xl shadow-[0_16px_32px_rgba(0,0,0,0.98),0_0_0_1px_rgba(255,255,255,0.12),inset_0_2px_4px_rgba(255,255,255,0.22),inset_0_-3px_6px_rgba(0,0,0,0.92)] backdrop-blur-2xl bg-clip-padding z-[120] min-w-[180px] ${
-                                                                    item.isMe ? 'right-0' : 'left-0'
-                                                                }`}
-                                                            >
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        copyMessageText(item.text);
-                                                                    }}
-                                                                    className="w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3 rounded-t-2xl"
-                                                                >
-                                                                    <IoCopyOutline className="text-base" />
-                                                                    <span className="text-sm">Copy</span>
-                                                                </button>
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        startReplyMessage(item);
-                                                                    }}
-                                                                    className={`w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3 ${item.isMe ? '' : 'rounded-b-2xl'}`}
-                                                                >
-                                                                    <IoArrowUndoOutline className="text-base" />
-                                                                    <span className="text-sm">Reply</span>
-                                                                </button>
-                                                                {item.isMe && (
-                                                                    <>
-                                                                        <button
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                startEditMessage(item);
-                                                                                setShowMessageMenu(null);
-                                                                            }}
-                                                                            className="w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3"
-                                                                        >
-                                                                            <IoCreateOutline className="text-base" />
-                                                                            <span className="text-sm">Edit</span>
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                handleDeleteMessage(item.id);
-                                                                                setShowMessageMenu(null);
-                                                                            }}
-                                                                            className="w-full px-4 py-3 text-left text-red-400 hover:bg-red-900/40 flex items-center gap-3 rounded-b-2xl"
-                                                                            title="Delete"
-                                                                        >
-                                                                            <IoTrashOutline className="text-base" />
-                                                                            <span className="text-sm">Delete</span>
-                                                                        </button>
-                                                                    </>
+                                                                                        return (
+                                                                                            <div key={idx}>
+                                                                                                {fileType.startsWith('audio/') ? (
+                                                                                                    <WhatsAppAudioPlayer audioUrl={fileUrl} isMe={item.isMe} />
+                                                                                                ) : (
+                                                                                                    <a
+                                                                                                        href={fileUrl}
+                                                                                                        target="_blank"
+                                                                                                        rel="noopener noreferrer"
+                                                                                                        className={`flex items-center gap-2 p-3 rounded-lg ${item.isMe ? 'bg-white bg-opacity-10' : 'bg-gray-700'} hover:opacity-80 transition-opacity`}
+                                                                                                    >
+                                                                                                        <span className="text-2xl">{getFileIcon(fileType)}</span>
+                                                                                                        <div className="flex-1 min-w-0">
+                                                                                                            <p className="text-sm text-white truncate">{fileUrl.split('/').pop()}</p>
+                                                                                                            <p className="text-xs text-gray-400">{fileType || 'File'}</p>
+                                                                                                        </div>
+                                                                                                    </a>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })()}
+
+                                                                {/* Text message */}
+                                                                {item.text && (
+                                                                    <p className={`text-sm sm:text-base leading-relaxed whitespace-pre-wrap ${item.isMe ? 'text-white' : 'text-white'}`}
+                                                                        style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                                                                        {item.text}
+                                                                    </p>
                                                                 )}
-                                                            </div>
+                                                            </>
+                                                        )}
+                                                        {item.isEncrypted && !item.isDeleted && (
+                                                            <IoLockClosed className={`ml-2 mt-1 text-xs flex-shrink-0 ${item.isMe ? 'text-white opacity-70' : 'text-gray-400'}`} />
                                                         )}
                                                     </div>
-                                                )}
-                                            </div>
 
-                                            {/* Time and Status */}
-                                            <div className="flex items-center justify-between mt-1.5">
-                                                <div className="flex items-center gap-1">
-                                                    <p className={`text-xs ${item.isMe ? 'text-white opacity-70' : 'text-gray-400'}`}>
-                                                        {item.time}
-                                                    </p>
-                                                    {item.isEdited && !item.isDeleted && (
-                                                        <span className={`text-xs italic ${item.isMe ? 'text-white opacity-60' : 'text-gray-500'}`}>
-                                                            (edited)
-                                                        </span>
+                                                    {/* Three-dot menu (show for all messages except temp ones) */}
+                                                    {!item.isDeleted && !item.id.toString().startsWith('temp-') && (
+                                                        <div className={`ml-2 flex-shrink-0 relative ${showMessageMenu === item.id ? 'z-[99999]' : 'z-[9998]'} message-menu`}>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setShowMessageMenu(showMessageMenu === item.id ? null : item.id);
+                                                                }}
+                                                                className="p-1 hover:bg-white hover:bg-opacity-20 rounded transition-opacity"
+                                                                title="Options"
+                                                            >
+                                                                <IoEllipsisVertical className="text-white text-base" />
+                                                            </button>
+
+                                                            {/* Dropdown menu */}
+                                                            {showMessageMenu === item.id && (
+                                                                <div
+                                                                    className={`absolute top-8 bg-gradient-to-b from-white/16 via-white/10 to-white/6 border border-white/25 rounded-2xl shadow-[0_16px_32px_rgba(0,0,0,0.98),0_0_0_1px_rgba(255,255,255,0.12),inset_0_2px_4px_rgba(255,255,255,0.22),inset_0_-3px_6px_rgba(0,0,0,0.92)] backdrop-blur-2xl bg-clip-padding z-[9999] min-w-[180px] ${item.isMe ? 'right-0' : 'left-0'
+                                                                        }`}
+                                                                >
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            copyMessageText(item.text);
+                                                                        }}
+                                                                        className="w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3 rounded-t-2xl"
+                                                                    >
+                                                                        <IoCopyOutline className="text-base" />
+                                                                        <span className="text-sm">Copy</span>
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            startReplyMessage(item);
+                                                                        }}
+                                                                        className={`w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3 ${item.isMe ? '' : 'rounded-b-2xl'}`}
+                                                                    >
+                                                                        <IoArrowUndoOutline className="text-base" />
+                                                                        <span className="text-sm">Reply</span>
+                                                                    </button>
+                                                                    {item.isMe && (
+                                                                        <>
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    startEditMessage(item);
+                                                                                    setShowMessageMenu(null);
+                                                                                }}
+                                                                                className="w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3"
+                                                                            >
+                                                                                <IoCreateOutline className="text-base" />
+                                                                                <span className="text-sm">Edit</span>
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    handleDeleteMessage(item.id);
+                                                                                    setShowMessageMenu(null);
+                                                                                }}
+                                                                                className="w-full px-4 py-3 text-left text-red-400 hover:bg-red-900/40 flex items-center gap-3 rounded-b-2xl"
+                                                                                title="Delete"
+                                                                            >
+                                                                                <IoTrashOutline className="text-base" />
+                                                                                <span className="text-sm">Delete</span>
+                                                                            </button>
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </div>
 
-                                                {/* Read receipts for sent messages */}
-                                                {item.isMe && !item.isDeleted && (
-                                                    <div className="ml-2 flex items-center">
-                                                        {item.isRead || item.status === 'read' ? (
-                                                            // Double tick - Blue (Read by receiver)
-                                                            <IoCheckmarkDone className="text-blue-500 text-base" title="Read" />
-                                                        ) : item.status === 'sending' ? (
-                                                            // Single tick - Gray (Sending)
-                                                            <IoCheckmark className="text-gray-300 text-base animate-pulse" title="Sending" />
-                                                        ) : (
-                                                            // Single tick - Gray (Sent but not read)
-                                                            <IoCheckmark className="text-gray-300 text-base" title="Sent" />
+                                                {/* Time and Status */}
+                                                <div className="flex items-center justify-between mt-1.5">
+                                                    <div className="flex items-center gap-1">
+                                                        <p className={`text-xs ${item.isMe ? 'text-white opacity-70' : 'text-gray-400'}`}>
+                                                            {item.time}
+                                                        </p>
+                                                        {item.isEdited && !item.isDeleted && (
+                                                            <span className={`text-xs italic ${item.isMe ? 'text-white opacity-60' : 'text-gray-500'}`}>
+                                                                (edited)
+                                                            </span>
                                                         )}
                                                     </div>
-                                                )}
+
+                                                    {/* Read receipts for sent messages */}
+                                                    {item.isMe && !item.isDeleted && (
+                                                        <div className="ml-2 flex items-center">
+                                                            {item.isRead || item.status === 'read' ? (
+                                                                // Double tick - Blue (Read by receiver)
+                                                                <IoCheckmarkDone className="text-blue-500 text-base" title="Read" />
+                                                            ) : item.status === 'sending' ? (
+                                                                // Single tick - Gray (Sending)
+                                                                <IoCheckmark className="text-gray-300 text-base animate-pulse" title="Sending" />
+                                                            ) : (
+                                                                // Single tick - Gray (Sent but not read)
+                                                                <IoCheckmark className="text-gray-300 text-base" title="Sent" />
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            </>
-                        );
-                    })}
-                    {typingUsers.length > 0 && <TypingIndicator />}
-                    <div ref={messagesEndRef} />
-                </>
-            )}
+                                </>
+                            );
+                        })}
+                        {typingUsers.length > 0 && <TypingIndicator />}
+                        <div ref={messagesEndRef} />
+                    </>
+                )}
             </div>
 
             {/* Scroll to Bottom Button - Shows when scrolled up */}
@@ -1908,11 +1906,10 @@ export default function ChatDetailScreen() {
                     className="absolute bottom-24 sm:bottom-28 right-4 sm:right-6 w-12 h-12 sm:w-13 sm:h-13 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 z-50 transition-transform hover:scale-105"
                 >
                     <div
-                        className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)] ${
-                            newMessageCount > 0
-                                ? 'bg-gradient-to-b from-[#0a84ff] to-[#0040dd]'
-                                : 'bg-gradient-to-b from-[#3a3a3a] to-[#111111]'
-                        }`}
+                        className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)] ${newMessageCount > 0
+                            ? 'bg-gradient-to-b from-[#0a84ff] to-[#0040dd]'
+                            : 'bg-gradient-to-b from-[#3a3a3a] to-[#111111]'
+                            }`}
                     >
                         <IoArrowDown className="text-white text-xl" />
                     </div>
@@ -2082,15 +2079,13 @@ export default function ChatDetailScreen() {
                         <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
                             {editingMessageId ? (
                                 <IoCheckmarkCircle
-                                    className={`text-lg sm:text-xl ${
-                                        message.trim() ? 'text-[#34c759]' : 'text-gray-500'
-                                    }`}
+                                    className={`text-lg sm:text-xl ${message.trim() ? 'text-[#34c759]' : 'text-gray-500'
+                                        }`}
                                 />
                             ) : (
                                 <IoSend
-                                    className={`text-lg sm:text-xl ${
-                                        message.trim() ? 'text-[#34c759]' : 'text-gray-500'
-                                    }`}
+                                    className={`text-lg sm:text-xl ${message.trim() ? 'text-[#34c759]' : 'text-gray-500'
+                                        }`}
                                 />
                             )}
                         </div>

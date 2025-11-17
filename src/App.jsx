@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { WebSocketProvider } from './contexts/WebSocketContext';
 import { CallProvider } from './contexts/CallContext';
 import CallManager from './components/CallManager';
+import SplashScreen from './pages/SplashScreen';
+import PermissionsScreen from './pages/PermissionsScreen';
 import LoginScreen from './pages/LoginScreen';
 import SignupScreen from './pages/SignupScreen';
 import ChatsScreen from './pages/ChatsScreen';
@@ -29,9 +31,11 @@ function App() {
         <Router>
           <CallManager />
           <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/" element={<SplashScreen />} />
+            <Route path="/permissions" element={<PermissionsScreen />} />
             <Route path="/login" element={<LoginScreen />} />
             <Route path="/signup" element={<SignupScreen />} />
+            <Route path="/home" element={<Navigate to="/chats" replace />} />
             <Route path="/chats" element={<ChatsScreen />} />
             <Route path="/search" element={<SearchUsersScreen />} />
             <Route path="/friends" element={<FriendsScreen />} />
