@@ -3,13 +3,19 @@
 // Base API configuration
 const API_CONFIG = {
   development: {
-    baseUrl: "http://192.168.0.200:8008/api/v1",
+    baseUrl:
+      import.meta.env.VITE_API_BASE_URL || "http://192.168.0.200:8008/api/v1",
+    timeout: import.meta.env.VITE_API_TIMEOUT || 10000,
   },
   staging: {
-    baseUrl: "http://192.168.0.200:8008/api/v1",
+    baseUrl:
+      import.meta.env.VITE_API_BASE_URL || "http://192.168.0.200:8008/api/v1",
+    timeout: import.meta.env.VITE_API_TIMEOUT || 10000,
   },
   production: {
-    baseUrl: "http://192.168.0.200:8008/api/v1",
+    baseUrl:
+      import.meta.env.VITE_API_BASE_URL || "http://192.168.0.200:8008/api/v1",
+    timeout: import.meta.env.VITE_API_TIMEOUT || 15000,
   },
 };
 

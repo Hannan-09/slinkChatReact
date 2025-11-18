@@ -11,32 +11,44 @@ class WebRTCCallService {
     this.onRetryCallback = null;
     this.configuration = {
       iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-      ]
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+      ],
     };
   }
 
   // Get local media stream only (without creating peer connection)
   async getLocalStream(isVideoCall = false) {
     try {
+      console.log("🎤 Requesting media permissions...", { isVideoCall });
+
       const constraints = {
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true
+          autoGainControl: true,
         },
-        video: isVideoCall ? {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: 'user'
-        } : false
+        video: isVideoCall
+          ? {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              facingMode: "user",
+            }
+          : false,
       };
 
       this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log("✅ Media stream obtained:", {
+        audioTracks: this.localStream.getAudioTracks().length,
+        videoTracks: this.localStream.getVideoTracks().length,
+      });
       return this.localStream;
     } catch (error) {
-      console.error("Error getting local stream:", error);
+      console.error(
+        "❌ Error getting local stream:",
+        error.name,
+        error.message
+      );
       throw error;
     }
   }
@@ -72,7 +84,9 @@ class WebRTCCallService {
   // Create peer connection with existing local stream (for receiver after accepting)
   async createPeerConnectionWithStream() {
     if (!this.localStream) {
-      throw new Error("Local stream must be set before creating peer connection");
+      throw new Error(
+        "Local stream must be set before creating peer connection"
+      );
     }
 
     // Create peer connection
@@ -139,9 +153,16 @@ class WebRTCCallService {
   }
 
   // Setup event handlers
-  setupEventHandlers(onIceCandidate, onTrack, onConnectionStateChange, onRetry = null) {
+  setupEventHandlers(
+    onIceCandidate,
+    onTrack,
+    onConnectionStateChange,
+    onRetry = null
+  ) {
     if (!this.peerConnection) {
-      console.warn("Cannot setup event handlers - peer connection not initialized");
+      console.warn(
+        "Cannot setup event handlers - peer connection not initialized"
+      );
       return;
     }
 

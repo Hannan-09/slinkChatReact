@@ -15,6 +15,7 @@
     "@capacitor/core": "^7.4.4",
     "@stomp/stompjs": "^7.2.1",
     "axios": "^1.13.2",
+    "cordova-plugin-iosrtc-capacitor": "^6.0.20",
     "crypto-js": "^4.2.0",
     "emoji-picker-react": "^4.15.0",
     "react": "^19.2.0",

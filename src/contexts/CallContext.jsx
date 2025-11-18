@@ -61,7 +61,7 @@ export const CallProvider = ({ children, currentUserId }) => {
     // Refs to store IDs immediately (state updates are async)
     const callerIdRef = useRef(null);
     const receiverIdRef = useRef(null);
-    
+
     // Refs for audio/video elements
     const remoteAudioRef = useRef(null);
     const localVideoRef = useRef(null);
@@ -213,14 +213,37 @@ export const CallProvider = ({ children, currentUserId }) => {
     };
 
     // Initiate call
-    const initiateCall = async (receiver, isVideo = false) => {
+    const initiateCall = async (receiver, isVideo = false, explicitCallerId = null) => {
+        // Use explicitly passed callerId or fall back to context's currentUserId
+        const effectiveCallerId = explicitCallerId || currentUserId;
+
+        console.log('🎯 initiateCall called with:', {
+            explicitCallerId,
+            contextUserId: currentUserId,
+            effectiveCallerId,
+            receiverId: receiver.id,
+            isVideo
+        });
+
+        // Check if currentUserId is available
+        if (!effectiveCallerId) {
+            console.error('❌ Cannot initiate call - currentUserId is null');
+            alert('Please wait for the app to load completely before making a call');
+            return;
+        }
+
         // Store IDs in refs immediately (state updates are async)
-        callerIdRef.current = currentUserId;
+        callerIdRef.current = effectiveCallerId;
         receiverIdRef.current = receiver.id;
+
+        console.log('✅ IDs stored in refs:', {
+            callerIdRef: callerIdRef.current,
+            receiverIdRef: receiverIdRef.current
+        });
 
         updateCallState('outgoing');
         setIsVideoCall(isVideo);
-        setCallerId(currentUserId);
+        setCallerId(effectiveCallerId);
         setReceiverId(receiver.id);
         setReceiverInfo(receiver);
 
@@ -258,10 +281,10 @@ export const CallProvider = ({ children, currentUserId }) => {
         }
 
         // Send to backend
-        publish(`/app/call/${currentUserId}/${receiver.id}/initiate`, {
+        publish(`/app/call/${effectiveCallerId}/${receiver.id}/initiate`, {
             callType: isVideo ? 'VIDEO' : 'AUDIO',
             signalData: {
-                callerId: currentUserId,
+                callerId: effectiveCallerId,
                 receiverId: receiver.id,
                 isVideoCall: isVideo,
                 callerName: 'You',
@@ -293,6 +316,7 @@ export const CallProvider = ({ children, currentUserId }) => {
 
     // Accept call
     const acceptCall = async () => {
+        console.log('📞 Accepting call...');
         stopRingtone();
 
         setTimeout(() => playCallStartSound(), 200);
@@ -301,13 +325,17 @@ export const CallProvider = ({ children, currentUserId }) => {
         const callerUserId = callerIdRef.current;
         const receiverUserId = receiverIdRef.current;
 
+        console.log('📞 Call IDs:', { callerUserId, receiverUserId, callHistoryId });
+
         // Set up local stream but DON'T create peer connection yet
         // Peer connection will be created when we receive the offer from caller
         try {
+            console.log('🎤 Getting local media stream...');
             const stream = await webRTCCallService.getLocalStream(isVideoCall);
             setLocalStream(stream);
+            console.log('✅ Local stream obtained');
         } catch (error) {
-            console.error('Error getting local stream:', error);
+            console.error('❌ Error getting local stream:', error);
             alert(`Please allow ${isVideoCall ? 'camera and microphone' : 'microphone'} access to make calls`);
             resetCallState();
             return;
@@ -317,6 +345,7 @@ export const CallProvider = ({ children, currentUserId }) => {
         updateCallState('connected');
 
         // Send accept to backend
+        console.log('📤 Sending accept signal to backend...');
         publish(`/app/call/${callerUserId}/${receiverUserId}/accept`, {
             signalData: {},
             callHistoryId: callHistoryId
@@ -408,7 +437,7 @@ export const CallProvider = ({ children, currentUserId }) => {
             console.log('Reject already processed, ignoring duplicate');
             return;
         }
-        
+
         // Only show alert if we're actually in a call
         if (callStateRef.current !== 'idle') {
             processedRejectRef.current = true;
@@ -469,7 +498,7 @@ export const CallProvider = ({ children, currentUserId }) => {
 
             // The offer is in the message root, not in signalData
             const offer = message.offer || message;
-            
+
             if (!offer || !offer.type) {
                 console.error('Invalid offer data:', message);
                 return;
@@ -478,9 +507,9 @@ export const CallProvider = ({ children, currentUserId }) => {
             console.log('📥 Receiver: Processing offer from caller');
 
             // Check if we already have a remote description (duplicate offer)
-            if (webRTCCallService.peerConnection && 
+            if (webRTCCallService.peerConnection &&
                 webRTCCallService.peerConnection.signalingState !== 'stable') {
-                console.log('Already processing offer, ignoring duplicate. State:', 
+                console.log('Already processing offer, ignoring duplicate. State:',
                     webRTCCallService.peerConnection.signalingState);
                 return;
             }

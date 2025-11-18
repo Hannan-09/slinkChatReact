@@ -1381,6 +1381,7 @@ export default function ChatDetailScreen() {
     const handleCallPress = (isVideo) => {
         console.log('🎯 Call button pressed!');
         console.log('Is Video:', isVideo);
+        console.log('Current User ID:', currentUserId);
         console.log('Receiver User ID:', receiverUserId);
         console.log('WebSocket Connected:', connected);
 
@@ -1389,12 +1390,17 @@ export default function ChatDetailScreen() {
             return;
         }
 
+        if (!currentUserId) {
+            alert('Please wait for the app to load completely before making a call');
+            return;
+        }
+
         console.log('✅ Calling initiateCall...');
         initiateCall({
             id: receiverUserId,
             name: name,
             avatar: avatar
-        }, isVideo);
+        }, isVideo, currentUserId);  // Pass currentUserId explicitly
         console.log('✅ initiateCall function called');
     };
 

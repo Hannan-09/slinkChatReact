@@ -19,7 +19,9 @@ function App() {
 
   useEffect(() => {
     const getUserId = async () => {
+      console.log('🔍 Fetching current user ID from storage...');
       const userId = await ApiUtils.getCurrentUserId();
+      console.log('✅ Current user ID loaded:', userId);
       setCurrentUserId(userId);
     };
     getUserId();
