@@ -88,26 +88,26 @@ class EncryptionService {
    * @param {string} testData - Data to test with
    * @returns {Object} - Test results
    */
-  static testEncryption(testData = "Hello, this is a test!") {
-    try {
-      const encrypted = this.encrypt(testData);
-      const decrypted = this.decrypt(encrypted);
-      const isMatch = testData === decrypted;
-      return {
-        success: true,
-        original: testData,
-        encrypted: encrypted,
-        decrypted: decrypted,
-        isMatch: isMatch,
-      };
-    } catch (error) {
-      console.error("Encryption test failed:", error);
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
-  }
+  // static testEncryption(testData = "Hello, this is a test!") {
+  //   try {
+  //     const encrypted = this.encrypt(testData);
+  //     const decrypted = this.decrypt(encrypted);
+  //     const isMatch = testData === decrypted;
+  //     return {
+  //       success: true,
+  //       original: testData,
+  //       encrypted: encrypted,
+  //       decrypted: decrypted,
+  //       isMatch: isMatch,
+  //     };
+  //   } catch (error) {
+  //     console.error("Encryption test failed:", error);
+  //     return {
+  //       success: false,
+  //       error: error.message,
+  //     };
+  //   }
+  // }
 }
 
 export default EncryptionService;

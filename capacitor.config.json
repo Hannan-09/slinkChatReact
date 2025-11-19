@@ -1,5 +1,10 @@
 {
   "appId": "com.slink.chat",
   "appName": "slink.chat",
-  "webDir": "dist"
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "http",
+    "allowNavigation": ["103.85.89.39", "8hspqmjm-8008.inc1.devtunnels.ms"],
+    "cleartext": true
+  }
 }

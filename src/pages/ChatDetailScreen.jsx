@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
     IoArrowBack,
     IoVideocam,
@@ -31,13 +31,18 @@ import {
     IoPause,
     IoPlay,
     IoMusicalNote,
-} from 'react-icons/io5';
-import EmojiPicker from 'emoji-picker-react';
-import { useCall } from '../contexts/CallContext';
-import { ApiUtils } from '../services/AuthService';
-import chatApiService from '../services/ChatApiService';
-import EncryptionService from '../services/EncryptionService';
-import { useWebSocket, useUserOnlineStatus } from '../contexts/WebSocketContext';
+} from "react-icons/io5";
+import EmojiPicker from "emoji-picker-react";
+import { useCall } from "../contexts/CallContext";
+import { ApiUtils } from "../services/AuthService";
+import chatApiService from "../services/ChatApiService";
+import EncryptionService from "../services/EncryptionService";
+import DecryptEnvolop from "../scripts/decryptEnvelope";
+import DecryptMessage from "../scripts/decryptMessage";
+import {
+    useWebSocket,
+    useUserOnlineStatus,
+} from "../contexts/WebSocketContext";
 
 // WhatsApp-style Audio Player Component
 const WhatsAppAudioPlayer = ({ audioUrl, isMe }) => {
@@ -63,14 +68,14 @@ const WhatsAppAudioPlayer = ({ audioUrl, isMe }) => {
             setCurrentTime(0);
         };
 
-        audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-        audio.addEventListener('timeupdate', handleTimeUpdate);
-        audio.addEventListener('ended', handleEnded);
+        audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+        audio.addEventListener("timeupdate", handleTimeUpdate);
+        audio.addEventListener("ended", handleEnded);
 
         return () => {
-            audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-            audio.removeEventListener('timeupdate', handleTimeUpdate);
-            audio.removeEventListener('ended', handleEnded);
+            audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+            audio.removeEventListener("timeupdate", handleTimeUpdate);
+            audio.removeEventListener("ended", handleEnded);
         };
     }, []);
 
@@ -93,10 +98,10 @@ const WhatsAppAudioPlayer = ({ audioUrl, isMe }) => {
     };
 
     const formatTime = (time) => {
-        if (isNaN(time)) return '0:00';
+        if (isNaN(time)) return "0:00";
         const minutes = Math.floor(time / 60);
         const seconds = Math.floor(time % 60);
-        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        return `${minutes}:${seconds.toString().padStart(2, "0")}`;
     };
 
     const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
@@ -108,7 +113,9 @@ const WhatsAppAudioPlayer = ({ audioUrl, isMe }) => {
             {/* Play/Pause Button */}
             <button
                 onClick={togglePlay}
-                className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${isMe ? 'bg-white bg-opacity-20 hover:bg-opacity-30' : 'bg-gray-600 hover:bg-gray-500'
+                className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${isMe
+                    ? "bg-white bg-opacity-20 hover:bg-opacity-30"
+                    : "bg-gray-600 hover:bg-gray-500"
                     }`}
             >
                 {isPlaying ? (
@@ -126,7 +133,8 @@ const WhatsAppAudioPlayer = ({ audioUrl, isMe }) => {
                 >
                     <div className="w-full h-1 bg-white bg-opacity-20 rounded-full overflow-hidden">
                         <div
-                            className={`h-full transition-all ${isMe ? 'bg-white' : 'bg-red-400'}`}
+                            className={`h-full transition-all ${isMe ? "bg-white" : "bg-red-400"
+                                }`}
                             style={{ width: `${progress}%` }}
                         />
                     </div>
@@ -134,7 +142,10 @@ const WhatsAppAudioPlayer = ({ audioUrl, isMe }) => {
 
                 {/* Duration */}
                 <div className="flex items-center justify-between">
-                    <span className={`text-xs ${isMe ? 'text-white opacity-70' : 'text-gray-400'}`}>
+                    <span
+                        className={`text-xs ${isMe ? "text-white opacity-70" : "text-gray-400"
+                            }`}
+                    >
                         {formatTime(currentTime)} / {formatTime(duration)}
                     </span>
                 </div>
@@ -159,15 +170,16 @@ export default function ChatDetailScreen() {
     const { id } = useParams();
     const [searchParams] = useSearchParams();
 
-    const name = searchParams.get('name') || 'Unknown';
-    const avatar = searchParams.get('avatar') || '';
-    const receiverId = searchParams.get('receiverId') || '';
+    const name = searchParams.get("name") || "Unknown";
+    const avatar = searchParams.get("avatar") || "";
+    const receiverId = searchParams.get("receiverId") || "";
 
-    const [message, setMessage] = useState('');
+    const [message, setMessage] = useState("");
     const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(true);
     const [typingUsers, setTypingUsers] = useState([]);
-    const [showNewMessageNotification, setShowNewMessageNotification] = useState(false);
+    const [showNewMessageNotification, setShowNewMessageNotification] =
+        useState(false);
     const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
     const [newMessageCount, setNewMessageCount] = useState(0);
     const [isEncryptionEnabled, setIsEncryptionEnabled] = useState(false);
@@ -181,7 +193,7 @@ export default function ChatDetailScreen() {
 
     // Edit/Delete message states
     const [editingMessageId, setEditingMessageId] = useState(null);
-    const [editingMessageText, setEditingMessageText] = useState('');
+    const [editingMessageText, setEditingMessageText] = useState("");
     const [selectedMessage, setSelectedMessage] = useState(null);
     const [showMessageMenu, setShowMessageMenu] = useState(false);
 
@@ -261,19 +273,19 @@ export default function ChatDetailScreen() {
     // Close message menu and emoji picker when clicking outside
     useEffect(() => {
         const handleClickOutside = (event) => {
-            if (showMessageMenu && !event.target.closest('.message-menu')) {
+            if (showMessageMenu && !event.target.closest(".message-menu")) {
                 setShowMessageMenu(null);
             }
-            if (showEmojiPicker && !event.target.closest('.emoji-picker-container')) {
+            if (showEmojiPicker && !event.target.closest(".emoji-picker-container")) {
                 setShowEmojiPicker(false);
             }
-            if (showAttachMenu && !event.target.closest('.attach-menu-container')) {
+            if (showAttachMenu && !event.target.closest(".attach-menu-container")) {
                 setShowAttachMenu(false);
             }
         };
 
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [showMessageMenu, showEmojiPicker, showAttachMenu]);
 
     // Mark messages as read when they appear (only once per message)
@@ -282,7 +294,13 @@ export default function ChatDetailScreen() {
 
         messages.forEach((item) => {
             // Only mark unread messages from other users that haven't been marked yet
-            if (!item.isMe && !item.isRead && item.id && !item.id.toString().startsWith('temp-') && !markedAsReadRef.current.has(item.id)) {
+            if (
+                !item.isMe &&
+                !item.isRead &&
+                item.id &&
+                !item.id.toString().startsWith("temp-") &&
+                !markedAsReadRef.current.has(item.id)
+            ) {
                 markedAsReadRef.current.add(item.id);
                 markMessageAsRead(item.id);
             }
@@ -293,12 +311,14 @@ export default function ChatDetailScreen() {
     useEffect(() => {
         const loadEncryptionState = async () => {
             try {
-                const decryptedBackendData = localStorage.getItem('decryptedBackendData');
+                const decryptedBackendData = localStorage.getItem(
+                    "decryptedBackendData"
+                );
                 if (decryptedBackendData) {
                     setIsEncryptionEnabled(true);
                 }
             } catch (error) {
-                console.error('Error loading encryption state:', error);
+                console.error("Error loading encryption state:", error);
             }
         };
         loadEncryptionState();
@@ -320,30 +340,57 @@ export default function ChatDetailScreen() {
         const senderDestination = `/topic/chat/${chatRoomId}/${currentUserId}/${receiverUserId}`;
         // Subscribe to messages we receive (as receiver)
         const receiverDestination = `/topic/chat/${chatRoomId}/${receiverUserId}/${currentUserId}`;
-        const handleMessage = (wsMessage) => {
+        const handleMessage = async (wsMessage) => {
             // Skip typing indicators
-            if (wsMessage.typing !== undefined || wsMessage.messageType === 'TYPING') {
+            if (
+                wsMessage.typing !== undefined ||
+                wsMessage.messageType === "TYPING"
+            ) {
                 return;
             }
+
+            // Decrypt message if encrypted
+            //   let decryptedText = wsMessage.content || wsMessage.message || "";
+            //   if (wsMessage.envolop && wsMessage.content) {
+            //     try {
+            //       const MessageDecryptionService = (
+            //         await import("../services/MessageDecryptionService")
+            //       ).default;
+            //       const privateKey = MessageDecryptionService.getPrivateKey();
+            //       if (privateKey) {
+            //         console.log("🔐 Decrypting incoming WebSocket message");
+            //         decryptedText = await MessageDecryptionService.decryptMessage(
+            //           wsMessage.content,
+            //           wsMessage.envolop,
+            //           privateKey
+            //         );
+            //       }
+            //     } catch (error) {
+            //       console.error("❌ Failed to decrypt WebSocket message:", error);
+            //     }
+            //   }
 
             // Add new message to state
             const newMsg = {
                 id: wsMessage.chatMessageId || wsMessage.id || `ws-${Date.now()}`,
-                text: wsMessage.content || wsMessage.message || '',
+                text: wsMessage.content || "",
                 time: formatMessageTime(wsMessage.timestamp || wsMessage.sentAt),
                 isMe: wsMessage.senderId === currentUserId,
-                status: 'delivered',
-                timestamp: wsMessage.timestamp || wsMessage.sentAt || new Date().toISOString(),
-                senderName: wsMessage.senderName || (wsMessage.senderId === currentUserId ? 'You' : name),
+                status: "delivered",
+                timestamp:
+                    wsMessage.timestamp || wsMessage.sentAt || new Date().toISOString(),
+                senderName:
+                    wsMessage.senderName ||
+                    (wsMessage.senderId === currentUserId ? "You" : name),
                 senderId: wsMessage.senderId,
                 receiverId: wsMessage.receiverId,
-                isEncrypted: false,
+                isEncrypted: !!wsMessage.envolop,
                 isEdited: wsMessage.isEdited || false,
                 editedAt: wsMessage.editedAt || null,
                 replyTo: wsMessage.replyTo || null,
-                attachments: (wsMessage.attachments || []).map(att => ({
+                attachments: (wsMessage.attachments || []).map((att) => ({
                     fileURL: att.fileURL || att.fileUrl,
-                    fileType: att.fileType
+                    fileType: att.fileType,
                 })),
             };
 
@@ -355,7 +402,12 @@ export default function ChatDetailScreen() {
 
             setMessages((prev) => {
                 // Check for duplicates by real ID
-                const existsById = prev.some((m) => m.id === newMsg.id && !m.id.toString().startsWith('temp-') && !m.id.toString().includes(`${currentUserId}-`));
+                const existsById = prev.some(
+                    (m) =>
+                        m.id === newMsg.id &&
+                        !m.id.toString().startsWith("temp-") &&
+                        !m.id.toString().includes(`${currentUserId}-`)
+                );
                 if (existsById) {
                     return prev;
                 }
@@ -364,7 +416,9 @@ export default function ChatDetailScreen() {
                 if (newMsg.isMe) {
                     // Find and replace temp or pseudo ID message with matching content
                     const tempIndex = prev.findIndex((m) => {
-                        const isTempOrPseudo = m.id.toString().startsWith('temp-') || m.id.toString().includes(`${currentUserId}-`);
+                        const isTempOrPseudo =
+                            m.id.toString().startsWith("temp-") ||
+                            m.id.toString().includes(`${currentUserId}-`);
                         return isTempOrPseudo && m.isMe && m.text === newMsg.text;
                     });
 
@@ -374,12 +428,15 @@ export default function ChatDetailScreen() {
                         // Preserve replyTo from temp message if not in newMsg
                         updated[tempIndex] = {
                             ...newMsg,
-                            status: 'sent',
-                            replyTo: newMsg.replyTo || tempMessage.replyTo
+                            status: "sent",
+                            replyTo: newMsg.replyTo || tempMessage.replyTo,
                         };
                         return updated;
                     } else {
-                        console.log('⚠️ No matching temp message found for:', newMsg.text.substring(0, 20));
+                        console.log(
+                            "⚠️ No matching temp message found for:",
+                            newMsg.text.substring(0, 20)
+                        );
                     }
                 }
 
@@ -443,13 +500,19 @@ export default function ChatDetailScreen() {
         const editSenderDestination = `/topic/chat/edit/${chatRoomId}/${currentUserId}/${receiverUserId}`;
         const editReceiverDestination = `/topic/chat/edit/${chatRoomId}/${receiverUserId}/${currentUserId}`;
         const handleEditMessage = (editMsg) => {
-            console.log('✏️ Edit message received:', JSON.stringify(editMsg, null, 2));
+            console.log(
+                "✏️ Edit message received:",
+                JSON.stringify(editMsg, null, 2)
+            );
 
             const messageData = editMsg.data || editMsg;
             const editedMessageId = messageData.chatMessageId;
             setMessages((prev) => {
                 const updated = prev.map((msg) => {
-                    if (msg.id == editedMessageId || msg.id === editedMessageId.toString()) {
+                    if (
+                        msg.id == editedMessageId ||
+                        msg.id === editedMessageId.toString()
+                    ) {
                         return {
                             ...msg,
                             text: messageData.content || msg.text,
@@ -465,8 +528,14 @@ export default function ChatDetailScreen() {
             });
         };
 
-        const editSenderSubscription = subscribe(editSenderDestination, handleEditMessage);
-        const editReceiverSubscription = subscribe(editReceiverDestination, handleEditMessage);
+        const editSenderSubscription = subscribe(
+            editSenderDestination,
+            handleEditMessage
+        );
+        const editReceiverSubscription = subscribe(
+            editReceiverDestination,
+            handleEditMessage
+        );
 
         // Subscribe to delete messages
         const deleteDestination = `/topic/chat/${chatRoomId}/delete`;
@@ -474,24 +543,32 @@ export default function ChatDetailScreen() {
             const messageData = deleteMsg.data || deleteMsg;
             const deletedMessageId = messageData.chatMessageId;
 
-            setMessages((prev) => prev.map((msg) => {
-                if (msg.id == deletedMessageId || msg.id === deletedMessageId.toString()) {
-                    return {
-                        ...msg,
-                        text: null,
-                        isDeleted: true,
-                        deletedAt: messageData.deletedAt || new Date().toISOString(),
-                    };
-                }
-                return msg;
-            }));
+            setMessages((prev) =>
+                prev.map((msg) => {
+                    if (
+                        msg.id == deletedMessageId ||
+                        msg.id === deletedMessageId.toString()
+                    ) {
+                        return {
+                            ...msg,
+                            text: null,
+                            isDeleted: true,
+                            deletedAt: messageData.deletedAt || new Date().toISOString(),
+                        };
+                    }
+                    return msg;
+                })
+            );
         });
 
         // Subscribe to read receipts - both as sender and receiver
         const readSenderDestination = `/topic/chat/read/${chatRoomId}/${currentUserId}/${receiverUserId}`;
         const readReceiverDestination = `/topic/chat/read/${chatRoomId}/${receiverUserId}/${currentUserId}`;
         const handleReadReceipt = (readMsg) => {
-            console.log('✅ Read receipt received:', JSON.stringify(readMsg, null, 2));
+            console.log(
+                "✅ Read receipt received:",
+                JSON.stringify(readMsg, null, 2)
+            );
 
             const messageData = readMsg.data || readMsg;
             const readMessageId = messageData.chatMessageId || messageData.messageId;
@@ -502,7 +579,7 @@ export default function ChatDetailScreen() {
                             ...msg,
                             isRead: true,
                             readAt: messageData.readAt || new Date().toISOString(),
-                            status: 'read',
+                            status: "read",
                         };
                     }
                     return msg;
@@ -513,8 +590,14 @@ export default function ChatDetailScreen() {
             });
         };
 
-        const readSenderSubscription = subscribe(readSenderDestination, handleReadReceipt);
-        const readReceiverSubscription = subscribe(readReceiverDestination, handleReadReceipt);
+        const readSenderSubscription = subscribe(
+            readSenderDestination,
+            handleReadReceipt
+        );
+        const readReceiverSubscription = subscribe(
+            readReceiverDestination,
+            handleReadReceipt
+        );
 
         return () => {
             if (senderSubscription) unsubscribe(senderDestination);
@@ -526,7 +609,15 @@ export default function ChatDetailScreen() {
             if (readSenderSubscription) unsubscribe(readSenderDestination);
             if (readReceiverSubscription) unsubscribe(readReceiverDestination);
         };
-    }, [connected, currentUserId, chatRoomId, receiverUserId, subscribe, unsubscribe, isUserScrolledUp]);
+    }, [
+        connected,
+        currentUserId,
+        chatRoomId,
+        receiverUserId,
+        subscribe,
+        unsubscribe,
+        isUserScrolledUp,
+    ]);
 
     const loadChatMessages = async (pageToLoad = 1, anchorSnapshot = null) => {
         try {
@@ -538,12 +629,16 @@ export default function ChatDetailScreen() {
                 setIsLoadingMore(true);
             }
 
-            const response = await chatApiService.getChatRoomMessages(chatRoomId, currentUserId, {
-                pageNumber: pageToLoad,
-                size: PAGE_SIZE,
-                sortBy: 'sentAt',
-                sortDirection: 'desc',
-            });
+            const response = await chatApiService.getChatRoomMessages(
+                chatRoomId,
+                currentUserId,
+                {
+                    pageNumber: pageToLoad,
+                    size: PAGE_SIZE,
+                    sortBy: "sentAt",
+                    sortDirection: "desc",
+                }
+            );
 
             const responseData = Array.isArray(response?.data)
                 ? response.data
@@ -551,33 +646,88 @@ export default function ChatDetailScreen() {
                     ? response
                     : [];
 
-            const pageMessages = responseData.map((msg, index) => ({
-                id: msg.chatMessageId?.toString() || msg.messageId?.toString() || `msg-${index}`,
-                text: msg.content || msg.message || null,
-                time: msg.sentAt ? formatMessageTime(msg.sentAt) : '12:00 AM',
-                isMe: msg.senderId === currentUserId,
-                status: msg.isRead ? 'read' : (msg.status || 'delivered'),
-                timestamp: msg.sentAt || new Date().toISOString(),
-                senderName: msg.senderName || (msg.senderId === currentUserId ? 'You' : name),
-                senderId: msg.senderId,
-                receiverId: msg.receiverId,
-                isEncrypted: false,
-                isRead: msg.isRead || false,
-                readAt: msg.readAt || null,
-                isEdited: msg.isEdited || false,
-                editedAt: msg.editedAt || null,
-                isDeleted: msg.content === null || msg.isDeleted === true,
-                deletedAt: msg.deletedAt || (msg.content === null ? msg.sentAt : null),
-                replyTo: msg.replyTo || null,
-                attachments: (msg.attachments || []).map(att => ({
-                    fileURL: att.fileURL || att.fileUrl,
-                    fileType: att.fileType
-                })),
-            }));
+            // Decrypt messages before mapping
+            const privateKey = EncryptionService.decrypt(localStorage.getItem("decryptedBackendData"));
+            const userId = localStorage.getItem("userId");
+            console.log("Decrypted private key:", privateKey);
+
+            const pageMessages = await Promise.all(
+                responseData.map(async (msg, index) => {
+                    let envolop = (msg.senderId.toString() === userId) ? msg?.sender_envolop || null : msg?.receiver_envolop || null;
+                    let decryptedText = msg?.content || null;
+                    let envolopDecryptKey = null;
+                    // // decryptEnvolop
+                    if (envolop && privateKey) {
+                        console.log("🔐 private Key:", privateKey);
+                        try {
+                            console.log("🔐 Decrypting envolop:", envolop);
+                            // if(msg.senderId.toString() === userId){
+                                envolopDecryptKey = await DecryptEnvolop.decryptEnvelope(
+                                envolop,
+                                privateKey
+                            );
+                            console.log("envolopDecryptKey", envolopDecryptKey);
+                        } catch (error) {
+                            console.error(
+                                "❌ Failed to decrypt Envolope:",
+                                error
+                            );
+                        }
+                    }
+                    // decryptMessage
+                    if (msg.content && privateKey) {
+                        try {
+                            console.log("🔐 Decrypting message:", msg.content);
+                            decryptedText = await DecryptMessage(
+                                msg.content,
+                                envolopDecryptKey
+                            );
+                            console.log("Decrypted message text:", decryptedText);
+                        } catch (error) {
+                            console.error(
+                                "❌ Failed to decrypt message:",
+                                msg.chatMessageId,
+                                error
+                            );
+                            // Keep encrypted content if decryption fails
+                        }
+                    }
+
+                    return {
+                        id:
+                            msg.chatMessageId?.toString() ||
+                            msg.messageId?.toString() ||
+                            `msg-${index}`,
+                        text: decryptedText,
+                        time: msg.sentAt ? formatMessageTime(msg.sentAt) : "12:00 AM",
+                        isMe: msg.senderId === currentUserId,
+                        status: msg.isRead ? "read" : msg.status || "delivered",
+                        timestamp: msg.sentAt || new Date().toISOString(),
+                        senderName:
+                            msg.senderName || (msg.senderId === currentUserId ? "You" : name),
+                        senderId: msg.senderId,
+                        receiverId: msg.receiverId,
+                        isEncrypted: !!msg.envolop,
+                        isRead: msg.isRead || false,
+                        readAt: msg.readAt || null,
+                        isEdited: msg.isEdited || false,
+                        editedAt: msg.editedAt || null,
+                        isDeleted: msg.content === null || msg.isDeleted === true,
+                        deletedAt:
+                            msg.deletedAt || (msg.content === null ? msg.sentAt : null),
+                        replyTo: msg.replyTo || null,
+                        attachments: (msg.attachments || []).map((att) => ({
+                            fileURL: att.fileURL || att.fileUrl,
+                            fileType: att.fileType,
+                        })),
+                    };
+                })
+            );
 
             // Ensure messages are sorted ascending by timestamp for display
             pageMessages.sort(
-                (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+                (a, b) =>
+                    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
             );
 
             if (isFirstPage) {
@@ -588,7 +738,8 @@ export default function ChatDetailScreen() {
                 setMessages((prev) => {
                     const combined = [...pageMessages, ...prev];
                     combined.sort(
-                        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+                        (a, b) =>
+                            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
                     );
                     return combined;
                 });
@@ -598,7 +749,9 @@ export default function ChatDetailScreen() {
                 if (anchorSnapshot?.id) {
                     setTimeout(() => {
                         const containerNow = messagesContainerRef.current;
-                        const anchorElNow = document.getElementById(`msg-${anchorSnapshot.id}`);
+                        const anchorElNow = document.getElementById(
+                            `msg-${anchorSnapshot.id}`
+                        );
                         if (containerNow && anchorElNow) {
                             const containerRect = containerNow.getBoundingClientRect();
                             const anchorRectNow = anchorElNow.getBoundingClientRect();
@@ -626,7 +779,7 @@ export default function ChatDetailScreen() {
                 setTimeout(() => scrollToBottom(true), 100);
             }
         } catch (error) {
-            console.error('❌ Error loading messages:', error);
+            console.error("❌ Error loading messages:", error);
             setMessages([]);
         } finally {
             setLoading(false);
@@ -637,13 +790,13 @@ export default function ChatDetailScreen() {
     const formatMessageTime = (timestamp) => {
         try {
             const date = new Date(timestamp);
-            return date.toLocaleTimeString('en-US', {
-                hour: 'numeric',
-                minute: '2-digit',
+            return date.toLocaleTimeString("en-US", {
+                hour: "numeric",
+                minute: "2-digit",
                 hour12: true,
             });
         } catch (error) {
-            return '12:00 AM';
+            return "12:00 AM";
         }
     };
 
@@ -661,20 +814,26 @@ export default function ChatDetailScreen() {
             messageDate.setHours(0, 0, 0, 0);
 
             if (messageDate.getTime() === today.getTime()) {
-                return 'Today';
+                return "Today";
             } else if (messageDate.getTime() === yesterday.getTime()) {
-                return 'Yesterday';
+                return "Yesterday";
             } else {
                 // Format as "27 October 2025" or day name if within last week
-                const daysDiff = Math.floor((today - messageDate) / (1000 * 60 * 60 * 24));
+                const daysDiff = Math.floor(
+                    (today - messageDate) / (1000 * 60 * 60 * 24)
+                );
                 if (daysDiff < 7) {
-                    return date.toLocaleDateString('en-US', { weekday: 'long' });
+                    return date.toLocaleDateString("en-US", { weekday: "long" });
                 } else {
-                    return date.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+                    return date.toLocaleDateString("en-US", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                    });
                 }
             }
         } catch (error) {
-            return '';
+            return "";
         }
     };
 
@@ -703,28 +862,30 @@ export default function ChatDetailScreen() {
 
         try {
             if (!currentUserId || !chatRoomId || !receiverUserId) {
-                alert('Missing required information');
+                alert("Missing required information");
                 return;
             }
 
             // Store replyTo data before clearing state
-            const replyToData = replyingToMessage ? {
-                chatMessageId: replyingToMessage.id,
-                content: replyingToMessage.text,
-                senderName: replyingToMessage.senderName,
-            } : null;
+            const replyToData = replyingToMessage
+                ? {
+                    chatMessageId: replyingToMessage.id,
+                    content: replyingToMessage.text,
+                    senderName: replyingToMessage.senderName,
+                }
+                : null;
             const newMessage = {
                 id: `temp-${Date.now()}`,
                 text: message.trim(),
-                time: new Date().toLocaleTimeString('en-US', {
-                    hour: 'numeric',
-                    minute: '2-digit',
+                time: new Date().toLocaleTimeString("en-US", {
+                    hour: "numeric",
+                    minute: "2-digit",
                     hour12: true,
                 }),
                 isMe: true,
-                status: 'sending',
+                status: "sending",
                 timestamp: new Date().toISOString(),
-                senderName: 'You',
+                senderName: "You",
                 senderId: currentUserId,
                 receiverId: receiverUserId,
                 replyTo: replyToData,
@@ -732,7 +893,7 @@ export default function ChatDetailScreen() {
 
             // Add to UI immediately
             setMessages((prev) => [...prev, newMessage]);
-            setMessage('');
+            setMessage("");
             setReplyingToMessage(null); // Clear reply state
 
             // Send via WebSocket
@@ -740,13 +901,17 @@ export default function ChatDetailScreen() {
                 // Build the payload matching ChatMessageRequest DTO
                 const payload = {
                     content: newMessage.text,
-                    messageType: 'TEXT',
+                    messageType: "TEXT",
                     replyToId: replyToData ? parseInt(replyToData.chatMessageId) : null,
                     attachments: [],
                 };
 
-
-                const success = sendSocketMessage(chatRoomId, currentUserId, receiverUserId, payload);
+                const success = sendSocketMessage(
+                    chatRoomId,
+                    currentUserId,
+                    receiverUserId,
+                    payload
+                );
 
                 if (success) {
                     // Generate a pseudo-real ID (timestamp-based) to replace temp ID
@@ -756,24 +921,26 @@ export default function ChatDetailScreen() {
                     setMessages((prev) =>
                         prev.map((msg) =>
                             msg.id === newMessage.id
-                                ? { ...msg, id: pseudoId, status: 'sent' }
+                                ? { ...msg, id: pseudoId, status: "sent" }
                                 : msg
                         )
                     );
                 } else {
                     setMessages((prev) =>
-                        prev.map((msg) => (msg.id === newMessage.id ? { ...msg, status: 'failed' } : msg))
+                        prev.map((msg) =>
+                            msg.id === newMessage.id ? { ...msg, status: "failed" } : msg
+                        )
                     );
                 }
             } else {
-                alert('WebSocket not connected. Please wait and try again.');
+                alert("WebSocket not connected. Please wait and try again.");
             }
 
             // Auto scroll
             setTimeout(() => scrollToBottom(), 100);
         } catch (error) {
-            console.error('❌ Error sending message:', error);
-            alert('Failed to send message');
+            console.error("❌ Error sending message:", error);
+            alert("Failed to send message");
         }
     };
 
@@ -791,7 +958,7 @@ export default function ChatDetailScreen() {
 
         if (success) {
         } else {
-            console.error('❌ Failed to send read receipt for message:', messageId);
+            console.error("❌ Failed to send read receipt for message:", messageId);
         }
     };
 
@@ -799,7 +966,7 @@ export default function ChatDetailScreen() {
     const handleDeleteMessage = (messageId) => {
         if (!messageId || !currentUserId || !chatRoomId) return;
 
-        if (!confirm('Are you sure you want to delete this message?')) return;
+        if (!confirm("Are you sure you want to delete this message?")) return;
         const destination = `/app/chat/delete/${chatRoomId}/${messageId}/${currentUserId}`;
         const success = publish(destination, {});
 
@@ -807,7 +974,7 @@ export default function ChatDetailScreen() {
             setShowMessageMenu(null);
             setSelectedMessage(null);
         } else {
-            alert('Failed to delete message');
+            alert("Failed to delete message");
         }
     };
 
@@ -829,39 +996,44 @@ export default function ChatDetailScreen() {
             const destination = `/app/chat/edit/${chatRoomId}/${editingMessageId}/${currentUserId}/${receiverUserId}`;
             const payload = {
                 content: message.trim(),
-                messageType: 'TEXT',
+                messageType: "TEXT",
             };
             const success = publish(destination, payload);
 
             if (success) {
                 // Optimistically update the message locally
-                setMessages((prev) => prev.map((msg) => {
-                    if (msg.id == editingMessageId || msg.id === editingMessageId.toString()) {
-                        return {
-                            ...msg,
-                            text: message.trim(),
-                            isEdited: true,
-                            editedAt: new Date().toISOString(),
-                        };
-                    }
-                    return msg;
-                }));
+                setMessages((prev) =>
+                    prev.map((msg) => {
+                        if (
+                            msg.id == editingMessageId ||
+                            msg.id === editingMessageId.toString()
+                        ) {
+                            return {
+                                ...msg,
+                                text: message.trim(),
+                                isEdited: true,
+                                editedAt: new Date().toISOString(),
+                            };
+                        }
+                        return msg;
+                    })
+                );
             } else {
-                alert('Failed to edit message');
+                alert("Failed to edit message");
             }
         }
 
         // Clear editing state
         setEditingMessageId(null);
-        setEditingMessageText('');
-        setMessage('');
+        setEditingMessageText("");
+        setMessage("");
     };
 
     // Cancel editing
     const cancelEdit = () => {
         setEditingMessageId(null);
-        setEditingMessageText('');
-        setMessage('');
+        setEditingMessageText("");
+        setMessage("");
     };
 
     // Start replying to a message
@@ -881,13 +1053,16 @@ export default function ChatDetailScreen() {
     const copyMessageText = (text) => {
         // Try modern clipboard API first
         if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(() => {
-                setShowMessageMenu(null);
-                alert('Message copied!');
-            }).catch((err) => {
-                // Fallback to older method
-                fallbackCopyText(text);
-            });
+            navigator.clipboard
+                .writeText(text)
+                .then(() => {
+                    setShowMessageMenu(null);
+                    alert("Message copied!");
+                })
+                .catch((err) => {
+                    // Fallback to older method
+                    fallbackCopyText(text);
+                });
         } else {
             // Fallback for older browsers or HTTP
             fallbackCopyText(text);
@@ -896,20 +1071,20 @@ export default function ChatDetailScreen() {
 
     // Fallback copy method for older browsers or HTTP
     const fallbackCopyText = (text) => {
-        const textArea = document.createElement('textarea');
+        const textArea = document.createElement("textarea");
         textArea.value = text;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-999999px';
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
         document.body.appendChild(textArea);
         textArea.focus();
         textArea.select();
 
         try {
-            document.execCommand('copy');
+            document.execCommand("copy");
             setShowMessageMenu(null);
-            alert('Message copied!');
+            alert("Message copied!");
         } catch (err) {
-            alert('Failed to copy message');
+            alert("Failed to copy message");
         }
 
         document.body.removeChild(textArea);
@@ -927,7 +1102,7 @@ export default function ChatDetailScreen() {
     const openCamera = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'user' },
+                video: { facingMode: "user" },
                 audio: false,
             });
             setCameraStream(stream);
@@ -939,8 +1114,8 @@ export default function ChatDetailScreen() {
                 }
             }, 100);
         } catch (error) {
-            console.error('Error accessing camera:', error);
-            alert('Could not access camera. Please check permissions.');
+            console.error("Error accessing camera:", error);
+            alert("Could not access camera. Please check permissions.");
         }
     };
 
@@ -958,7 +1133,7 @@ export default function ChatDetailScreen() {
         if (videoRef.current && canvasRef.current) {
             const video = videoRef.current;
             const canvas = canvasRef.current;
-            const context = canvas.getContext('2d');
+            const context = canvas.getContext("2d");
 
             // Set canvas dimensions to match video
             canvas.width = video.videoWidth;
@@ -968,27 +1143,31 @@ export default function ChatDetailScreen() {
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
             // Convert canvas to blob
-            canvas.toBlob((blob) => {
-                if (blob) {
-                    // Create a file from blob
-                    const file = new File([blob], `photo-${Date.now()}.jpg`, {
-                        type: 'image/jpeg',
-                    });
+            canvas.toBlob(
+                (blob) => {
+                    if (blob) {
+                        // Create a file from blob
+                        const file = new File([blob], `photo-${Date.now()}.jpg`, {
+                            type: "image/jpeg",
+                        });
 
-                    // Add to selected files for preview
-                    const fileWithPreview = {
-                        file,
-                        preview: URL.createObjectURL(blob),
-                        type: 'image/jpeg',
-                        name: file.name,
-                        size: file.size
-                    };
+                        // Add to selected files for preview
+                        const fileWithPreview = {
+                            file,
+                            preview: URL.createObjectURL(blob),
+                            type: "image/jpeg",
+                            name: file.name,
+                            size: file.size,
+                        };
 
-                    setSelectedFiles([fileWithPreview]);
-                    setShowFilePreview(true);
-                    closeCamera();
-                }
-            }, 'image/jpeg', 0.95);
+                        setSelectedFiles([fileWithPreview]);
+                        setShowFilePreview(true);
+                        closeCamera();
+                    }
+                },
+                "image/jpeg",
+                0.95
+            );
         }
     };
 
@@ -1002,15 +1181,15 @@ export default function ChatDetailScreen() {
     }, [cameraStream]);
 
     // File upload functions
-    const handleFileSelect = (event, type = 'file') => {
+    const handleFileSelect = (event, type = "file") => {
         const files = Array.from(event.target.files);
         if (files.length > 0) {
-            const filesWithPreview = files.map(file => ({
+            const filesWithPreview = files.map((file) => ({
                 file,
                 preview: URL.createObjectURL(file),
                 type: file.type,
                 name: file.name,
-                size: file.size
+                size: file.size,
             }));
             setSelectedFiles(filesWithPreview);
             setShowFilePreview(true);
@@ -1019,7 +1198,7 @@ export default function ChatDetailScreen() {
     };
 
     const removeSelectedFile = (index) => {
-        setSelectedFiles(prev => {
+        setSelectedFiles((prev) => {
             const updated = prev.filter((_, i) => i !== index);
             // Revoke URL to free memory
             URL.revokeObjectURL(prev[index].preview);
@@ -1030,14 +1209,14 @@ export default function ChatDetailScreen() {
     const uploadFilesToServer = async (files) => {
         const formData = new FormData();
         files.forEach(({ file }) => {
-            formData.append('files', file);
+            formData.append("files", file);
         });
 
         try {
             const result = await chatApiService.uploadFiles(formData);
             return result;
         } catch (error) {
-            console.error('Error uploading files:', error);
+            console.error("Error uploading files:", error);
             throw error;
         }
     };
@@ -1054,48 +1233,53 @@ export default function ChatDetailScreen() {
                 const uploadResult = await uploadFilesToServer(selectedFiles);
                 // Handle different response structures
                 attachments = Array.isArray(uploadResult) ? uploadResult : [];
-                console.log('Upload result:', uploadResult);
-                console.log('Attachments:', attachments);
+                console.log("Upload result:", uploadResult);
+                console.log("Attachments:", attachments);
             }
 
             // Prepare message
-            const messageText = message.trim() || '';
-            const replyToData = replyingToMessage ? {
-                chatMessageId: replyingToMessage.id,
-                content: replyingToMessage.text,
-                senderName: replyingToMessage.senderName,
-            } : null;
+            const messageText = message.trim() || "";
+            const replyToData = replyingToMessage
+                ? {
+                    chatMessageId: replyingToMessage.id,
+                    content: replyingToMessage.text,
+                    senderName: replyingToMessage.senderName,
+                }
+                : null;
 
-            const mappedAttachments = attachments && attachments.length > 0 ? attachments.map(att => ({
-                fileURL: att.fileURL,
-                fileType: att.fileType
-            })) : [];
+            const mappedAttachments =
+                attachments && attachments.length > 0
+                    ? attachments.map((att) => ({
+                        fileURL: att.fileURL,
+                        fileType: att.fileType,
+                    }))
+                    : [];
 
-            console.log('Creating message with attachments:', mappedAttachments);
+            console.log("Creating message with attachments:", mappedAttachments);
 
             const newMessage = {
                 id: `temp-${Date.now()}`,
                 text: messageText,
-                time: new Date().toLocaleTimeString('en-US', {
-                    hour: 'numeric',
-                    minute: '2-digit',
+                time: new Date().toLocaleTimeString("en-US", {
+                    hour: "numeric",
+                    minute: "2-digit",
                     hour12: true,
                 }),
                 isMe: true,
-                status: 'sending',
+                status: "sending",
                 timestamp: new Date().toISOString(),
-                senderName: 'You',
+                senderName: "You",
                 senderId: currentUserId,
                 receiverId: receiverUserId,
                 replyTo: replyToData,
-                attachments: mappedAttachments
+                attachments: mappedAttachments,
             };
 
-            console.log('New message object:', newMessage);
+            console.log("New message object:", newMessage);
 
             // Add to UI immediately
             setMessages((prev) => [...prev, newMessage]);
-            setMessage('');
+            setMessage("");
             setReplyingToMessage(null);
             setSelectedFiles([]);
             setShowFilePreview(false);
@@ -1104,36 +1288,47 @@ export default function ChatDetailScreen() {
             if (connected && sendSocketMessage) {
                 const payload = {
                     content: messageText,
-                    messageType: attachments && attachments.length > 0 ? 'ATTACHMENT' : 'TEXT',
+                    messageType:
+                        attachments && attachments.length > 0 ? "ATTACHMENT" : "TEXT",
                     replyToId: replyToData ? parseInt(replyToData.chatMessageId) : null,
-                    attachments: attachments && attachments.length > 0 ? attachments.map(att => ({
-                        fileURL: att.fileURL,
-                        fileType: att.fileType
-                    })) : []
+                    attachments:
+                        attachments && attachments.length > 0
+                            ? attachments.map((att) => ({
+                                fileURL: att.fileURL,
+                                fileType: att.fileType,
+                            }))
+                            : [],
                 };
 
-                const success = sendSocketMessage(chatRoomId, currentUserId, receiverUserId, payload);
+                const success = sendSocketMessage(
+                    chatRoomId,
+                    currentUserId,
+                    receiverUserId,
+                    payload
+                );
 
                 if (success) {
                     const pseudoId = `${currentUserId}-${Date.now()}`;
                     setMessages((prev) =>
                         prev.map((msg) =>
                             msg.id === newMessage.id
-                                ? { ...msg, id: pseudoId, status: 'sent' }
+                                ? { ...msg, id: pseudoId, status: "sent" }
                                 : msg
                         )
                     );
                 } else {
                     setMessages((prev) =>
-                        prev.map((msg) => (msg.id === newMessage.id ? { ...msg, status: 'failed' } : msg))
+                        prev.map((msg) =>
+                            msg.id === newMessage.id ? { ...msg, status: "failed" } : msg
+                        )
                     );
                 }
             }
 
             setTimeout(() => scrollToBottom(), 100);
         } catch (error) {
-            console.error('Error sending message with attachments:', error);
-            alert('Failed to upload files');
+            console.error("Error sending message with attachments:", error);
+            alert("Failed to upload files");
         } finally {
             setUploadingFiles(false);
         }
@@ -1154,14 +1349,16 @@ export default function ChatDetailScreen() {
             };
 
             mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                const audioBlob = new Blob(audioChunksRef.current, {
+                    type: "audio/webm",
+                });
                 const audioUrl = URL.createObjectURL(audioBlob);
                 setAudioBlob(audioBlob);
                 setAudioURL(audioUrl);
                 setShowAudioPreview(true);
 
                 // Stop all tracks
-                stream.getTracks().forEach(track => track.stop());
+                stream.getTracks().forEach((track) => track.stop());
             };
 
             mediaRecorder.start();
@@ -1171,11 +1368,11 @@ export default function ChatDetailScreen() {
 
             // Start timer
             recordingIntervalRef.current = setInterval(() => {
-                setRecordingTime(prev => prev + 1);
+                setRecordingTime((prev) => prev + 1);
             }, 1000);
         } catch (error) {
-            console.error('Error accessing microphone:', error);
-            alert('Could not access microphone. Please check permissions.');
+            console.error("Error accessing microphone:", error);
+            alert("Could not access microphone. Please check permissions.");
         }
     };
 
@@ -1195,7 +1392,7 @@ export default function ChatDetailScreen() {
             if (isPaused) {
                 mediaRecorderRef.current.resume();
                 recordingIntervalRef.current = setInterval(() => {
-                    setRecordingTime(prev => prev + 1);
+                    setRecordingTime((prev) => prev + 1);
                 }, 1000);
             } else {
                 mediaRecorderRef.current.pause();
@@ -1210,7 +1407,9 @@ export default function ChatDetailScreen() {
     const cancelRecording = () => {
         if (mediaRecorderRef.current) {
             mediaRecorderRef.current.stop();
-            mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+            mediaRecorderRef.current.stream
+                .getTracks()
+                .forEach((track) => track.stop());
         }
         setIsRecording(false);
         setIsPaused(false);
@@ -1227,44 +1426,44 @@ export default function ChatDetailScreen() {
         try {
             // Create file from blob
             const audioFile = new File([audioBlob], `audio-${Date.now()}.webm`, {
-                type: 'audio/webm'
+                type: "audio/webm",
             });
 
             const fileWithPreview = {
                 file: audioFile,
                 preview: audioURL,
-                type: 'audio/webm',
+                type: "audio/webm",
                 name: audioFile.name,
-                size: audioFile.size
+                size: audioFile.size,
             };
 
             // Upload to server
             const uploadResult = await uploadFilesToServer([fileWithPreview]);
             const attachments = Array.isArray(uploadResult) ? uploadResult : [];
 
-            const messageText = message.trim() || '';
+            const messageText = message.trim() || "";
             const newMessage = {
                 id: `temp-${Date.now()}`,
                 text: messageText,
-                time: new Date().toLocaleTimeString('en-US', {
-                    hour: 'numeric',
-                    minute: '2-digit',
+                time: new Date().toLocaleTimeString("en-US", {
+                    hour: "numeric",
+                    minute: "2-digit",
                     hour12: true,
                 }),
                 isMe: true,
-                status: 'sending',
+                status: "sending",
                 timestamp: new Date().toISOString(),
-                senderName: 'You',
+                senderName: "You",
                 senderId: currentUserId,
                 receiverId: receiverUserId,
-                attachments: attachments.map(att => ({
+                attachments: attachments.map((att) => ({
                     fileURL: att.fileURL,
-                    fileType: att.fileType
-                }))
+                    fileType: att.fileType,
+                })),
             };
 
             setMessages((prev) => [...prev, newMessage]);
-            setMessage('');
+            setMessage("");
             setAudioBlob(null);
             setAudioURL(null);
             setShowAudioPreview(false);
@@ -1274,20 +1473,27 @@ export default function ChatDetailScreen() {
             if (connected && sendSocketMessage) {
                 const payload = {
                     content: messageText,
-                    messageType: 'ATTACHMENT',
+                    messageType: "ATTACHMENT",
                     replyToId: null,
-                    attachments: attachments.map(att => ({
+                    attachments: attachments.map((att) => ({
                         fileURL: att.fileURL,
-                        fileType: att.fileType
-                    }))
+                        fileType: att.fileType,
+                    })),
                 };
 
-                const success = sendSocketMessage(chatRoomId, currentUserId, receiverUserId, payload);
+                const success = sendSocketMessage(
+                    chatRoomId,
+                    currentUserId,
+                    receiverUserId,
+                    payload
+                );
                 if (success) {
                     const pseudoId = `${currentUserId}-${Date.now()}`;
                     setMessages((prev) =>
                         prev.map((msg) =>
-                            msg.id === newMessage.id ? { ...msg, id: pseudoId, status: 'sent' } : msg
+                            msg.id === newMessage.id
+                                ? { ...msg, id: pseudoId, status: "sent" }
+                                : msg
                         )
                     );
                 }
@@ -1295,8 +1501,8 @@ export default function ChatDetailScreen() {
 
             setTimeout(() => scrollToBottom(), 100);
         } catch (error) {
-            console.error('Error sending audio:', error);
-            alert('Failed to send audio');
+            console.error("Error sending audio:", error);
+            alert("Failed to send audio");
         } finally {
             setUploadingFiles(false);
         }
@@ -1305,7 +1511,7 @@ export default function ChatDetailScreen() {
     const formatRecordingTime = (seconds) => {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
+        return `${mins}:${secs.toString().padStart(2, "0")}`;
     };
 
     // Media viewer functions
@@ -1326,26 +1532,34 @@ export default function ChatDetailScreen() {
     };
 
     const goToPrevMedia = () => {
-        setCurrentMediaIndex((prev) => (prev - 1 + viewerMediaList.length) % viewerMediaList.length);
+        setCurrentMediaIndex(
+            (prev) => (prev - 1 + viewerMediaList.length) % viewerMediaList.length
+        );
     };
 
     const getFileIcon = (fileType) => {
         if (!fileType) return <IoDocument className="text-gray-400" />;
-        if (fileType.startsWith('image/')) return <IoImages className="text-blue-400" />;
-        if (fileType.startsWith('audio/')) return <IoMusicalNote className="text-purple-400" />;
-        if (fileType.startsWith('video/')) return <IoPlayCircle className="text-red-400" />;
-        if (fileType.includes('pdf')) return <IoDocumentText className="text-red-500" />;
-        if (fileType.includes('sheet') || fileType.includes('excel')) return <IoDocument className="text-green-500" />;
-        if (fileType.includes('word') || fileType.includes('document')) return <IoDocument className="text-blue-500" />;
+        if (fileType.startsWith("image/"))
+            return <IoImages className="text-blue-400" />;
+        if (fileType.startsWith("audio/"))
+            return <IoMusicalNote className="text-purple-400" />;
+        if (fileType.startsWith("video/"))
+            return <IoPlayCircle className="text-red-400" />;
+        if (fileType.includes("pdf"))
+            return <IoDocumentText className="text-red-500" />;
+        if (fileType.includes("sheet") || fileType.includes("excel"))
+            return <IoDocument className="text-green-500" />;
+        if (fileType.includes("word") || fileType.includes("document"))
+            return <IoDocument className="text-blue-500" />;
         return <IoDocument className="text-gray-400" />;
     };
 
     const formatFileSize = (bytes) => {
-        if (bytes === 0) return '0 Bytes';
+        if (bytes === 0) return "0 Bytes";
         const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const sizes = ["Bytes", "KB", "MB", "GB"];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
     };
 
     // Get publish function from WebSocket
@@ -1355,7 +1569,13 @@ export default function ChatDetailScreen() {
         setMessage(text);
 
         // Send typing indicator
-        if (connected && sendTypingIndicator && currentUserId && chatRoomId && receiverUserId) {
+        if (
+            connected &&
+            sendTypingIndicator &&
+            currentUserId &&
+            chatRoomId &&
+            receiverUserId
+        ) {
             // Clear previous timeout
             if (typingTimeoutRef.current) {
                 clearTimeout(typingTimeoutRef.current);
@@ -1379,29 +1599,33 @@ export default function ChatDetailScreen() {
     const { initiateCall } = useCall();
 
     const handleCallPress = (isVideo) => {
-        console.log('🎯 Call button pressed!');
-        console.log('Is Video:', isVideo);
-        console.log('Current User ID:', currentUserId);
-        console.log('Receiver User ID:', receiverUserId);
-        console.log('WebSocket Connected:', connected);
+        console.log("🎯 Call button pressed!");
+        console.log("Is Video:", isVideo);
+        console.log("Current User ID:", currentUserId);
+        console.log("Receiver User ID:", receiverUserId);
+        console.log("WebSocket Connected:", connected);
 
         if (!connected) {
-            alert('WebSocket not connected. Please wait and try again.');
+            alert("WebSocket not connected. Please wait and try again.");
             return;
         }
 
         if (!currentUserId) {
-            alert('Please wait for the app to load completely before making a call');
+            alert("Please wait for the app to load completely before making a call");
             return;
         }
 
-        console.log('✅ Calling initiateCall...');
-        initiateCall({
-            id: receiverUserId,
-            name: name,
-            avatar: avatar
-        }, isVideo, currentUserId);  // Pass currentUserId explicitly
-        console.log('✅ initiateCall function called');
+        console.log("✅ Calling initiateCall...");
+        initiateCall(
+            {
+                id: receiverUserId,
+                name: name,
+                avatar: avatar,
+            },
+            isVideo,
+            currentUserId
+        ); // Pass currentUserId explicitly
+        console.log("✅ initiateCall function called");
     };
 
     const scrollToBottom = (instant = false) => {
@@ -1413,13 +1637,13 @@ export default function ChatDetailScreen() {
             // Instant scroll - no animation
             container.scrollTo({
                 top: container.scrollHeight,
-                behavior: 'auto'
+                behavior: "auto",
             });
         } else {
             // Smooth scroll - with animation
             container.scrollTo({
                 top: container.scrollHeight,
-                behavior: 'smooth'
+                behavior: "smooth",
             });
         }
 
@@ -1479,7 +1703,7 @@ export default function ChatDetailScreen() {
     };
 
     const handleKeyPress = (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             sendMessage();
         }
@@ -1504,17 +1728,19 @@ export default function ChatDetailScreen() {
                     <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full mr-2 sm:mr-4 bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_14px_22px_rgba(0,0,0,0.96),0_0_0_1px_rgba(255,255,255,0.14),inset_0_3px_4px_rgba(255,255,255,0.22),inset_0_-4px_7px_rgba(0,0,0,0.95),inset_3px_0_4px_rgba(255,255,255,0.18),inset_-3px_0_4px_rgba(0,0,0,0.8)] border border-black/70 flex-shrink-0 flex items-center justify-center">
                         <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center">
                             <img
-                                src={decodeURIComponent(avatar || '')}
+                                src={decodeURIComponent(avatar || "")}
                                 alt={name}
                                 className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover"
                                 onError={(e) => {
-                                    e.target.src = 'https://via.placeholder.com/40';
+                                    e.target.src = "https://via.placeholder.com/40";
                                 }}
                             />
                         </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                        <h2 className="text-white font-bold text-base sm:text-lg truncate">{name || 'Unknown'}</h2>
+                        <h2 className="text-white font-bold text-base sm:text-lg truncate">
+                            {name || "Unknown"}
+                        </h2>
                         <p className="text-xs sm:text-sm truncate flex items-center">
                             {typingUsers.length > 0 ? (
                                 <span className="text-blue-400 italic">Typing...</span>
@@ -1591,13 +1817,19 @@ export default function ChatDetailScreen() {
 
                         {messages.map((item, index) => {
                             const previousMessage = index > 0 ? messages[index - 1] : null;
-                            const showDateSeparator = shouldShowDateSeparator(item, previousMessage);
+                            const showDateSeparator = shouldShowDateSeparator(
+                                item,
+                                previousMessage
+                            );
 
                             return (
                                 <>
                                     {/* Date Separator - simple centered label (no full-width bar) */}
                                     {showDateSeparator && (
-                                        <div key={`date-${item.id}`} className="flex justify-center my-3">
+                                        <div
+                                            key={`date-${item.id}`}
+                                            className="flex justify-center my-3"
+                                        >
                                             <span className="text-gray-500 text-xs font-medium">
                                                 {formatDateSeparator(item.timestamp)}
                                             </span>
@@ -1608,15 +1840,22 @@ export default function ChatDetailScreen() {
                                     <div
                                         key={item.id}
                                         id={`msg-${item.id}`}
-                                        className={`flex my-1 sm:my-2 ${item.isMe ? 'justify-end' : 'justify-start'} group w-full`}
+                                        className={`flex my-1 sm:my-2 ${item.isMe ? "justify-end" : "justify-start"
+                                            } group w-full`}
                                     >
-                                        <div className={`relative max-w-[85%] sm:max-w-[75%] md:max-w-[65%] lg:max-w-[55%] ${showMessageMenu === item.id ? 'z-[99998]' : 'z-10'}`}>
+                                        <div
+                                            className={`relative max-w-[85%] sm:max-w-[75%] md:max-w-[65%] lg:max-w-[55%] ${showMessageMenu === item.id ? "z-[99998]" : "z-10"
+                                                }`}
+                                        >
                                             <div
                                                 className={`w-full px-3 sm:px-4 py-2 sm:py-3 rounded-2xl ${item.isDeleted
-                                                    ? 'bg-gray-800 border border-gray-700 shadow-lg'
-                                                    : 'bg-gradient-to-b from-white/16 via-white/10 to-white/6  border-white/25 shadow-[0_22px_44px_rgba(0,0,0,0.98),0_0_0_1px_rgba(255,255,255,0.12),inset_0_3px_5px_rgba(255,255,255,0.26),inset_0_-4px_7px_rgba(0,0,0,0.92),inset_3px_0_4px_rgba(255,255,255,0.14),inset_-3px_0_4px_rgba(0,0,0,0.7)] backdrop-blur-2xl bg-clip-padding'
+                                                    ? "bg-gray-800 border border-gray-700 shadow-lg"
+                                                    : "bg-gradient-to-b from-white/16 via-white/10 to-white/6  border-white/25 shadow-[0_22px_44px_rgba(0,0,0,0.98),0_0_0_1px_rgba(255,255,255,0.12),inset_0_3px_5px_rgba(255,255,255,0.26),inset_0_-4px_7px_rgba(0,0,0,0.92),inset_3px_0_4px_rgba(255,255,255,0.14),inset_-3px_0_4px_rgba(0,0,0,0.7)] backdrop-blur-2xl bg-clip-padding"
                                                     }`}
-                                                style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                                                style={{
+                                                    wordBreak: "break-word",
+                                                    overflowWrap: "break-word",
+                                                }}
                                                 onContextMenu={(e) => {
                                                     if (item.isMe && !item.isDeleted) {
                                                         e.preventDefault();
@@ -1630,12 +1869,27 @@ export default function ChatDetailScreen() {
                                                     <div className="flex-1">
                                                         {/* Reply Preview */}
                                                         {item.replyTo && (
-                                                            <div className={`mb-2 pl-2 border-l-2 ${item.isMe ? 'border-white border-opacity-50' : 'border-red-500'}`}>
-                                                                <p className={`text-xs font-semibold ${item.isMe ? 'text-white opacity-80' : 'text-red-400'}`}>
-                                                                    {item.replyTo.senderName || 'Unknown'}
+                                                            <div
+                                                                className={`mb-2 pl-2 border-l-2 ${item.isMe
+                                                                    ? "border-white border-opacity-50"
+                                                                    : "border-red-500"
+                                                                    }`}
+                                                            >
+                                                                <p
+                                                                    className={`text-xs font-semibold ${item.isMe
+                                                                        ? "text-white opacity-80"
+                                                                        : "text-red-400"
+                                                                        }`}
+                                                                >
+                                                                    {item.replyTo.senderName || "Unknown"}
                                                                 </p>
-                                                                <p className={`text-xs ${item.isMe ? 'text-white opacity-70' : 'text-gray-400'} truncate`}>
-                                                                    {item.replyTo.content || 'Message'}
+                                                                <p
+                                                                    className={`text-xs ${item.isMe
+                                                                        ? "text-white opacity-70"
+                                                                        : "text-gray-400"
+                                                                        } truncate`}
+                                                                >
+                                                                    {item.replyTo.content || "Message"}
                                                                 </p>
                                                             </div>
                                                         )}
@@ -1648,230 +1902,367 @@ export default function ChatDetailScreen() {
                                                                 </p>
                                                                 {item.deletedAt && (
                                                                     <p className="text-xs text-gray-600 mt-1">
-                                                                        Deleted at {formatMessageTime(item.deletedAt)}
+                                                                        Deleted at{" "}
+                                                                        {formatMessageTime(item.deletedAt)}
                                                                     </p>
                                                                 )}
                                                             </div>
                                                         ) : (
                                                             <>
                                                                 {/* Attachments */}
-                                                                {item.attachments && item.attachments.length > 0 && (() => {
-                                                                    // Separate images/videos from other files
-                                                                    const mediaAttachments = item.attachments.filter(att => {
-                                                                        const fileType = att.fileType;
-                                                                        return fileType && (fileType.startsWith('image/') || fileType.startsWith('video/'));
-                                                                    });
-                                                                    const otherAttachments = item.attachments.filter(att => {
-                                                                        const fileType = att.fileType;
-                                                                        return fileType && !fileType.startsWith('image/') && !fileType.startsWith('video/');
-                                                                    });
+                                                                {item.attachments &&
+                                                                    item.attachments.length > 0 &&
+                                                                    (() => {
+                                                                        // Separate images/videos from other files
+                                                                        const mediaAttachments =
+                                                                            item.attachments.filter((att) => {
+                                                                                const fileType = att.fileType;
+                                                                                return (
+                                                                                    fileType &&
+                                                                                    (fileType.startsWith("image/") ||
+                                                                                        fileType.startsWith("video/"))
+                                                                                );
+                                                                            });
+                                                                        const otherAttachments =
+                                                                            item.attachments.filter((att) => {
+                                                                                const fileType = att.fileType;
+                                                                                return (
+                                                                                    fileType &&
+                                                                                    !fileType.startsWith("image/") &&
+                                                                                    !fileType.startsWith("video/")
+                                                                                );
+                                                                            });
 
-                                                                    return (
-                                                                        <div className="mb-2">
-                                                                            {/* Media Grid (Images/Videos) */}
-                                                                            {mediaAttachments.length > 0 && (
-                                                                                <div className={`
-                                                                                ${mediaAttachments.length === 1 ? 'w-full max-w-[280px]' : ''}
-                                                                                ${mediaAttachments.length === 2 ? 'grid grid-cols-2 gap-0.5 max-w-[280px]' : ''}
-                                                                                ${mediaAttachments.length === 3 ? 'grid grid-cols-2 gap-0.5 max-w-[280px]' : ''}
-                                                                                ${mediaAttachments.length >= 4 ? 'grid grid-cols-2 gap-0.5 max-w-[280px]' : ''}
+                                                                        return (
+                                                                            <div className="mb-2">
+                                                                                {/* Media Grid (Images/Videos) */}
+                                                                                {mediaAttachments.length > 0 && (
+                                                                                    <div
+                                                                                        className={`
+                                                                                ${mediaAttachments.length ===
+                                                                                                1
+                                                                                                ? "w-full max-w-[280px]"
+                                                                                                : ""
+                                                                                            }
+                                                                                ${mediaAttachments.length ===
+                                                                                                2
+                                                                                                ? "grid grid-cols-2 gap-0.5 max-w-[280px]"
+                                                                                                : ""
+                                                                                            }
+                                                                                ${mediaAttachments.length ===
+                                                                                                3
+                                                                                                ? "grid grid-cols-2 gap-0.5 max-w-[280px]"
+                                                                                                : ""
+                                                                                            }
+                                                                                ${mediaAttachments.length >=
+                                                                                                4
+                                                                                                ? "grid grid-cols-2 gap-0.5 max-w-[280px]"
+                                                                                                : ""
+                                                                                            }
                                                                                 rounded-lg overflow-hidden
-                                                                            `}>
-                                                                                    {mediaAttachments.slice(0, 4).map((att, idx) => {
-                                                                                        const fileUrl = att.fileURL || att.fileUrl;
-                                                                                        const fileType = att.fileType;
-                                                                                        const isLast = idx === 3 && mediaAttachments.length > 4;
-                                                                                        const remaining = mediaAttachments.length - 4;
+                                                                            `}
+                                                                                    >
+                                                                                        {mediaAttachments
+                                                                                            .slice(0, 4)
+                                                                                            .map((att, idx) => {
+                                                                                                const fileUrl =
+                                                                                                    att.fileURL || att.fileUrl;
+                                                                                                const fileType = att.fileType;
+                                                                                                const isLast =
+                                                                                                    idx === 3 &&
+                                                                                                    mediaAttachments.length > 4;
+                                                                                                const remaining =
+                                                                                                    mediaAttachments.length - 4;
 
-                                                                                        // Prepare media list for viewer
-                                                                                        const mediaList = mediaAttachments.map(a => ({
-                                                                                            url: a.fileURL || a.fileUrl,
-                                                                                            type: a.fileType
-                                                                                        }));
+                                                                                                // Prepare media list for viewer
+                                                                                                const mediaList =
+                                                                                                    mediaAttachments.map((a) => ({
+                                                                                                        url: a.fileURL || a.fileUrl,
+                                                                                                        type: a.fileType,
+                                                                                                    }));
 
-                                                                                        return (
-                                                                                            <div
-                                                                                                key={idx}
-                                                                                                className={`
-                                                                                                relative overflow-hidden
-                                                                                                ${mediaAttachments.length === 1 ? 'h-[200px]' : ''}
-                                                                                                ${mediaAttachments.length === 2 ? 'h-[140px]' : ''}
-                                                                                                ${mediaAttachments.length === 3 && idx === 0 ? 'row-span-2 h-[280px]' : 'h-[140px]'}
-                                                                                                ${mediaAttachments.length >= 4 ? 'h-[140px]' : ''}
-                                                                                            `}
-                                                                                            >
-                                                                                                {fileType.startsWith('image/') ? (
-                                                                                                    <img
-                                                                                                        src={fileUrl}
-                                                                                                        alt="attachment"
-                                                                                                        className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                                                                                                        onClick={() => openMediaViewer(mediaList, idx)}
-                                                                                                        onError={(e) => {
-                                                                                                            console.error('Image load error:', fileUrl);
-                                                                                                            e.target.style.display = 'none';
-                                                                                                        }}
-                                                                                                    />
-                                                                                                ) : (
+                                                                                                return (
                                                                                                     <div
-                                                                                                        className="relative w-full h-full cursor-pointer group"
-                                                                                                        onClick={() => openMediaViewer(mediaList, idx)}
+                                                                                                        key={idx}
+                                                                                                        className={`
+                                                                                                relative overflow-hidden
+                                                                                                ${mediaAttachments.length ===
+                                                                                                                1
+                                                                                                                ? "h-[200px]"
+                                                                                                                : ""
+                                                                                                            }
+                                                                                                ${mediaAttachments.length ===
+                                                                                                                2
+                                                                                                                ? "h-[140px]"
+                                                                                                                : ""
+                                                                                                            }
+                                                                                                ${mediaAttachments.length ===
+                                                                                                                3 &&
+                                                                                                                idx ===
+                                                                                                                0
+                                                                                                                ? "row-span-2 h-[280px]"
+                                                                                                                : "h-[140px]"
+                                                                                                            }
+                                                                                                ${mediaAttachments.length >=
+                                                                                                                4
+                                                                                                                ? "h-[140px]"
+                                                                                                                : ""
+                                                                                                            }
+                                                                                            `}
                                                                                                     >
-                                                                                                        <video
-                                                                                                            src={fileUrl}
-                                                                                                            className="w-full h-full object-cover pointer-events-none"
-                                                                                                            onError={(e) => {
-                                                                                                                console.error('Video load error:', fileUrl);
-                                                                                                            }}
-                                                                                                        />
-                                                                                                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 group-hover:bg-opacity-50 transition-all">
-                                                                                                            <IoPlayCircle className="text-white text-5xl group-hover:scale-110 transition-transform" />
-                                                                                                        </div>
+                                                                                                        {fileType.startsWith(
+                                                                                                            "image/"
+                                                                                                        ) ? (
+                                                                                                            <img
+                                                                                                                src={fileUrl}
+                                                                                                                alt="attachment"
+                                                                                                                className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                                                                                                onClick={() =>
+                                                                                                                    openMediaViewer(
+                                                                                                                        mediaList,
+                                                                                                                        idx
+                                                                                                                    )
+                                                                                                                }
+                                                                                                                onError={(e) => {
+                                                                                                                    console.error(
+                                                                                                                        "Image load error:",
+                                                                                                                        fileUrl
+                                                                                                                    );
+                                                                                                                    e.target.style.display =
+                                                                                                                        "none";
+                                                                                                                }}
+                                                                                                            />
+                                                                                                        ) : (
+                                                                                                            <div
+                                                                                                                className="relative w-full h-full cursor-pointer group"
+                                                                                                                onClick={() =>
+                                                                                                                    openMediaViewer(
+                                                                                                                        mediaList,
+                                                                                                                        idx
+                                                                                                                    )
+                                                                                                                }
+                                                                                                            >
+                                                                                                                <video
+                                                                                                                    src={fileUrl}
+                                                                                                                    className="w-full h-full object-cover pointer-events-none"
+                                                                                                                    onError={(e) => {
+                                                                                                                        console.error(
+                                                                                                                            "Video load error:",
+                                                                                                                            fileUrl
+                                                                                                                        );
+                                                                                                                    }}
+                                                                                                                />
+                                                                                                                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 group-hover:bg-opacity-50 transition-all">
+                                                                                                                    <IoPlayCircle className="text-white text-5xl group-hover:scale-110 transition-transform" />
+                                                                                                                </div>
+                                                                                                            </div>
+                                                                                                        )}
+
+                                                                                                        {/* Show +N overlay on 4th image if more than 4 */}
+                                                                                                        {isLast && (
+                                                                                                            <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
+                                                                                                                <span className="text-white text-4xl font-bold">
+                                                                                                                    +{remaining}
+                                                                                                                </span>
+                                                                                                            </div>
+                                                                                                        )}
                                                                                                     </div>
-                                                                                                )}
+                                                                                                );
+                                                                                            })}
+                                                                                    </div>
+                                                                                )}
 
-                                                                                                {/* Show +N overlay on 4th image if more than 4 */}
-                                                                                                {isLast && (
-                                                                                                    <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
-                                                                                                        <span className="text-white text-4xl font-bold">+{remaining}</span>
+                                                                                {/* Other Attachments (Audio, Documents, etc.) */}
+                                                                                {otherAttachments.length > 0 && (
+                                                                                    <div
+                                                                                        className={`space-y-2 ${mediaAttachments.length > 0
+                                                                                            ? "mt-2"
+                                                                                            : ""
+                                                                                            }`}
+                                                                                    >
+                                                                                        {otherAttachments.map(
+                                                                                            (att, idx) => {
+                                                                                                const fileUrl =
+                                                                                                    att.fileURL || att.fileUrl;
+                                                                                                const fileType = att.fileType;
+
+                                                                                                if (!fileUrl) return null;
+
+                                                                                                return (
+                                                                                                    <div key={idx}>
+                                                                                                        {fileType.startsWith(
+                                                                                                            "audio/"
+                                                                                                        ) ? (
+                                                                                                            <WhatsAppAudioPlayer
+                                                                                                                audioUrl={fileUrl}
+                                                                                                                isMe={item.isMe}
+                                                                                                            />
+                                                                                                        ) : (
+                                                                                                            <a
+                                                                                                                href={fileUrl}
+                                                                                                                target="_blank"
+                                                                                                                rel="noopener noreferrer"
+                                                                                                                className={`flex items-center gap-2 p-3 rounded-lg ${item.isMe
+                                                                                                                    ? "bg-white bg-opacity-10"
+                                                                                                                    : "bg-gray-700"
+                                                                                                                    } hover:opacity-80 transition-opacity`}
+                                                                                                            >
+                                                                                                                <span className="text-2xl">
+                                                                                                                    {getFileIcon(
+                                                                                                                        fileType
+                                                                                                                    )}
+                                                                                                                </span>
+                                                                                                                <div className="flex-1 min-w-0">
+                                                                                                                    <p className="text-sm text-white truncate">
+                                                                                                                        {fileUrl
+                                                                                                                            .split("/")
+                                                                                                                            .pop()}
+                                                                                                                    </p>
+                                                                                                                    <p className="text-xs text-gray-400">
+                                                                                                                        {fileType || "File"}
+                                                                                                                    </p>
+                                                                                                                </div>
+                                                                                                            </a>
+                                                                                                        )}
                                                                                                     </div>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        );
-                                                                                    })}
-                                                                                </div>
-                                                                            )}
-
-                                                                            {/* Other Attachments (Audio, Documents, etc.) */}
-                                                                            {otherAttachments.length > 0 && (
-                                                                                <div className={`space-y-2 ${mediaAttachments.length > 0 ? 'mt-2' : ''}`}>
-                                                                                    {otherAttachments.map((att, idx) => {
-                                                                                        const fileUrl = att.fileURL || att.fileUrl;
-                                                                                        const fileType = att.fileType;
-
-                                                                                        if (!fileUrl) return null;
-
-                                                                                        return (
-                                                                                            <div key={idx}>
-                                                                                                {fileType.startsWith('audio/') ? (
-                                                                                                    <WhatsAppAudioPlayer audioUrl={fileUrl} isMe={item.isMe} />
-                                                                                                ) : (
-                                                                                                    <a
-                                                                                                        href={fileUrl}
-                                                                                                        target="_blank"
-                                                                                                        rel="noopener noreferrer"
-                                                                                                        className={`flex items-center gap-2 p-3 rounded-lg ${item.isMe ? 'bg-white bg-opacity-10' : 'bg-gray-700'} hover:opacity-80 transition-opacity`}
-                                                                                                    >
-                                                                                                        <span className="text-2xl">{getFileIcon(fileType)}</span>
-                                                                                                        <div className="flex-1 min-w-0">
-                                                                                                            <p className="text-sm text-white truncate">{fileUrl.split('/').pop()}</p>
-                                                                                                            <p className="text-xs text-gray-400">{fileType || 'File'}</p>
-                                                                                                        </div>
-                                                                                                    </a>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        );
-                                                                                    })}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    );
-                                                                })()}
+                                                                                                );
+                                                                                            }
+                                                                                        )}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })()}
 
                                                                 {/* Text message */}
                                                                 {item.text && (
-                                                                    <p className={`text-sm sm:text-base leading-relaxed whitespace-pre-wrap ${item.isMe ? 'text-white' : 'text-white'}`}
-                                                                        style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                                                                    <p
+                                                                        className={`text-sm sm:text-base leading-relaxed whitespace-pre-wrap ${item.isMe ? "text-white" : "text-white"
+                                                                            }`}
+                                                                        style={{
+                                                                            wordBreak: "break-word",
+                                                                            overflowWrap: "break-word",
+                                                                        }}
+                                                                    >
                                                                         {item.text}
                                                                     </p>
                                                                 )}
                                                             </>
                                                         )}
                                                         {item.isEncrypted && !item.isDeleted && (
-                                                            <IoLockClosed className={`ml-2 mt-1 text-xs flex-shrink-0 ${item.isMe ? 'text-white opacity-70' : 'text-gray-400'}`} />
+                                                            <IoLockClosed
+                                                                className={`ml-2 mt-1 text-xs flex-shrink-0 ${item.isMe
+                                                                    ? "text-white opacity-70"
+                                                                    : "text-gray-400"
+                                                                    }`}
+                                                            />
                                                         )}
                                                     </div>
 
                                                     {/* Three-dot menu (show for all messages except temp ones) */}
-                                                    {!item.isDeleted && !item.id.toString().startsWith('temp-') && (
-                                                        <div className={`ml-2 flex-shrink-0 relative ${showMessageMenu === item.id ? 'z-[99999]' : 'z-[9998]'} message-menu`}>
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setShowMessageMenu(showMessageMenu === item.id ? null : item.id);
-                                                                }}
-                                                                className="p-1 hover:bg-white hover:bg-opacity-20 rounded transition-opacity"
-                                                                title="Options"
+                                                    {!item.isDeleted &&
+                                                        !item.id.toString().startsWith("temp-") && (
+                                                            <div
+                                                                className={`ml-2 flex-shrink-0 relative ${showMessageMenu === item.id
+                                                                    ? "z-[99999]"
+                                                                    : "z-[9998]"
+                                                                    } message-menu`}
                                                             >
-                                                                <IoEllipsisVertical className="text-white text-base" />
-                                                            </button>
-
-                                                            {/* Dropdown menu */}
-                                                            {showMessageMenu === item.id && (
-                                                                <div
-                                                                    className={`absolute top-8 bg-gradient-to-b from-white/16 via-white/10 to-white/6 border border-white/25 rounded-2xl shadow-[0_16px_32px_rgba(0,0,0,0.98),0_0_0_1px_rgba(255,255,255,0.12),inset_0_2px_4px_rgba(255,255,255,0.22),inset_0_-3px_6px_rgba(0,0,0,0.92)] backdrop-blur-2xl bg-clip-padding z-[9999] min-w-[180px] ${item.isMe ? 'right-0' : 'left-0'
-                                                                        }`}
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setShowMessageMenu(
+                                                                            showMessageMenu === item.id
+                                                                                ? null
+                                                                                : item.id
+                                                                        );
+                                                                    }}
+                                                                    className="p-1 hover:bg-white hover:bg-opacity-20 rounded transition-opacity"
+                                                                    title="Options"
                                                                 >
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            copyMessageText(item.text);
-                                                                        }}
-                                                                        className="w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3 rounded-t-2xl"
+                                                                    <IoEllipsisVertical className="text-white text-base" />
+                                                                </button>
+
+                                                                {/* Dropdown menu */}
+                                                                {showMessageMenu === item.id && (
+                                                                    <div
+                                                                        className={`absolute top-8 bg-gradient-to-b from-white/16 via-white/10 to-white/6 border border-white/25 rounded-2xl shadow-[0_16px_32px_rgba(0,0,0,0.98),0_0_0_1px_rgba(255,255,255,0.12),inset_0_2px_4px_rgba(255,255,255,0.22),inset_0_-3px_6px_rgba(0,0,0,0.92)] backdrop-blur-2xl bg-clip-padding z-[9999] min-w-[180px] ${item.isMe ? "right-0" : "left-0"
+                                                                            }`}
                                                                     >
-                                                                        <IoCopyOutline className="text-base" />
-                                                                        <span className="text-sm">Copy</span>
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            startReplyMessage(item);
-                                                                        }}
-                                                                        className={`w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3 ${item.isMe ? '' : 'rounded-b-2xl'}`}
-                                                                    >
-                                                                        <IoArrowUndoOutline className="text-base" />
-                                                                        <span className="text-sm">Reply</span>
-                                                                    </button>
-                                                                    {item.isMe && (
-                                                                        <>
-                                                                            <button
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    startEditMessage(item);
-                                                                                    setShowMessageMenu(null);
-                                                                                }}
-                                                                                className="w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3"
-                                                                            >
-                                                                                <IoCreateOutline className="text-base" />
-                                                                                <span className="text-sm">Edit</span>
-                                                                            </button>
-                                                                            <button
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    handleDeleteMessage(item.id);
-                                                                                    setShowMessageMenu(null);
-                                                                                }}
-                                                                                className="w-full px-4 py-3 text-left text-red-400 hover:bg-red-900/40 flex items-center gap-3 rounded-b-2xl"
-                                                                                title="Delete"
-                                                                            >
-                                                                                <IoTrashOutline className="text-base" />
-                                                                                <span className="text-sm">Delete</span>
-                                                                            </button>
-                                                                        </>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    )}
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                copyMessageText(item.text);
+                                                                            }}
+                                                                            className="w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3 rounded-t-2xl"
+                                                                        >
+                                                                            <IoCopyOutline className="text-base" />
+                                                                            <span className="text-sm">Copy</span>
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                startReplyMessage(item);
+                                                                            }}
+                                                                            className={`w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3 ${item.isMe ? "" : "rounded-b-2xl"
+                                                                                }`}
+                                                                        >
+                                                                            <IoArrowUndoOutline className="text-base" />
+                                                                            <span className="text-sm">Reply</span>
+                                                                        </button>
+                                                                        {item.isMe && (
+                                                                            <>
+                                                                                <button
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        startEditMessage(item);
+                                                                                        setShowMessageMenu(null);
+                                                                                    }}
+                                                                                    className="w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3"
+                                                                                >
+                                                                                    <IoCreateOutline className="text-base" />
+                                                                                    <span className="text-sm">Edit</span>
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        handleDeleteMessage(item.id);
+                                                                                        setShowMessageMenu(null);
+                                                                                    }}
+                                                                                    className="w-full px-4 py-3 text-left text-red-400 hover:bg-red-900/40 flex items-center gap-3 rounded-b-2xl"
+                                                                                    title="Delete"
+                                                                                >
+                                                                                    <IoTrashOutline className="text-base" />
+                                                                                    <span className="text-sm">
+                                                                                        Delete
+                                                                                    </span>
+                                                                                </button>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                 </div>
 
                                                 {/* Time and Status */}
                                                 <div className="flex items-center justify-between mt-1.5">
                                                     <div className="flex items-center gap-1">
-                                                        <p className={`text-xs ${item.isMe ? 'text-white opacity-70' : 'text-gray-400'}`}>
+                                                        <p
+                                                            className={`text-xs ${item.isMe
+                                                                ? "text-white opacity-70"
+                                                                : "text-gray-400"
+                                                                }`}
+                                                        >
                                                             {item.time}
                                                         </p>
                                                         {item.isEdited && !item.isDeleted && (
-                                                            <span className={`text-xs italic ${item.isMe ? 'text-white opacity-60' : 'text-gray-500'}`}>
+                                                            <span
+                                                                className={`text-xs italic ${item.isMe
+                                                                    ? "text-white opacity-60"
+                                                                    : "text-gray-500"
+                                                                    }`}
+                                                            >
                                                                 (edited)
                                                             </span>
                                                         )}
@@ -1880,15 +2271,24 @@ export default function ChatDetailScreen() {
                                                     {/* Read receipts for sent messages */}
                                                     {item.isMe && !item.isDeleted && (
                                                         <div className="ml-2 flex items-center">
-                                                            {item.isRead || item.status === 'read' ? (
+                                                            {item.isRead || item.status === "read" ? (
                                                                 // Double tick - Blue (Read by receiver)
-                                                                <IoCheckmarkDone className="text-blue-500 text-base" title="Read" />
-                                                            ) : item.status === 'sending' ? (
+                                                                <IoCheckmarkDone
+                                                                    className="text-blue-500 text-base"
+                                                                    title="Read"
+                                                                />
+                                                            ) : item.status === "sending" ? (
                                                                 // Single tick - Gray (Sending)
-                                                                <IoCheckmark className="text-gray-300 text-base animate-pulse" title="Sending" />
+                                                                <IoCheckmark
+                                                                    className="text-gray-300 text-base animate-pulse"
+                                                                    title="Sending"
+                                                                />
                                                             ) : (
                                                                 // Single tick - Gray (Sent but not read)
-                                                                <IoCheckmark className="text-gray-300 text-base" title="Sent" />
+                                                                <IoCheckmark
+                                                                    className="text-gray-300 text-base"
+                                                                    title="Sent"
+                                                                />
                                                             )}
                                                         </div>
                                                     )}
@@ -1913,8 +2313,8 @@ export default function ChatDetailScreen() {
                 >
                     <div
                         className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)] ${newMessageCount > 0
-                            ? 'bg-gradient-to-b from-[#0a84ff] to-[#0040dd]'
-                            : 'bg-gradient-to-b from-[#3a3a3a] to-[#111111]'
+                            ? "bg-gradient-to-b from-[#0a84ff] to-[#0040dd]"
+                            : "bg-gradient-to-b from-[#3a3a3a] to-[#111111]"
                             }`}
                     >
                         <IoArrowDown className="text-white text-xl" />
@@ -1947,7 +2347,9 @@ export default function ChatDetailScreen() {
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1">
                                     <IoArrowUndoOutline className="text-red-400 text-base flex-shrink-0" />
-                                    <span className="text-xs text-gray-400">Replying to {replyingToMessage.senderName}</span>
+                                    <span className="text-xs text-gray-400">
+                                        Replying to {replyingToMessage.senderName}
+                                    </span>
                                 </div>
                                 <p className="text-sm text-gray-300 truncate pl-6">
                                     {replyingToMessage.text}
@@ -1992,7 +2394,9 @@ export default function ChatDetailScreen() {
                             value={message}
                             onChange={(e) => handleTextChange(e.target.value)}
                             onKeyPress={handleKeyPress}
-                            placeholder={editingMessageId ? "Edit your message" : "Type a message"}
+                            placeholder={
+                                editingMessageId ? "Edit your message" : "Type a message"
+                            }
                             className="flex-1 bg-transparent text-gray-200 placeholder-gray-500 text-left outline-none resize-none text-sm sm:text-base leading-relaxed min-h-[32px] sm:min-h-[36px] py-1.5 sm:py-2"
                             rows={1}
                         />
@@ -2062,7 +2466,7 @@ export default function ChatDetailScreen() {
                                 ref={fileInputRef}
                                 type="file"
                                 multiple
-                                onChange={(e) => handleFileSelect(e, 'file')}
+                                onChange={(e) => handleFileSelect(e, "file")}
                                 className="hidden"
                                 accept="*/*"
                             />
@@ -2070,7 +2474,7 @@ export default function ChatDetailScreen() {
                                 ref={photoInputRef}
                                 type="file"
                                 multiple
-                                onChange={(e) => handleFileSelect(e, 'photo')}
+                                onChange={(e) => handleFileSelect(e, "photo")}
                                 className="hidden"
                                 accept="image/*,video/*"
                             />
@@ -2080,17 +2484,20 @@ export default function ChatDetailScreen() {
                     <button
                         onClick={sendMessage}
                         disabled={!message.trim()}
-                        className={`w-12 h-12 sm:w-13 sm:h-13 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 flex-shrink-0 transition-transform ${message.trim() ? 'hover:scale-105' : 'opacity-40 cursor-not-allowed'}`}
+                        className={`w-12 h-12 sm:w-13 sm:h-13 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 flex-shrink-0 transition-transform ${message.trim()
+                            ? "hover:scale-105"
+                            : "opacity-40 cursor-not-allowed"
+                            }`}
                     >
                         <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
                             {editingMessageId ? (
                                 <IoCheckmarkCircle
-                                    className={`text-lg sm:text-xl ${message.trim() ? 'text-[#34c759]' : 'text-gray-500'
+                                    className={`text-lg sm:text-xl ${message.trim() ? "text-[#34c759]" : "text-gray-500"
                                         }`}
                                 />
                             ) : (
                                 <IoSend
-                                    className={`text-lg sm:text-xl ${message.trim() ? 'text-[#34c759]' : 'text-gray-500'
+                                    className={`text-lg sm:text-xl ${message.trim() ? "text-[#34c759]" : "text-gray-500"
                                         }`}
                                 />
                             )}
@@ -2105,7 +2512,8 @@ export default function ChatDetailScreen() {
                     {/* Header */}
                     <div className="flex items-center justify-between px-4 py-3 bg-[#1a1a1a] border-b border-gray-700">
                         <h3 className="text-white text-lg font-semibold">
-                            {selectedFiles.length} {selectedFiles.length === 1 ? 'File' : 'Files'} Selected
+                            {selectedFiles.length}{" "}
+                            {selectedFiles.length === 1 ? "File" : "Files"} Selected
                         </h3>
                         <button
                             onClick={() => {
@@ -2133,13 +2541,13 @@ export default function ChatDetailScreen() {
 
                                     {/* File preview */}
                                     <div className="bg-[#2d2d2d] rounded-lg overflow-hidden border border-gray-700">
-                                        {file.type.startsWith('image/') ? (
+                                        {file.type.startsWith("image/") ? (
                                             <img
                                                 src={file.preview}
                                                 alt={file.name}
                                                 className="w-full h-32 object-cover"
                                             />
-                                        ) : file.type.startsWith('video/') ? (
+                                        ) : file.type.startsWith("video/") ? (
                                             <div className="relative w-full h-32 bg-gray-800 flex items-center justify-center">
                                                 <IoPlayCircle className="text-white text-4xl" />
                                                 <video
@@ -2151,9 +2559,13 @@ export default function ChatDetailScreen() {
                                             <div className="w-full h-32 flex flex-col items-center justify-center gap-2">
                                                 {getFileIcon(file.type)}
                                                 <span className="text-xs text-gray-400">
-                                                    {file.type.includes('pdf') ? 'PDF' :
-                                                        file.type.includes('word') ? 'DOC' :
-                                                            file.type.includes('excel') ? 'XLS' : 'FILE'}
+                                                    {file.type.includes("pdf")
+                                                        ? "PDF"
+                                                        : file.type.includes("word")
+                                                            ? "DOC"
+                                                            : file.type.includes("excel")
+                                                                ? "XLS"
+                                                                : "FILE"}
                                                 </span>
                                             </div>
                                         )}
@@ -2161,7 +2573,9 @@ export default function ChatDetailScreen() {
                                         {/* File info */}
                                         <div className="p-2">
                                             <p className="text-white text-xs truncate">{file.name}</p>
-                                            <p className="text-gray-400 text-xs">{formatFileSize(file.size)}</p>
+                                            <p className="text-gray-400 text-xs">
+                                                {formatFileSize(file.size)}
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
@@ -2182,7 +2596,9 @@ export default function ChatDetailScreen() {
                             <button
                                 onClick={sendMessageWithAttachments}
                                 disabled={uploadingFiles}
-                                className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors ${uploadingFiles ? 'bg-gray-600 cursor-not-allowed' : 'bg-green-500 hover:bg-red-600'
+                                className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors ${uploadingFiles
+                                    ? "bg-gray-600 cursor-not-allowed"
+                                    : "bg-green-500 hover:bg-red-600"
                                     }`}
                             >
                                 {uploadingFiles ? (
@@ -2246,9 +2662,11 @@ export default function ChatDetailScreen() {
                             </div>
                             <div>
                                 <p className="text-white font-semibold">
-                                    {isPaused ? 'Recording Paused' : 'Recording...'}
+                                    {isPaused ? "Recording Paused" : "Recording..."}
                                 </p>
-                                <p className="text-red-400 text-lg font-mono">{formatRecordingTime(recordingTime)}</p>
+                                <p className="text-red-400 text-lg font-mono">
+                                    {formatRecordingTime(recordingTime)}
+                                </p>
                             </div>
                         </div>
 
@@ -2256,7 +2674,7 @@ export default function ChatDetailScreen() {
                             <button
                                 onClick={pauseRecording}
                                 className="w-10 h-10 bg-[#2d2d2d] rounded-full flex items-center justify-center hover:bg-gray-700 transition-colors"
-                                title={isPaused ? 'Resume' : 'Pause'}
+                                title={isPaused ? "Resume" : "Pause"}
                             >
                                 {isPaused ? (
                                     <IoPlay className="text-white text-lg" />
@@ -2288,7 +2706,9 @@ export default function ChatDetailScreen() {
                 <div className="fixed inset-0 bg-black bg-opacity-95 z-50 flex flex-col">
                     {/* Header */}
                     <div className="flex items-center justify-between px-4 py-3 bg-[#1a1a1a] border-b border-gray-700">
-                        <h3 className="text-white text-lg font-semibold">Audio Recording</h3>
+                        <h3 className="text-white text-lg font-semibold">
+                            Audio Recording
+                        </h3>
                         <button
                             onClick={() => {
                                 setShowAudioPreview(false);
@@ -2311,8 +2731,12 @@ export default function ChatDetailScreen() {
                                 </div>
 
                                 <div className="text-center">
-                                    <p className="text-white text-lg font-semibold">Audio Message</p>
-                                    <p className="text-gray-400 text-sm">{formatRecordingTime(recordingTime)}</p>
+                                    <p className="text-white text-lg font-semibold">
+                                        Audio Message
+                                    </p>
+                                    <p className="text-gray-400 text-sm">
+                                        {formatRecordingTime(recordingTime)}
+                                    </p>
                                 </div>
 
                                 <audio
@@ -2338,7 +2762,9 @@ export default function ChatDetailScreen() {
                             <button
                                 onClick={sendAudioMessage}
                                 disabled={uploadingFiles}
-                                className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors ${uploadingFiles ? 'bg-gray-600 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'
+                                className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors ${uploadingFiles
+                                    ? "bg-gray-600 cursor-not-allowed"
+                                    : "bg-red-500 hover:bg-red-600"
                                     }`}
                             >
                                 {uploadingFiles ? (
@@ -2353,40 +2779,38 @@ export default function ChatDetailScreen() {
             )}
 
             {/* Camera Modal */}
-            {
-                showCamera && (
-                    <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
-                        <div className="relative w-full h-full max-w-2xl max-h-[80vh] flex flex-col items-center justify-center p-4">
-                            {/* Close button */}
-                            <button
-                                onClick={closeCamera}
-                                className="absolute top-4 right-4 w-10 h-10 bg-red-500 rounded-full flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors z-10"
-                            >
-                                <IoCloseCircle className="text-white text-2xl" />
-                            </button>
+            {showCamera && (
+                <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
+                    <div className="relative w-full h-full max-w-2xl max-h-[80vh] flex flex-col items-center justify-center p-4">
+                        {/* Close button */}
+                        <button
+                            onClick={closeCamera}
+                            className="absolute top-4 right-4 w-10 h-10 bg-red-500 rounded-full flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors z-10"
+                        >
+                            <IoCloseCircle className="text-white text-2xl" />
+                        </button>
 
-                            {/* Video preview */}
-                            <video
-                                ref={videoRef}
-                                autoPlay
-                                playsInline
-                                className="w-full h-auto max-h-[70vh] rounded-lg shadow-2xl"
-                            />
+                        {/* Video preview */}
+                        <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            className="w-full h-auto max-h-[70vh] rounded-lg shadow-2xl"
+                        />
 
-                            {/* Capture button */}
-                            <button
-                                onClick={capturePhoto}
-                                className="mt-6 w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg hover:bg-gray-200 transition-colors"
-                            >
-                                <IoCamera className="text-gray-800 text-3xl" />
-                            </button>
+                        {/* Capture button */}
+                        <button
+                            onClick={capturePhoto}
+                            className="mt-6 w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg hover:bg-gray-200 transition-colors"
+                        >
+                            <IoCamera className="text-gray-800 text-3xl" />
+                        </button>
 
-                            {/* Hidden canvas for capturing */}
-                            <canvas ref={canvasRef} className="hidden" />
-                        </div>
+                        {/* Hidden canvas for capturing */}
+                        <canvas ref={canvasRef} className="hidden" />
                     </div>
-                )
-            }
+                </div>
+            )}
 
             {/* Media Viewer Modal */}
             {showMediaViewer && viewerMediaList.length > 0 && (
@@ -2407,7 +2831,7 @@ export default function ChatDetailScreen() {
 
                     {/* Media Display */}
                     <div className="flex-1 relative flex items-center justify-center overflow-hidden">
-                        {viewerMediaList[currentMediaIndex]?.type.startsWith('image/') ? (
+                        {viewerMediaList[currentMediaIndex]?.type.startsWith("image/") ? (
                             <img
                                 src={viewerMediaList[currentMediaIndex]?.url}
                                 alt="media"
@@ -2449,10 +2873,12 @@ export default function ChatDetailScreen() {
                                     <button
                                         key={idx}
                                         onClick={() => setCurrentMediaIndex(idx)}
-                                        className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${idx === currentMediaIndex ? 'border-white scale-110' : 'border-transparent opacity-60'
+                                        className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${idx === currentMediaIndex
+                                            ? "border-white scale-110"
+                                            : "border-transparent opacity-60"
                                             }`}
                                     >
-                                        {media.type.startsWith('image/') ? (
+                                        {media.type.startsWith("image/") ? (
                                             <img
                                                 src={media.url}
                                                 alt={`thumb-${idx}`}
