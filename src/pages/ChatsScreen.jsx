@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     IoChatbubbles,
@@ -17,9 +17,11 @@ import {
 import { Colors } from '../constants/Colors';
 import { ApiUtils, UserAPI } from '../services/AuthService';
 import chatApiService from '../services/ChatApiService';
+import { useWebSocket } from '../contexts/WebSocketContext';
 
 export default function ChatsScreen() {
     const navigate = useNavigate();
+    const socket = useWebSocket();
     const [chatRooms, setChatRooms] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -28,6 +30,10 @@ export default function ChatsScreen() {
         avatarUrl: '',
         initials: '',
     });
+    const [currentUserId, setCurrentUserId] = useState(null);
+
+    // Track processed messages to prevent duplicates
+    const processedMessagesRef = useRef(new Set());
 
     // Pagination state for chat rooms
     const PAGE_SIZE = 10;
@@ -82,8 +88,175 @@ export default function ChatsScreen() {
     };
 
     useEffect(() => {
-        loadChatRooms(1, true);
+        const initializeScreen = async () => {
+            const userId = await ApiUtils.getCurrentUserId();
+            setCurrentUserId(userId);
+            loadChatRooms(1, true);
+        };
+        initializeScreen();
     }, []);
+
+    // Handle real-time WebSocket messages to update chat list
+    const handleWebSocketMessage = useCallback(async (message) => {
+        console.log('📨 ChatsScreen received WebSocket message:', message);
+
+        if (!message || !message.chatRoomId) {
+            console.log('⚠️ Invalid message format, skipping update');
+            return;
+        }
+
+        try {
+            // Import decryption services
+            const EncryptionService = (await import('../services/EncryptionService')).default;
+            const { decryptEnvelope } = await import('../scripts/decryptEnvelope');
+            const { decryptMessage } = await import('../scripts/decryptMessage');
+
+            const privateKey = EncryptionService.decrypt(localStorage.getItem("decryptedBackendData"));
+            const userIdString = localStorage.getItem("userId");
+
+            let decryptedContent = message.content || '';
+
+            // Decrypt message content if encrypted
+            if (message.content && privateKey) {
+                try {
+                    const envolop = (message.senderId?.toString() === userIdString)
+                        ? message.sender_envolop
+                        : message.receiver_envolop;
+
+                    if (envolop) {
+                        const envolopDecryptKey = await decryptEnvelope(envolop, privateKey);
+                        decryptedContent = await decryptMessage(message.content, envolopDecryptKey);
+                    }
+                } catch (error) {
+                    console.error("❌ Failed to decrypt WebSocket message:", error);
+                }
+            }
+
+            // Update chat rooms list
+            setChatRooms((prevRooms) => {
+                // Find the chat room that received the message
+                const roomIndex = prevRooms.findIndex(
+                    (room) => room.chatRoomId === message.chatRoomId
+                );
+
+                if (roomIndex === -1) {
+                    console.log('⚠️ Chat room not found in list, skipping update');
+                    return prevRooms;
+                }
+
+                const updatedRooms = [...prevRooms];
+                const updatedRoom = { ...updatedRooms[roomIndex] };
+
+                // Determine message preview
+                let previewType = 'text';
+                let messagePreview = '';
+
+                const attachments = Array.isArray(message.attachments) ? message.attachments : [];
+
+                if (decryptedContent && decryptedContent.trim().length > 0) {
+                    previewType = 'text';
+                    messagePreview = truncateMessage(decryptedContent);
+                } else if (attachments.length > 0) {
+                    const firstAttachment = attachments[0];
+                    const fileType = (firstAttachment.fileType || '').toLowerCase();
+
+                    if (fileType.startsWith('image/')) {
+                        previewType = 'image';
+                        messagePreview = 'Photo';
+                    } else if (fileType.startsWith('video/')) {
+                        previewType = 'video';
+                        messagePreview = 'Video';
+                    } else if (fileType.startsWith('audio/')) {
+                        previewType = 'audio';
+                        messagePreview = 'Audio';
+                    } else {
+                        previewType = 'document';
+                        messagePreview = 'Document';
+                    }
+                } else {
+                    messagePreview = 'New message';
+                }
+
+                // Update room details
+                updatedRoom.message = messagePreview;
+                updatedRoom.previewType = previewType;
+                updatedRoom.time = formatTime(message.timestamp || message.sentAt || new Date().toISOString());
+
+                // Increment unread count only if message is from another user
+                if (message.senderId?.toString() !== userIdString) {
+                    updatedRoom.unreadCount = (updatedRoom.unreadCount || 0) + 1;
+                }
+
+                // Remove the room from its current position
+                updatedRooms.splice(roomIndex, 1);
+
+                // Add it to the top
+                updatedRooms.unshift(updatedRoom);
+
+                console.log('✅ Chat room updated and moved to top:', updatedRoom.name);
+                return updatedRooms;
+            });
+        } catch (error) {
+            console.error('❌ Error handling WebSocket message in ChatsScreen:', error);
+        }
+    }, []);
+
+    // Subscribe to all chat rooms for real-time updates
+    useEffect(() => {
+        if (!socket.connected || !currentUserId || chatRooms.length === 0) {
+            return;
+        }
+
+        console.log('�  ChatsScreen subscribing to all chat rooms:', chatRooms.length);
+
+        const subscriptions = [];
+
+        // Subscribe to each chat room
+        chatRooms.forEach((room) => {
+            if (!room.chatRoomId || !room.receiverId) {
+                return;
+            }
+
+            // Subscribe as receiver (messages sent TO us)
+            const receiverDestination = `/topic/chat/${room.chatRoomId}/${room.receiverId}/${currentUserId}`;
+
+            console.log('🔌 Subscribing to:', receiverDestination);
+
+            const subscription = socket.subscribe(receiverDestination, (message) => {
+                // Create unique message ID
+                const messageId = `${message.chatMessageId || message.id}-${message.chatRoomId}-${message.timestamp}`;
+
+                // Skip if already processed
+                if (processedMessagesRef.current.has(messageId)) {
+                    console.log('Skipping duplicate message:', messageId);
+                    return;
+                }
+
+                processedMessagesRef.current.add(messageId);
+                console.log('Received NEW message on ChatsScreen for room:', room.chatRoomId);
+                handleWebSocketMessage(message);
+
+                // Clean up after 10 seconds
+                setTimeout(() => {
+                    processedMessagesRef.current.delete(messageId);
+                }, 10000);
+            });
+
+            if (subscription) {
+                subscriptions.push({ destination: receiverDestination, subscription });
+            }
+        });
+
+        // Cleanup subscriptions when component unmounts or chatRooms change
+        return () => {
+            console.log('🔌 ChatsScreen unsubscribing from all chat rooms');
+            subscriptions.forEach(({ destination }) => {
+                socket.unsubscribe(destination);
+            });
+        };
+    }, [socket.connected, currentUserId, chatRooms, handleWebSocketMessage]);
+
+
 
     // Search chat rooms with API
     const searchChatRooms = async (query) => {
