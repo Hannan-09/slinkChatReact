@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { IoArrowBack, IoCall, IoVideocam, IoTrash, IoCheckmark, IoClose, IoPhonePortrait } from 'react-icons/io5';
+import { IoArrowBack, IoCall, IoVideocam, IoTrash, IoCheckmark, IoClose, IoPhonePortrait, IoChatbubblesOutline, IoCamera, IoTime, IoPeopleOutline } from 'react-icons/io5';
 import { CallHistoryAPI } from '../services/CallHistoryService';
 import { ApiUtils } from '../services/AuthService';
 
@@ -124,14 +124,14 @@ export default function CallHistoryScreen() {
         <div className="h-screen bg-[#0a0a0a] flex flex-col">
             {/* Header */}
             <div className="bg-gradient-to-b from-[#1a1a1a] to-[#0f0f0f] border-b border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
-                <div className="flex items-center justify-between p-4">
+                <div className="flex items-center px-5 py-4">
                     <button
                         onClick={() => navigate(-1)}
-                        className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] border border-black/70 shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)]"
+                        className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 mr-2 sm:mr-4 flex-shrink-0"
                     >
                         <IoArrowBack className="text-white text-xl" />
                     </button>
-                    <h1 className="text-white text-xl font-bold">Call History</h1>
+                    <h1 className="text-2xl font-bold text-white flex-1">Call History</h1>
                     <div className="w-10" />
                 </div>
 
@@ -237,6 +237,43 @@ export default function CallHistoryScreen() {
                         )}
                     </div>
                 )}
+            </div>
+
+            {/* Bottom Navigation */}
+            <div className="flex items-center justify-around px-6 py-3 mx-4 mb-4 rounded-[28px] bg-gradient-to-b from-white/16 via-white/10 to-white/6 border border-white/25 shadow-[0_22px_44px_rgba(0,0,0,0.98),0_0_0_1px_rgba(255,255,255,0.12),inset_0_3px_5px_rgba(255,255,255,0.26),inset_0_-4px_7px_rgba(0,0,0,0.92),inset_3px_0_4px_rgba(255,255,255,0.14),inset_-3px_0_4px_rgba(0,0,0,0.7)] backdrop-blur-2xl bg-clip-padding">
+                {/* Chats */}
+                <button
+                    onClick={() => navigate('/chats')}
+                    className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 hover:bg-[#1d1d1d] transition-colors"
+                >
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                        <IoChatbubblesOutline className="text-gray-300 text-2xl" />
+                    </div>
+                </button>
+
+                {/* Camera */}
+                <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 hover:bg-[#1d1d1d] transition-colors">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                        <IoCamera className="text-gray-300 text-2xl" />
+                    </div>
+                </button>
+
+                {/* Call History (active) */}
+                <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 animate-pulse">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                        <IoCall className="text-white text-3xl" />
+                    </div>
+                </button>
+
+                {/* Friends */}
+                <button
+                    onClick={() => navigate('/requests')}
+                    className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] border border-black/70 shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] hover:bg-[#1d1d1d] transition-colors"
+                >
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                        <IoPeopleOutline className="text-gray-300 text-2xl" />
+                    </div>
+                </button>
             </div>
         </div>
     );

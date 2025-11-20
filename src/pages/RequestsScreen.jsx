@@ -9,6 +9,7 @@ import {
     IoMailOutline,
     IoChatbubblesOutline,
     IoCamera,
+    IoCall,
     IoPeople,
     IoSettingsOutline,
 } from 'react-icons/io5';
@@ -168,21 +169,19 @@ export default function RequestsScreen() {
             <div className="mx-5 mb-5 rounded-full p-1 flex bg-gradient-to-b from-white/16 via-white/10 to-white/6 border border-white/25 shadow-[0_22px_44px_rgba(0,0,0,0.98),0_0_0_1px_rgba(255,255,255,0.12),inset_0_3px_5px_rgba(255,255,255,0.26),inset_0_-4px_7px_rgba(0,0,0,0.92),inset_3px_0_4px_rgba(255,255,255,0.14),inset_-3px_0_4px_rgba(0,0,0,0.7)] backdrop-blur-2xl bg-clip-padding">
                 <button
                     onClick={() => setActiveTab('received')}
-                    className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all ${
-                        activeTab === 'received'
+                    className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all ${activeTab === 'received'
                             ? 'bg-gradient-to-b from-[#252525] to-[#101010] text-white shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)]'
                             : 'text-gray-400'
-                    }`}
+                        }`}
                 >
                     Received ({receivedRequests.length})
                 </button>
                 <button
                     onClick={() => setActiveTab('sent')}
-                    className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all ${
-                        activeTab === 'sent'
+                    className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all ${activeTab === 'sent'
                             ? 'bg-gradient-to-b from-[#252525] to-[#101010] text-white shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)]'
                             : 'text-gray-400'
-                    }`}
+                        }`}
                 >
                     Sent ({sentRequests.length})
                 </button>
@@ -293,24 +292,26 @@ export default function RequestsScreen() {
                     </div>
                 </button>
 
-                {/* Placeholder middle icon */}
+                {/* Camera */}
                 <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 hover:bg-[#1d1d1d] transition-colors">
                     <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
                         <IoCamera className="text-gray-300 text-2xl" />
                     </div>
                 </button>
 
-                {/* Requests (active) - use filled IoPeople */}
-                <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 animate-pulse">
+                {/* Call History */}
+                <button
+                    onClick={() => navigate('/call-history')}
+                    className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] border border-black/70 shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] hover:bg-[#1d1d1d] transition-colors">
                     <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
-                        <IoPeople className="text-white text-3xl" />
+                        <IoCall className="text-gray-300 text-2xl" />
                     </div>
                 </button>
 
-                {/* Settings */}
-                <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 hover:bg-[#1d1d1d] transition-colors">
+                {/* Requests (active) */}
+                <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 animate-pulse">
                     <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
-                        <IoSettingsOutline className="text-gray-300 text-2xl" />
+                        <IoPeople className="text-white text-3xl" />
                     </div>
                 </button>
             </div>

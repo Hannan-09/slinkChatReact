@@ -7,6 +7,8 @@ import {
     IoTime,
     IoChatbubblesOutline,
     IoCamera,
+    IoCall,
+    IoArrowBack,
     IoPeopleOutline,
     IoSettingsOutline,
     IoPersonAddOutline,
@@ -180,8 +182,16 @@ export default function SearchUsersScreen() {
     return (
         <div className="min-h-screen bg-[#1a1a1a] flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4">
-                <h1 className="text-2xl font-bold text-white">Search Users</h1>
+            <div className="flex items-center px-5 py-4">
+                <button
+                    onClick={() => navigate(-1)}
+                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 mr-2 sm:mr-4 flex-shrink-0"
+                >
+                    <IoArrowBack className="text-white text-xl" />
+                </button>
+                <h1 className="text-2xl font-bold text-white flex-1">Search User</h1>
+                <div className="w-10" />
+                {/* <h1 className="text-2xl font-bold text-white">Search Users</h1> */}
             </div>
 
             {/* Search Bar - glassy, same style as friends search */}
@@ -301,10 +311,20 @@ export default function SearchUsersScreen() {
                     </div>
                 </button>
 
-                {/* Placeholder middle icon */}
+                {/* Camera */}
                 <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 hover:bg-[#1d1d1d] transition-colors">
                     <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
                         <IoCamera className="text-gray-300 text-2xl" />
+                    </div>
+                </button>
+
+                {/* Call History */}
+                <button
+                    onClick={() => navigate('/call-history')}
+                    className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] border border-black/70 shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] hover:bg-[#1d1d1d] transition-colors"
+                >
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                        <IoCall className="text-gray-300 text-2xl" />
                     </div>
                 </button>
 
@@ -315,13 +335,6 @@ export default function SearchUsersScreen() {
                 >
                     <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
                         <IoPeopleOutline className="text-gray-300 text-2xl" />
-                    </div>
-                </button>
-
-                {/* Settings */}
-                <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 hover:bg-[#1d1d1d] transition-colors">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
-                        <IoSettingsOutline className="text-gray-300 text-2xl" />
                     </div>
                 </button>
             </div>

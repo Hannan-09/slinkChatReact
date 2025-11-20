@@ -350,30 +350,77 @@ export default function ChatDetailScreen() {
             }
 
             // Decrypt message if encrypted
-            //   let decryptedText = wsMessage.content || wsMessage.message || "";
-            //   if (wsMessage.envolop && wsMessage.content) {
-            //     try {
-            //       const MessageDecryptionService = (
-            //         await import("../services/MessageDecryptionService")
-            //       ).default;
-            //       const privateKey = MessageDecryptionService.getPrivateKey();
-            //       if (privateKey) {
-            //         console.log("🔐 Decrypting incoming WebSocket message");
-            //         decryptedText = await MessageDecryptionService.decryptMessage(
-            //           wsMessage.content,
-            //           wsMessage.envolop,
-            //           privateKey
-            //         );
-            //       }
-            //     } catch (error) {
-            //       console.error("❌ Failed to decrypt WebSocket message:", error);
-            //     }
-            //   }
+            const privateKey = EncryptionService.decrypt(localStorage.getItem("decryptedBackendData"));
+            const userId = localStorage.getItem("userId");
+            let decryptedText = wsMessage.content || wsMessage.message || "";
+
+            if (wsMessage.sender_envolop || wsMessage.receiver_envolop) {
+                try {
+                    const envolop = (wsMessage.senderId?.toString() === userId)
+                        ? wsMessage.sender_envolop
+                        : wsMessage.receiver_envolop;
+
+                    if (envolop && privateKey) {
+                        console.log("🔐 Decrypting WebSocket envelope");
+                        const envolopDecryptKey = await DecryptEnvolop.decryptEnvelope(
+                            envolop,
+                            privateKey
+                        );
+
+                        console.log("🔐 Decrypting WebSocket message:", wsMessage.content);
+                        decryptedText = await DecryptMessage(
+                            wsMessage.content,
+                            envolopDecryptKey
+                        );
+                        console.log("✅ Decrypted WebSocket message:", decryptedText);
+                    }
+                } catch (error) {
+                    console.error("❌ Failed to decrypt WebSocket message:", error);
+                }
+            }
+
+            // Decrypt replyTo message if exists
+            let decryptedReplyTo = wsMessage.replyTo;
+            if (wsMessage.replyTo && wsMessage.replyTo.content && privateKey) {
+                console.log("🔍 WebSocket replyTo object:", JSON.stringify(wsMessage.replyTo, null, 2));
+                try {
+                    const replyEnvolop = (wsMessage.replyTo.senderId?.toString() === userId)
+                        ? wsMessage.replyTo.sender_envolop
+                        : wsMessage.replyTo.receiver_envolop;
+
+                    console.log("🔍 Reply envelope found:", !!replyEnvolop);
+                    console.log("🔍 Reply senderId:", wsMessage.replyTo.senderId, "Current userId:", userId);
+
+                    if (replyEnvolop) {
+                        console.log("🔐 Decrypting WebSocket reply envelope");
+                        const replyEnvolopKey = await DecryptEnvolop.decryptEnvelope(
+                            replyEnvolop,
+                            privateKey
+                        );
+
+                        console.log("🔐 Decrypting WebSocket reply message");
+                        const decryptedReplyContent = await DecryptMessage(
+                            wsMessage.replyTo.content,
+                            replyEnvolopKey
+                        );
+                        console.log("✅ Decrypted WebSocket reply:", decryptedReplyContent);
+
+                        decryptedReplyTo = {
+                            ...wsMessage.replyTo,
+                            content: decryptedReplyContent
+                        };
+                    } else {
+                        console.warn("⚠️ No reply envelope found for decryption");
+                    }
+                } catch (error) {
+                    console.error("❌ Failed to decrypt WebSocket reply:", error);
+                }
+            }
 
             // Add new message to state
             const newMsg = {
                 id: wsMessage.chatMessageId || wsMessage.id || `ws-${Date.now()}`,
-                text: wsMessage.content || "",
+                text: decryptedText,
                 time: formatMessageTime(wsMessage.timestamp || wsMessage.sentAt),
                 isMe: wsMessage.senderId === currentUserId,
                 status: "delivered",
@@ -384,18 +431,15 @@ export default function ChatDetailScreen() {
                     (wsMessage.senderId === currentUserId ? "You" : name),
                 senderId: wsMessage.senderId,
                 receiverId: wsMessage.receiverId,
-                isEncrypted: !!wsMessage.envolop,
+                isEncrypted: !!(wsMessage.sender_envolop || wsMessage.receiver_envolop),
                 isEdited: wsMessage.isEdited || false,
                 editedAt: wsMessage.editedAt || null,
-                replyTo: wsMessage.replyTo || null,
+                replyTo: decryptedReplyTo,
                 attachments: (wsMessage.attachments || []).map((att) => ({
                     fileURL: att.fileURL || att.fileUrl,
                     fileType: att.fileType,
                 })),
             };
-
-            if (wsMessage.replyTo) {
-            }
 
             // Check if message is from another user
             const isNewMessageFromOthers = !newMsg.isMe;
@@ -499,7 +543,7 @@ export default function ChatDetailScreen() {
         // Subscribe to edit messages - both as sender and receiver
         const editSenderDestination = `/topic/chat/edit/${chatRoomId}/${currentUserId}/${receiverUserId}`;
         const editReceiverDestination = `/topic/chat/edit/${chatRoomId}/${receiverUserId}/${currentUserId}`;
-        const handleEditMessage = (editMsg) => {
+        const handleEditMessage = async (editMsg) => {
             console.log(
                 "✏️ Edit message received:",
                 JSON.stringify(editMsg, null, 2)
@@ -507,6 +551,69 @@ export default function ChatDetailScreen() {
 
             const messageData = editMsg.data || editMsg;
             const editedMessageId = messageData.chatMessageId;
+
+            // Decrypt edited message content
+            const privateKey = EncryptionService.decrypt(localStorage.getItem("decryptedBackendData"));
+            const userId = localStorage.getItem("userId");
+            let decryptedContent = messageData.content;
+
+            if (messageData.sender_envolop || messageData.receiver_envolop) {
+                try {
+                    const envolop = (messageData.senderId?.toString() === userId)
+                        ? messageData.sender_envolop
+                        : messageData.receiver_envolop;
+
+                    if (envolop && privateKey) {
+                        console.log("🔐 Decrypting edited message envelope");
+                        const envolopDecryptKey = await DecryptEnvolop.decryptEnvelope(
+                            envolop,
+                            privateKey
+                        );
+
+                        console.log("🔐 Decrypting edited message content");
+                        decryptedContent = await DecryptMessage(
+                            messageData.content,
+                            envolopDecryptKey
+                        );
+                        console.log("✅ Decrypted edited message:", decryptedContent);
+                    }
+                } catch (error) {
+                    console.error("❌ Failed to decrypt edited message:", error);
+                }
+            }
+
+            // Decrypt replyTo message content if exists
+            let decryptedReplyTo = messageData.replyTo;
+            if (messageData.replyTo && messageData.replyTo.content && privateKey) {
+                try {
+                    const replyEnvolop = (messageData.replyTo.senderId?.toString() === userId)
+                        ? messageData.replyTo.sender_envolop
+                        : messageData.replyTo.receiver_envolop;
+
+                    if (replyEnvolop) {
+                        console.log("🔐 Decrypting edited message reply envelope");
+                        const replyEnvolopKey = await DecryptEnvolop.decryptEnvelope(
+                            replyEnvolop,
+                            privateKey
+                        );
+
+                        console.log("🔐 Decrypting edited message reply content");
+                        const decryptedReplyContent = await DecryptMessage(
+                            messageData.replyTo.content,
+                            replyEnvolopKey
+                        );
+                        console.log("✅ Decrypted edited message reply:", decryptedReplyContent);
+
+                        decryptedReplyTo = {
+                            ...messageData.replyTo,
+                            content: decryptedReplyContent
+                        };
+                    }
+                } catch (error) {
+                    console.error("❌ Failed to decrypt edited message reply:", error);
+                }
+            }
+
             setMessages((prev) => {
                 const updated = prev.map((msg) => {
                     if (
@@ -515,7 +622,8 @@ export default function ChatDetailScreen() {
                     ) {
                         return {
                             ...msg,
-                            text: messageData.content || msg.text,
+                            text: decryptedContent || msg.text,
+                            replyTo: decryptedReplyTo || msg.replyTo,
                             isEdited: true,
                             editedAt: messageData.editedAt || new Date().toISOString(),
                         };
@@ -662,7 +770,7 @@ export default function ChatDetailScreen() {
                         try {
                             console.log("🔐 Decrypting envolop:", envolop);
                             // if(msg.senderId.toString() === userId){
-                                envolopDecryptKey = await DecryptEnvolop.decryptEnvelope(
+                            envolopDecryptKey = await DecryptEnvolop.decryptEnvelope(
                                 envolop,
                                 privateKey
                             );
@@ -693,6 +801,40 @@ export default function ChatDetailScreen() {
                         }
                     }
 
+                    // Decrypt replyTo message content if exists
+                    let decryptedReplyTo = msg.replyTo;
+                    if (msg.replyTo && msg.replyTo.content && privateKey) {
+                        try {
+                            // Get envelope for reply message
+                            const replyEnvolop = (msg.replyTo.senderId?.toString() === userId)
+                                ? msg.replyTo.sender_envolop || null
+                                : msg.replyTo.receiver_envolop || null;
+
+                            if (replyEnvolop) {
+                                console.log("🔐 Decrypting reply envelope");
+                                const replyEnvolopKey = await DecryptEnvolop.decryptEnvelope(
+                                    replyEnvolop,
+                                    privateKey
+                                );
+
+                                console.log("🔐 Decrypting reply message:", msg.replyTo.content);
+                                const decryptedReplyContent = await DecryptMessage(
+                                    msg.replyTo.content,
+                                    replyEnvolopKey
+                                );
+                                console.log("✅ Decrypted reply text:", decryptedReplyContent);
+
+                                decryptedReplyTo = {
+                                    ...msg.replyTo,
+                                    content: decryptedReplyContent
+                                };
+                            }
+                        } catch (error) {
+                            console.error("❌ Failed to decrypt reply message:", error);
+                            // Keep encrypted reply content if decryption fails
+                        }
+                    }
+
                     return {
                         id:
                             msg.chatMessageId?.toString() ||
@@ -715,7 +857,7 @@ export default function ChatDetailScreen() {
                         isDeleted: msg.content === null || msg.isDeleted === true,
                         deletedAt:
                             msg.deletedAt || (msg.content === null ? msg.sentAt : null),
-                        replyTo: msg.replyTo || null,
+                        replyTo: decryptedReplyTo,
                         attachments: (msg.attachments || []).map((att) => ({
                             fileURL: att.fileURL || att.fileUrl,
                             fileType: att.fileType,

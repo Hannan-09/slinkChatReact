@@ -11,7 +11,8 @@ import {
     IoImages,
     IoPlayCircle,
     IoDocumentText,
-    IoMic
+    IoMic,
+    IoCamera
 } from 'react-icons/io5';
 import { Colors } from '../constants/Colors';
 import { ApiUtils, UserAPI } from '../services/AuthService';
@@ -193,8 +194,16 @@ export default function ChatsScreen() {
                     ? response
                     : [];
 
-            const transformedChatRooms =
-                roomsData.map((room) => {
+            // Import decryption services
+            const EncryptionService = (await import('../services/EncryptionService')).default;
+            const { decryptEnvelope } = await import('../scripts/decryptEnvelope');
+            const { decryptMessage } = await import('../scripts/decryptMessage');
+
+            const privateKey = EncryptionService.decrypt(localStorage.getItem("decryptedBackendData"));
+            const userIdString = localStorage.getItem("userId");
+
+            const transformedChatRooms = await Promise.all(
+                roomsData.map(async (room) => {
                     // Determine which user is the "other" user (not the current user)
                     const isCurrentUserUser1 = room.userId === finalUserId;
                     const otherUserName = isCurrentUserUser1
@@ -221,9 +230,44 @@ export default function ChatsScreen() {
                             ? room.unseenMessageCount
                             : room.unreadCount || 0;
 
-                    // Message preview: show last message content, fallback to time or empty state
-                    const lastMessageContent =
-                        (lastMessage && lastMessage.content) || room.lastMessageText || '';
+                    // Decrypt last message content if encrypted
+                    let lastMessageContent = (lastMessage && lastMessage.content) || room.lastMessageText || '';
+
+                    if (lastMessage && lastMessage.content && privateKey) {
+                        try {
+                            const envolop = (lastMessage.senderId?.toString() === userIdString)
+                                ? lastMessage.sender_envolop
+                                : lastMessage.receiver_envolop;
+
+                            if (envolop) {
+                                const envolopDecryptKey = await decryptEnvelope(envolop, privateKey);
+                                lastMessageContent = await decryptMessage(lastMessage.content, envolopDecryptKey);
+                            }
+                        } catch (error) {
+                            console.error("❌ Failed to decrypt last message:", error);
+                        }
+                    }
+
+                    // Decrypt replyTo content in last message if exists
+                    if (lastMessage && lastMessage.replyTo && lastMessage.replyTo.content && privateKey) {
+                        try {
+                            const replyEnvolop = (lastMessage.replyTo.senderId?.toString() === userIdString)
+                                ? lastMessage.replyTo.sender_envolop
+                                : lastMessage.replyTo.receiver_envolop;
+
+                            if (replyEnvolop) {
+                                const replyEnvolopKey = await decryptEnvelope(replyEnvolop, privateKey);
+                                const decryptedReplyContent = await decryptMessage(lastMessage.replyTo.content, replyEnvolopKey);
+                                // Update the replyTo object with decrypted content
+                                lastMessage.replyTo = {
+                                    ...lastMessage.replyTo,
+                                    content: decryptedReplyContent
+                                };
+                            }
+                        } catch (error) {
+                            console.error("❌ Failed to decrypt last message reply:", error);
+                        }
+                    }
 
                     // Attachment-aware preview: if no text but there are attachments, show type label
                     let previewType = 'text';
@@ -284,7 +328,8 @@ export default function ChatsScreen() {
                         previewType,
                         initials,
                     };
-                }) || [];
+                })
+            );
 
             if (isFirstPage || reset) {
                 setChatRooms(transformedChatRooms);
@@ -399,15 +444,27 @@ export default function ChatsScreen() {
                     </div>
                     <h1 className="text-2xl font-bold text-white">Chats</h1>
                 </div>
-                {/* Add friend / new chat button - navigate to dedicated Search Users page */}
-                <button
-                    onClick={() => navigate('/search')}
-                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70"
-                >
-                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
-                        <IoPersonAdd className="text-white text-lg sm:text-xl" />
-                    </div>
-                </button>
+                {/* Header buttons */}
+                <div className="flex items-center gap-3">
+                    {/* Add friend / new chat button */}
+                    <button
+                        onClick={() => navigate('/search')}
+                        className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70"
+                    >
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
+                            <IoPersonAdd className="text-white text-lg sm:text-xl" />
+                        </div>
+                    </button>
+
+                    {/* Settings button */}
+                    <button
+                        className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70"
+                    >
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
+                            <IoSettingsOutline className="text-white text-lg sm:text-xl" />
+                        </div>
+                    </button>
+                </div>
             </div>
 
             {/* Search Bar - glassy, same background style as bottom nav */}
@@ -542,6 +599,12 @@ export default function ChatsScreen() {
                     </div>
                 </button>
 
+                <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 animate-pulse">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                        <IoCamera className="text-white text-3xl" />
+                    </div>
+                </button>
+
                 {/* Placeholder middle icon */}
                 <button
                     onClick={() => navigate('/call-history')}
@@ -561,12 +624,7 @@ export default function ChatsScreen() {
                     </div>
                 </button>
 
-                {/* Settings */}
-                <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] border border-black/70 shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] hover:bg-[#1d1d1d] transition-colors">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
-                        <IoSettingsOutline className="text-gray-300 text-2xl" />
-                    </div>
-                </button>
+
             </div>
         </div>
     );

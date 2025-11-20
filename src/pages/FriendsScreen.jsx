@@ -10,6 +10,7 @@ import {
     IoCheckmark,
     IoChatbubblesOutline,
     IoCamera,
+    IoCall,
     IoPeople,
     IoSettingsOutline,
     IoMailOutline,
@@ -325,21 +326,19 @@ export default function FriendsScreen() {
             <div className="mx-5 mb-5 rounded-full p-1 flex bg-gradient-to-b from-white/16 via-white/10 to-white/6 border border-white/25 shadow-[0_22px_44px_rgba(0,0,0,0.98),0_0_0_1px_rgba(255,255,255,0.12),inset_0_3px_5px_rgba(255,255,255,0.26),inset_0_-4px_7px_rgba(0,0,0,0.92),inset_3px_0_4px_rgba(255,255,255,0.14),inset_-3px_0_4px_rgba(0,0,0,0.7)] backdrop-blur-2xl bg-clip-padding">
                 <button
                     onClick={() => setActiveTab('requests')}
-                    className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all ${
-                        activeTab === 'requests'
+                    className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all ${activeTab === 'requests'
                             ? 'bg-gradient-to-b from-[#252525] to-[#101010] text-white shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)]'
                             : 'text-gray-400'
-                    }`}
+                        }`}
                 >
                     Requests ({chatRequests.length})
                 </button>
                 <button
                     onClick={() => setActiveTab('search')}
-                    className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all ${
-                        activeTab === 'search'
+                    className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all ${activeTab === 'search'
                             ? 'bg-gradient-to-b from-[#252525] to-[#101010] text-white shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)]'
                             : 'text-gray-400'
-                    }`}
+                        }`}
                 >
                     Search
                 </button>
@@ -525,10 +524,19 @@ export default function FriendsScreen() {
                     </div>
                 </button>
 
-                {/* Placeholder middle icon */}
+                {/* Camera */}
                 <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 hover:bg-[#1d1d1d] transition-colors">
                     <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
                         <IoCamera className="text-gray-300 text-2xl" />
+                    </div>
+                </button>
+
+                {/* Call History */}
+                <button
+                    onClick={() => navigate('/call-history')}
+                    className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] border border-black/70 shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] hover:bg-[#1d1d1d] transition-colors">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                        <IoCall className="text-gray-300 text-2xl" />
                     </div>
                 </button>
 
@@ -536,13 +544,6 @@ export default function FriendsScreen() {
                 <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 animate-pulse">
                     <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
                         <IoPeople className="text-white text-3xl" />
-                    </div>
-                </button>
-
-                {/* Settings */}
-                <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 hover:bg-[#1d1d1d] transition-colors">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
-                        <IoSettingsOutline className="text-gray-300 text-2xl" />
                     </div>
                 </button>
             </div>
