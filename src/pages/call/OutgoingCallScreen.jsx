@@ -4,6 +4,7 @@ import { IoCall } from 'react-icons/io5';
 
 export default function OutgoingCallScreen() {
     const navigate = useNavigate();
+    const toast = useToast();
     const [searchParams] = useSearchParams();
 
     const receiverId = searchParams.get('receiverId') || '';
@@ -31,7 +32,7 @@ export default function OutgoingCallScreen() {
                     }, 2000);
                 } catch (error) {
                     console.error('Error initiating call:', error);
-                    alert('Failed to initiate call. Please check your connection and try again.');
+                    toast.error('Failed to initiate call. Please check your connection and try again.');
                     navigate(-1);
                 }
             })();

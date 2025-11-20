@@ -1,10 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IoArrowBack, IoCamera, IoPerson, IoLockClosed, IoLogOut, IoCheckmark, IoClose } from 'react-icons/io5';
 import { ApiUtils, AuthAPI } from '../services/AuthService';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function SettingsScreen() {
     const navigate = useNavigate();
+    const toast = useToast();
+    const fileInputRef = useRef(null);
     const [currentUserId, setCurrentUserId] = useState(null);
     const [userProfile, setUserProfile] = useState({
         firstName: '',
@@ -14,12 +18,15 @@ export default function SettingsScreen() {
     });
     const [isEditing, setIsEditing] = useState(false);
     const [editedProfile, setEditedProfile] = useState({});
+    const [selectedAvatar, setSelectedAvatar] = useState(null);
+    const [avatarPreview, setAvatarPreview] = useState(null);
     const [showChangePassword, setShowChangePassword] = useState(false);
     const [passwordData, setPasswordData] = useState({
         currentPassword: '',
         newPassword: '',
         confirmPassword: '',
     });
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
     useEffect(() => {
         loadUserProfile();
@@ -30,26 +37,62 @@ export default function SettingsScreen() {
             const userId = await ApiUtils.getCurrentUserId();
             setCurrentUserId(userId);
 
-            // Get data from localStorage
+            // Fetch profile from API
+            const result = await UserAPI.getProfile(userId);
+
+            if (result.success && result.data?.data) {
+                const profileData = result.data.data;
+
+                setUserProfile({
+                    firstName: profileData.firstName || '',
+                    lastName: profileData.lastName || '',
+                    username: profileData.username || '',
+                    avatar: profileData.profileURL || 'https://via.placeholder.com/150',
+                });
+                setEditedProfile({
+                    firstName: profileData.firstName || '',
+                    lastName: profileData.lastName || '',
+                });
+
+                // Update localStorage with fresh data
+                if (profileData.firstName) localStorage.setItem('firstName', profileData.firstName);
+                if (profileData.lastName) localStorage.setItem('lastName', profileData.lastName);
+                if (profileData.username) localStorage.setItem('username', profileData.username);
+            } else {
+                // Fallback to localStorage if API fails
+                const firstName = localStorage.getItem('firstName') || '';
+                const lastName = localStorage.getItem('lastName') || '';
+                const username = localStorage.getItem('username') || '';
+
+                setUserProfile({
+                    firstName,
+                    lastName,
+                    username,
+                    avatar: 'https://via.placeholder.com/150',
+                });
+                setEditedProfile({
+                    firstName,
+                    lastName,
+                });
+            }
+        } catch (error) {
+            console.error('Error loading profile:', error);
+
+            // Fallback to localStorage on error
             const firstName = localStorage.getItem('firstName') || '';
             const lastName = localStorage.getItem('lastName') || '';
             const username = localStorage.getItem('username') || '';
-
-            const userData = await ApiUtils.getStoredUser();
-            const avatar = userData?.profilePicture || 'https://via.placeholder.com/150';
 
             setUserProfile({
                 firstName,
                 lastName,
                 username,
-                avatar,
+                avatar: 'https://via.placeholder.com/150',
             });
             setEditedProfile({
                 firstName,
                 lastName,
             });
-        } catch (error) {
-            console.error('Error loading profile:', error);
         }
     };
 
@@ -63,6 +106,8 @@ export default function SettingsScreen() {
             firstName: userProfile.firstName,
             lastName: userProfile.lastName,
         });
+        setSelectedAvatar(null);
+        setAvatarPreview(null);
     };
 
     const handleSaveProfile = async () => {
@@ -71,33 +116,38 @@ export default function SettingsScreen() {
                 currentUserId,
                 editedProfile.firstName,
                 editedProfile.lastName,
-                null // profileImage - will be added when avatar upload is implemented
+                selectedAvatar // Pass the selected avatar file
             );
 
             if (result.success) {
                 setUserProfile(prev => ({
                     ...prev,
-                    ...editedProfile
+                    ...editedProfile,
+                    avatar: avatarPreview || prev.avatar
                 }));
                 setIsEditing(false);
-                alert('Profile updated successfully!');
+                setSelectedAvatar(null);
+                setAvatarPreview(null);
+                toast.success('Profile updated successfully!');
+                // Reload profile to get updated data from server
+                loadUserProfile();
             } else {
-                alert(result.error || 'Failed to update profile');
+                toast.error(result.error || 'Failed to update profile');
             }
         } catch (error) {
             console.error('Error updating profile:', error);
-            alert('Failed to update profile');
+            toast.error('Failed to update profile');
         }
     };
 
     const handleChangePassword = async () => {
         if (passwordData.newPassword !== passwordData.confirmPassword) {
-            alert('New passwords do not match');
+            toast.warning('New passwords do not match');
             return;
         }
 
         if (!passwordData.currentPassword || !passwordData.newPassword) {
-            alert('Please fill in all password fields');
+            toast.warning('Please fill in all password fields');
             return;
         }
 
@@ -109,28 +159,65 @@ export default function SettingsScreen() {
             );
 
             if (result.success) {
-                alert('Password updated successfully!');
+                toast.success('Password updated successfully!');
                 setShowChangePassword(false);
                 setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
             } else {
-                alert(result.error || 'Failed to update password');
+                toast.error(result.error || 'Failed to update password');
             }
         } catch (error) {
             console.error('Error updating password:', error);
-            alert('Failed to update password');
+            toast.error('Failed to update password');
         }
     };
 
-    const handleLogout = async () => {
-        if (confirm('Are you sure you want to logout?')) {
-            await AuthAPI.logout();
-            navigate('/login');
-        }
+    const handleLogout = () => {
+        setShowLogoutConfirm(true);
+    };
+
+    const confirmLogout = async () => {
+        setShowLogoutConfirm(false);
+        await AuthAPI.logout();
+        navigate('/login');
+    };
+
+    const cancelLogout = () => {
+        setShowLogoutConfirm(false);
     };
 
     const handleAvatarChange = () => {
-        // TODO: Implement avatar upload
-        alert('Avatar upload coming soon!');
+        fileInputRef.current?.click();
+    };
+
+    const handleFileSelect = (event) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                toast.warning('Please select an image file');
+                return;
+            }
+
+            // Validate file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                toast.warning('Image size should be less than 5MB');
+                return;
+            }
+
+            setSelectedAvatar(file);
+
+            // Create preview
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setAvatarPreview(reader.result);
+            };
+            reader.readAsDataURL(file);
+
+            // Automatically enable edit mode when avatar is selected
+            if (!isEditing) {
+                setIsEditing(true);
+            }
+        }
     };
 
     return (
@@ -157,11 +244,21 @@ export default function SettingsScreen() {
                     <div className="flex flex-col items-center mb-6">
                         <div className="relative">
                             <div className="w-24 h-24 rounded-full bg-gradient-to-b from-[#2e2e2e] via-[#151515] to-[#050505] border border-white/25 shadow-[0_18px_32px_rgba(0,0,0,0.9),inset_0_2px_3px_rgba(255,255,255,0.18),inset_0_-3px_6px_rgba(0,0,0,0.9)] flex items-center justify-center overflow-hidden">
-                                <img
-                                    src={userProfile.avatar}
-                                    alt="Profile"
-                                    className="w-full h-full object-cover"
-                                />
+                                {avatarPreview || userProfile.avatar ? (
+                                    <img
+                                        src={avatarPreview || userProfile.profileURL}
+                                        alt="Profile"
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                            console.error('Avatar load error:', avatarPreview || userProfile.avatar);
+                                            e.target.style.display = 'none';
+                                        }}
+                                    />
+                                ) : (
+                                    <span className="text-3xl font-bold text-white">
+                                        {((userProfile.firstName?.[0] || '') + (userProfile.lastName?.[0] || '')).toUpperCase() || 'U'}
+                                    </span>
+                                )}
                             </div>
                             <button
                                 onClick={handleAvatarChange}
@@ -169,6 +266,14 @@ export default function SettingsScreen() {
                             >
                                 <IoCamera className="text-white text-sm" />
                             </button>
+                            {/* Hidden file input */}
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handleFileSelect}
+                                className="hidden"
+                            />
                         </div>
                         <h2 className="text-white text-xl font-bold mt-4">
                             {userProfile.firstName} {userProfile.lastName}
@@ -300,6 +405,19 @@ export default function SettingsScreen() {
                     </button>
                 </div>
             </div>
+
+            {/* Logout Confirmation Dialog */}
+            {showLogoutConfirm && (
+                <ConfirmDialog
+                    title="Logout"
+                    message="Are you sure you want to logout? You will need to login again to access your account."
+                    confirmText="Logout"
+                    cancelText="Cancel"
+                    type="warning"
+                    onConfirm={confirmLogout}
+                    onCancel={cancelLogout}
+                />
+            )}
         </div>
     );
 }

@@ -15,12 +15,17 @@ import {
 } from 'react-icons/io5';
 import { Colors } from '../constants/Colors';
 import { ChatRequestAPI, ApiUtils } from '../services/AuthService';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function RequestsScreen() {
     const navigate = useNavigate();
+    const toast = useToast();
     const [sentRequests, setSentRequests] = useState([]);
     const [receivedRequests, setReceivedRequests] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
     const [activeTab, setActiveTab] = useState('received');
     const [currentUserId, setCurrentUserId] = useState(null);
 
@@ -71,7 +76,7 @@ export default function RequestsScreen() {
             }
         } catch (error) {
             console.error('Error loading requests:', error);
-            alert('Failed to load chat requests');
+            toast.error('Failed to load chat requests');
             setReceivedRequests([]);
             setSentRequests([]);
         } finally {
@@ -87,13 +92,13 @@ export default function RequestsScreen() {
             );
 
             if (result.success) {
-                alert('Chat request accepted!');
+                toast.success('Chat request accepted!');
                 loadRequests(currentUserId);
             } else {
-                alert(result.error || 'Failed to accept request');
+                toast.error(result.error || 'Failed to accept request');
             }
         } catch (error) {
-            alert('Failed to accept request');
+            toast.error('Failed to accept request');
         }
     };
 
@@ -105,32 +110,47 @@ export default function RequestsScreen() {
             );
 
             if (result.success) {
-                alert('Chat request rejected');
+                toast.success('Chat request rejected');
                 loadRequests(currentUserId);
             } else {
-                alert(result.error || 'Failed to reject request');
+                toast.error(result.error || 'Failed to reject request');
             }
         } catch (error) {
-            alert('Failed to reject request');
+            toast.error('Failed to reject request');
         }
     };
 
-    const deleteRequest = async (chatRequestId) => {
+    const handleDeleteClick = (chatRequestId) => {
+        setDeleteTarget(chatRequestId);
+        setShowDeleteConfirm(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+
+        setShowDeleteConfirm(false);
         try {
             const result = await ChatRequestAPI.deleteChatRequest(
-                chatRequestId,
+                deleteTarget,
                 currentUserId
             );
 
             if (result.success) {
-                alert('Chat request deleted');
+                toast.success('Chat request deleted');
                 loadRequests(currentUserId);
             } else {
-                alert(result.error || 'Failed to delete request');
+                toast.error(result.error || 'Failed to delete request');
             }
         } catch (error) {
-            alert('Failed to delete request');
+            toast.error('Failed to delete request');
+        } finally {
+            setDeleteTarget(null);
         }
+    };
+
+    const cancelDelete = () => {
+        setShowDeleteConfirm(false);
+        setDeleteTarget(null);
     };
 
     const currentRequests = activeTab === 'received' ? receivedRequests : sentRequests;
@@ -170,8 +190,8 @@ export default function RequestsScreen() {
                 <button
                     onClick={() => setActiveTab('received')}
                     className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all ${activeTab === 'received'
-                            ? 'bg-gradient-to-b from-[#252525] to-[#101010] text-white shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)]'
-                            : 'text-gray-400'
+                        ? 'bg-gradient-to-b from-[#252525] to-[#101010] text-white shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)]'
+                        : 'text-gray-400'
                         }`}
                 >
                     Received ({receivedRequests.length})
@@ -179,8 +199,8 @@ export default function RequestsScreen() {
                 <button
                     onClick={() => setActiveTab('sent')}
                     className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all ${activeTab === 'sent'
-                            ? 'bg-gradient-to-b from-[#252525] to-[#101010] text-white shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)]'
-                            : 'text-gray-400'
+                        ? 'bg-gradient-to-b from-[#252525] to-[#101010] text-white shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)]'
+                        : 'text-gray-400'
                         }`}
                 >
                     Sent ({sentRequests.length})
@@ -267,7 +287,7 @@ export default function RequestsScreen() {
                                 </div>
                             ) : (
                                 <button
-                                    onClick={() => deleteRequest(item.chatRequestId)}
+                                    onClick={() => handleDeleteClick(item.chatRequestId)}
                                     className="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 transition-transform hover:scale-105"
                                 >
                                     <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
@@ -315,6 +335,19 @@ export default function RequestsScreen() {
                     </div>
                 </button>
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            {showDeleteConfirm && (
+                <ConfirmDialog
+                    title="Delete Request"
+                    message="Are you sure you want to delete this chat request? This action cannot be undone."
+                    confirmText="Delete"
+                    cancelText="Cancel"
+                    type="danger"
+                    onConfirm={confirmDelete}
+                    onCancel={cancelDelete}
+                />
+            )}
         </div>
     );
 }

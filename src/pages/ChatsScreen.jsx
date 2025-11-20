@@ -18,10 +18,12 @@ import { Colors } from '../constants/Colors';
 import { ApiUtils, UserAPI } from '../services/AuthService';
 import chatApiService from '../services/ChatApiService';
 import { useWebSocket } from '../contexts/WebSocketContext';
+import { useToast } from '../contexts/ToastContext';
 
 export default function ChatsScreen() {
     const navigate = useNavigate();
     const socket = useWebSocket();
+    const toast = useToast();
     const [chatRooms, setChatRooms] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -343,7 +345,7 @@ export default function ChatsScreen() {
             }
 
             if (!finalUserId) {
-                alert('User not logged in. Please login again.');
+                toast.error('User not logged in. Please login again.');
                 navigate('/login');
                 return;
             }
@@ -601,7 +603,8 @@ export default function ChatsScreen() {
                                 <img
                                     src={userProfile.avatarUrl}
                                     alt="Profile"
-                                    className="w-7 h-7 rounded-full object-cover"
+                                    onClick={() => navigate('/settings')}
+                                    className="w-7 h-7 rounded-full cursor-pointer object-cover"
                                     onError={(e) => {
                                         e.target.onerror = null;
                                         e.target.src =
@@ -626,16 +629,6 @@ export default function ChatsScreen() {
                     >
                         <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
                             <IoPersonAdd className="text-white text-lg sm:text-xl" />
-                        </div>
-                    </button>
-
-                    {/* Settings button */}
-                    <button
-                        onClick={() => navigate('/settings')}
-                        className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70"
-                    >
-                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
-                            <IoSettingsOutline className="text-white text-lg sm:text-xl" />
                         </div>
                     </button>
                 </div>
@@ -773,7 +766,9 @@ export default function ChatsScreen() {
                     </div>
                 </button>
 
-                <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 animate-pulse">
+                <button
+                    onClick={() => navigate('/camera')}
+                    className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 animate-pulse hover:bg-[#1d1d1d] transition-colors">
                     <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
                         <IoCamera className="text-white text-3xl" />
                     </div>

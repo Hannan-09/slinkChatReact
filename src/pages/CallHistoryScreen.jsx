@@ -3,9 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { IoArrowBack, IoCall, IoVideocam, IoTrash, IoCheckmark, IoClose, IoPhonePortrait, IoChatbubblesOutline, IoCamera, IoTime, IoPeopleOutline } from 'react-icons/io5';
 import { CallHistoryAPI } from '../services/CallHistoryService';
 import { ApiUtils } from '../services/AuthService';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function CallHistoryScreen() {
     const navigate = useNavigate();
+    const toast = useToast();
     const [callHistory, setCallHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentUserId, setCurrentUserId] = useState(null);
@@ -13,6 +16,8 @@ export default function CallHistoryScreen() {
     const [hasMore, setHasMore] = useState(true);
     const [filter, setFilter] = useState('ALL');
     const containerRef = useRef(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteCallId, setDeleteCallId] = useState(null);
 
     useEffect(() => {
         const getUserId = async () => {
@@ -70,17 +75,34 @@ export default function CallHistoryScreen() {
         }
     };
 
-    const handleDelete = async (callHistoryId) => {
-        if (!confirm('Delete this call from history?')) return;
+    const handleDeleteClick = (callHistoryId) => {
+        setDeleteCallId(callHistoryId);
+        setShowDeleteConfirm(true);
+    };
 
+    const confirmDelete = async () => {
+        if (!deleteCallId) return;
+
+        setShowDeleteConfirm(false);
         try {
-            const result = await CallHistoryAPI.deleteCallHistory(callHistoryId, currentUserId);
+            const result = await CallHistoryAPI.deleteCallHistory(deleteCallId, currentUserId);
             if (result.success) {
-                setCallHistory(prev => prev.filter(call => call.callHistoryId !== callHistoryId));
+                setCallHistory(prev => prev.filter(call => call.callHistoryId !== deleteCallId));
+                toast.success('Call deleted from history');
+            } else {
+                toast.error('Failed to delete call');
             }
         } catch (error) {
             console.error('Error deleting call:', error);
+            toast.error('Failed to delete call');
+        } finally {
+            setDeleteCallId(null);
         }
+    };
+
+    const cancelDelete = () => {
+        setShowDeleteConfirm(false);
+        setDeleteCallId(null);
     };
 
     const formatCallTime = (timestamp) => {
@@ -220,7 +242,7 @@ export default function CallHistoryScreen() {
 
                                         {/* Delete Button */}
                                         <button
-                                            onClick={() => handleDelete(call.callHistoryId)}
+                                            onClick={() => handleDeleteClick(call.callHistoryId)}
                                             className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] border border-black/70 shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] hover:border-red-500/50 transition-colors"
                                         >
                                             <IoTrash className="text-red-500 text-lg" />
@@ -275,6 +297,19 @@ export default function CallHistoryScreen() {
                     </div>
                 </button>
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            {showDeleteConfirm && (
+                <ConfirmDialog
+                    title="Delete Call"
+                    message="Are you sure you want to delete this call from history? This action cannot be undone."
+                    confirmText="Delete"
+                    cancelText="Cancel"
+                    type="danger"
+                    onConfirm={confirmDelete}
+                    onCancel={cancelDelete}
+                />
+            )}
         </div>
     );
 }

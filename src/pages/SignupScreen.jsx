@@ -14,9 +14,11 @@ import {
 import { Colors } from '../constants/Colors';
 import { AuthAPI } from '../services/AuthService';
 import EncryptionService from '../services/EncryptionService';
+import { useToast } from '../contexts/ToastContext';
 
 export default function SignupScreen() {
     const navigate = useNavigate();
+    const toast = useToast();
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [username, setUsername] = useState('');
@@ -105,7 +107,7 @@ export default function SignupScreen() {
 
                 setShowPrivateKeyModal(false);
 
-                alert('Registration Complete! Your account and private key have been created successfully. Please log in to access your chats.');
+                toast.success('Registration Complete! Please log in to access your chats.');
                 navigate('/login');
             } else {
                 setPrivateKeyError(result.error || 'Failed to register private key on server');
@@ -160,10 +162,10 @@ export default function SignupScreen() {
                     }, 300);
                 }, 3000);
             } else {
-                alert(result.error || 'Registration Failed');
+                toast.error(result.error || 'Registration Failed');
             }
         } catch (error) {
-            alert('An unexpected error occurred. Please try again.');
+            toast.error('An unexpected error occurred. Please try again.');
         } finally {
             setLoading(false);
         }

@@ -4,9 +4,11 @@ import { IoMail, IoLockClosed, IoEye, IoEyeOff, IoKey, IoShieldCheckmark } from 
 import { Colors } from '../constants/Colors';
 import { AuthAPI } from '../services/AuthService';
 import EncryptionService from '../services/EncryptionService';
+import { useToast } from '../contexts/ToastContext';
 
 export default function LoginScreen() {
     const navigate = useNavigate();
+    const toast = useToast();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -34,10 +36,10 @@ export default function LoginScreen() {
             if (result.success) {
                 setShowPrivateKeyModal(true);
             } else {
-                alert(result.error || 'Login Failed');
+                toast.error(result.error || 'Login Failed');
             }
         } catch (error) {
-            alert('An unexpected error occurred. Please try again.');
+            toast.error('An unexpected error occurred. Please try again.');
         } finally {
             setLoading(false);
         }

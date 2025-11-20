@@ -4,6 +4,7 @@ import { IoClose, IoCall } from 'react-icons/io5';
 
 export default function IncomingCallScreen() {
     const navigate = useNavigate();
+    const toast = useToast();
     const [searchParams] = useSearchParams();
 
     const callerId = searchParams.get('callerId') || '';
@@ -54,7 +55,7 @@ export default function IncomingCallScreen() {
             setCallStatus('connecting');
         } catch (error) {
             console.error('Error accepting call:', error);
-            alert('Failed to accept call');
+            toast.error('Failed to accept call');
         }
     };
 

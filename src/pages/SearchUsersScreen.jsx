@@ -13,11 +13,13 @@ import {
     IoSettingsOutline,
     IoPersonAddOutline,
 } from 'react-icons/io5';
+import { useToast } from '../contexts/ToastContext';
 import { UserAPI, ChatRequestAPI, ApiUtils } from '../services/AuthService';
 import chatApiService from '../services/ChatApiService';
 
 export default function SearchUsersScreen() {
     const navigate = useNavigate();
+    const toast = useToast();
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [searchLoading, setSearchLoading] = useState(false);
@@ -40,7 +42,7 @@ export default function SearchUsersScreen() {
 
         if (!currentUserId) {
             console.error('Current user ID not available for search');
-            alert('User not logged in');
+            toast.error('User not logged in');
             return;
         }
 
@@ -81,12 +83,12 @@ export default function SearchUsersScreen() {
                 setSearchResults(transformedUsers);
             } else {
                 console.error('Search failed:', result.error);
-                alert(result.error || 'Failed to search users');
+                toast.error(result.error || 'Failed to search users');
                 setSearchResults([]);
             }
         } catch (error) {
             console.error('Search error:', error);
-            alert('Failed to search users. Please try again.');
+            toast.error('Failed to search users. Please try again.');
             setSearchResults([]);
         } finally {
             setSearchLoading(false);
@@ -113,7 +115,7 @@ export default function SearchUsersScreen() {
     const startChat = async (friend) => {
         try {
             if (!currentUserId) {
-                alert('User not logged in');
+                toast.error('User not logged in');
                 return;
             }
 
@@ -138,13 +140,13 @@ export default function SearchUsersScreen() {
             );
         } catch (error) {
             console.error('Error starting chat:', error);
-            alert('Failed to start chat');
+            toast.error('Failed to start chat');
         }
     };
 
     const sendChatRequest = async (receiverId) => {
         if (!currentUserId) {
-            alert('User not logged in');
+            toast.error('User not logged in');
             return;
         }
 
@@ -159,7 +161,7 @@ export default function SearchUsersScreen() {
                 requestData
             );
             if (result.success) {
-                alert('Chat request sent!');
+                toast.success('Chat request sent!');
                 setSearchResults((prev) =>
                     prev.map((user) =>
                         user.id === receiverId
@@ -172,10 +174,10 @@ export default function SearchUsersScreen() {
                     )
                 );
             } else {
-                alert(result.error || 'Failed to send chat request');
+                toast.error(result.error || 'Failed to send chat request');
             }
         } catch (error) {
-            alert('Failed to send chat request');
+            toast.error('Failed to send chat request');
         }
     };
 

@@ -43,6 +43,8 @@ import {
     useWebSocket,
     useUserOnlineStatus,
 } from "../contexts/WebSocketContext";
+import { useToast } from '../contexts/ToastContext';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 // WhatsApp-style Audio Player Component
 const WhatsAppAudioPlayer = ({ audioUrl, isMe }) => {
@@ -167,7 +169,10 @@ const TypingIndicator = () => {
 
 export default function ChatDetailScreen() {
     const navigate = useNavigate();
+    const toast = useToast();
     const { id } = useParams();
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteMessageId, setDeleteMessageId] = useState(null);
     const [searchParams] = useSearchParams();
 
     const name = searchParams.get("name") || "Unknown";
@@ -1004,7 +1009,7 @@ export default function ChatDetailScreen() {
 
         try {
             if (!currentUserId || !chatRoomId || !receiverUserId) {
-                alert("Missing required information");
+                toast.error("Missing required information");
                 return;
             }
 
@@ -1075,14 +1080,14 @@ export default function ChatDetailScreen() {
                     );
                 }
             } else {
-                alert("WebSocket not connected. Please wait and try again.");
+                toast.warning("WebSocket not connected. Please wait and try again.");
             }
 
             // Auto scroll
             setTimeout(() => scrollToBottom(), 100);
         } catch (error) {
             console.error("❌ Error sending message:", error);
-            alert("Failed to send message");
+            toast.error("Failed to send message");
         }
     };
 
@@ -1104,20 +1109,34 @@ export default function ChatDetailScreen() {
         }
     };
 
-    // Delete message
+    // Delete message - show confirmation
     const handleDeleteMessage = (messageId) => {
         if (!messageId || !currentUserId || !chatRoomId) return;
+        setDeleteMessageId(messageId);
+        setShowDeleteConfirm(true);
+    };
 
-        if (!confirm("Are you sure you want to delete this message?")) return;
-        const destination = `/app/chat/delete/${chatRoomId}/${messageId}/${currentUserId}`;
+    const confirmDeleteMessage = () => {
+        if (!deleteMessageId) return;
+
+        const destination = `/app/chat/delete/${chatRoomId}/${deleteMessageId}/${currentUserId}`;
         const success = publish(destination, {});
 
         if (success) {
             setShowMessageMenu(null);
             setSelectedMessage(null);
+            toast.success("Message deleted");
         } else {
-            alert("Failed to delete message");
+            toast.error("Failed to delete message");
         }
+
+        setShowDeleteConfirm(false);
+        setDeleteMessageId(null);
+    };
+
+    const cancelDeleteMessage = () => {
+        setShowDeleteConfirm(false);
+        setDeleteMessageId(null);
     };
 
     // Start editing a message
@@ -1161,7 +1180,7 @@ export default function ChatDetailScreen() {
                     })
                 );
             } else {
-                alert("Failed to edit message");
+                toast.error("Failed to edit message");
             }
         }
 
@@ -1199,7 +1218,7 @@ export default function ChatDetailScreen() {
                 .writeText(text)
                 .then(() => {
                     setShowMessageMenu(null);
-                    alert("Message copied!");
+                    toast.success("Message copied!");
                 })
                 .catch((err) => {
                     // Fallback to older method
@@ -1224,9 +1243,9 @@ export default function ChatDetailScreen() {
         try {
             document.execCommand("copy");
             setShowMessageMenu(null);
-            alert("Message copied!");
+            toast.success("Message copied!");
         } catch (err) {
-            alert("Failed to copy message");
+            toast.error("Failed to copy message");
         }
 
         document.body.removeChild(textArea);
@@ -1257,7 +1276,7 @@ export default function ChatDetailScreen() {
             }, 100);
         } catch (error) {
             console.error("Error accessing camera:", error);
-            alert("Could not access camera. Please check permissions.");
+            toast.error("Could not access camera. Please check permissions.");
         }
     };
 
@@ -1470,7 +1489,7 @@ export default function ChatDetailScreen() {
             setTimeout(() => scrollToBottom(), 100);
         } catch (error) {
             console.error("Error sending message with attachments:", error);
-            alert("Failed to upload files");
+            toast.error("Failed to upload files");
         } finally {
             setUploadingFiles(false);
         }
@@ -1514,7 +1533,7 @@ export default function ChatDetailScreen() {
             }, 1000);
         } catch (error) {
             console.error("Error accessing microphone:", error);
-            alert("Could not access microphone. Please check permissions.");
+            toast.error("Could not access microphone. Please check permissions.");
         }
     };
 
@@ -1644,7 +1663,7 @@ export default function ChatDetailScreen() {
             setTimeout(() => scrollToBottom(), 100);
         } catch (error) {
             console.error("Error sending audio:", error);
-            alert("Failed to send audio");
+            toast.error("Failed to send audio");
         } finally {
             setUploadingFiles(false);
         }
@@ -1748,12 +1767,12 @@ export default function ChatDetailScreen() {
         console.log("WebSocket Connected:", connected);
 
         if (!connected) {
-            alert("WebSocket not connected. Please wait and try again.");
+            toast.warning("WebSocket not connected. Please wait and try again.");
             return;
         }
 
         if (!currentUserId) {
-            alert("Please wait for the app to load completely before making a call");
+            toast.warning("Please wait for the app to load completely before making a call");
             return;
         }
 
@@ -1866,39 +1885,45 @@ export default function ChatDetailScreen() {
                         </div>
                     </button>
 
-                    {/* Chat avatar - 3D ring around avatar */}
-                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full mr-2 sm:mr-4 bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_14px_22px_rgba(0,0,0,0.96),0_0_0_1px_rgba(255,255,255,0.14),inset_0_3px_4px_rgba(255,255,255,0.22),inset_0_-4px_7px_rgba(0,0,0,0.95),inset_3px_0_4px_rgba(255,255,255,0.18),inset_-3px_0_4px_rgba(0,0,0,0.8)] border border-black/70 flex-shrink-0 flex items-center justify-center">
-                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center">
-                            <img
-                                src={decodeURIComponent(avatar || "")}
-                                alt={name}
-                                className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover"
-                                onError={(e) => {
-                                    e.target.src = "https://via.placeholder.com/40";
-                                }}
-                            />
+                    {/* Chat avatar and info - Clickable */}
+                    <button
+                        onClick={() => navigate(`/user-profile/${receiverUserId}?chatRoomId=${chatRoomId}`)}
+                        className="flex items-center flex-1 min-w-0 hover:opacity-80 transition-opacity"
+                    >
+                        {/* Chat avatar - 3D ring around avatar */}
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full mr-2 sm:mr-4 bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_14px_22px_rgba(0,0,0,0.96),0_0_0_1px_rgba(255,255,255,0.14),inset_0_3px_4px_rgba(255,255,255,0.22),inset_0_-4px_7px_rgba(0,0,0,0.95),inset_3px_0_4px_rgba(255,255,255,0.18),inset_-3px_0_4px_rgba(0,0,0,0.8)] border border-black/70 flex-shrink-0 flex items-center justify-center">
+                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center">
+                                <img
+                                    src={decodeURIComponent(avatar || "")}
+                                    alt={name}
+                                    className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover"
+                                    onError={(e) => {
+                                        e.target.src = "https://via.placeholder.com/40";
+                                    }}
+                                />
+                            </div>
                         </div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <h2 className="text-white font-bold text-base sm:text-lg truncate">
-                            {name || "Unknown"}
-                        </h2>
-                        <p className="text-xs sm:text-sm truncate flex items-center">
-                            {typingUsers.length > 0 ? (
-                                <span className="text-blue-400 italic">Typing...</span>
-                            ) : isReceiverOnline ? (
-                                <>
-                                    <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>
-                                    <span className="text-green-400">Online</span>
-                                </>
-                            ) : (
-                                <>
-                                    <span className="inline-block w-2 h-2 bg-red-500 rounded-full mr-1.5"></span>
-                                    <span className="text-red-400">Offline</span>
-                                </>
-                            )}
-                        </p>
-                    </div>
+                        <div className="flex-1 min-w-0 text-left">
+                            <h2 className="text-white font-bold text-base sm:text-lg truncate">
+                                {name || "Unknown"}
+                            </h2>
+                            <p className="text-xs sm:text-sm truncate flex items-center">
+                                {typingUsers.length > 0 ? (
+                                    <span className="text-blue-400 italic">Typing...</span>
+                                ) : isReceiverOnline ? (
+                                    <>
+                                        <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>
+                                        <span className="text-green-400">Online</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="inline-block w-2 h-2 bg-red-500 rounded-full mr-1.5"></span>
+                                        <span className="text-red-400">Offline</span>
+                                    </>
+                                )}
+                            </p>
+                        </div>
+                    </button>
                 </div>
                 <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                     {/* Video call - 3D ring like add-friend button */}
@@ -3037,6 +3062,19 @@ export default function ChatDetailScreen() {
                         </div>
                     )}
                 </div>
+            )}
+
+            {/* Delete Message Confirmation Dialog */}
+            {showDeleteConfirm && (
+                <ConfirmDialog
+                    title="Delete Message"
+                    message="Are you sure you want to delete this message? This action cannot be undone."
+                    confirmText="Delete"
+                    cancelText="Cancel"
+                    type="danger"
+                    onConfirm={confirmDeleteMessage}
+                    onCancel={cancelDeleteMessage}
+                />
             )}
         </div>
     );

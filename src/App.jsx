@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { WebSocketProvider } from './contexts/WebSocketContext';
 import { CallProvider } from './contexts/CallContext';
+import { ToastProvider } from './contexts/ToastContext';
 import CallManager from './components/CallManager';
 import SplashScreen from './pages/SplashScreen';
 import PermissionsScreen from './pages/PermissionsScreen';
@@ -14,6 +15,8 @@ import ChatDetailScreen from './pages/ChatDetailScreen';
 import SearchUsersScreen from './pages/SearchUsersScreen';
 import CallHistoryScreen from './pages/CallHistoryScreen';
 import SettingsScreen from './pages/SettingsScreen';
+import CameraScreen from './pages/CameraScreen';
+import UserProfileScreen from './pages/UserProfileScreen';
 import { ApiUtils } from './services/AuthService';
 
 function App() {
@@ -30,27 +33,31 @@ function App() {
   }, []);
 
   return (
-    <WebSocketProvider>
-      <CallProvider currentUserId={currentUserId}>
-        <Router>
-          <CallManager />
-          <Routes>
-            <Route path="/" element={<SplashScreen />} />
-            <Route path="/permissions" element={<PermissionsScreen />} />
-            <Route path="/login" element={<LoginScreen />} />
-            <Route path="/signup" element={<SignupScreen />} />
-            <Route path="/home" element={<Navigate to="/chats" replace />} />
-            <Route path="/chats" element={<ChatsScreen />} />
-            <Route path="/search" element={<SearchUsersScreen />} />
-            <Route path="/friends" element={<FriendsScreen />} />
-            <Route path="/requests" element={<RequestsScreen />} />
-            <Route path="/chat/:id" element={<ChatDetailScreen />} />
-            <Route path="/call-history" element={<CallHistoryScreen />} />
-            <Route path="/settings" element={<SettingsScreen />} />
-          </Routes>
-        </Router>
-      </CallProvider>
-    </WebSocketProvider>
+    <ToastProvider>
+      <WebSocketProvider>
+        <CallProvider currentUserId={currentUserId}>
+          <Router>
+            <CallManager />
+            <Routes>
+              <Route path="/" element={<SplashScreen />} />
+              <Route path="/permissions" element={<PermissionsScreen />} />
+              <Route path="/login" element={<LoginScreen />} />
+              <Route path="/signup" element={<SignupScreen />} />
+              <Route path="/home" element={<Navigate to="/chats" replace />} />
+              <Route path="/chats" element={<ChatsScreen />} />
+              <Route path="/search" element={<SearchUsersScreen />} />
+              <Route path="/friends" element={<FriendsScreen />} />
+              <Route path="/requests" element={<RequestsScreen />} />
+              <Route path="/chat/:id" element={<ChatDetailScreen />} />
+              <Route path="/call-history" element={<CallHistoryScreen />} />
+              <Route path="/settings" element={<SettingsScreen />} />
+              <Route path="/camera" element={<CameraScreen />} />
+              <Route path="/user-profile/:userId" element={<UserProfileScreen />} />
+            </Routes>
+          </Router>
+        </CallProvider>
+      </WebSocketProvider>
+    </ToastProvider>
   );
 }
 
