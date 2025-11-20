@@ -65,9 +65,9 @@ export default function SearchUsersScreen() {
                     id: user.userId || user.id,
                     name:
                         `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
-                        user.userName ||
+                        user.username ||
                         'Unknown User',
-                    username: user.userName || '',
+                    username: user.username || '',
                     avatar:
                         user.profileURL ||
                         user.avatar ||

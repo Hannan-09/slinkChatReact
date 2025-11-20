@@ -131,7 +131,7 @@ export default function SignupScreen() {
             const userData = {
                 firstName: firstName.trim(),
                 lastName: lastName.trim(),
-                userName: username.trim(),
+                username: username.trim(),
                 password: password,
             };
 
@@ -142,7 +142,7 @@ export default function SignupScreen() {
                 try {
                     localStorage.setItem('user', JSON.stringify(userData));
                     localStorage.setItem('userId', userData.userId.toString());
-                    localStorage.setItem('userName', userData.userName);
+                    localStorage.setItem('username', userData.username);
                     localStorage.setItem('firstName', userData.firstName);
                     localStorage.setItem('lastName', userData.lastName);
                 } catch (storageError) {

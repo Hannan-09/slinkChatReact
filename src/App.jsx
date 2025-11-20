@@ -13,6 +13,7 @@ import RequestsScreen from './pages/RequestsScreen';
 import ChatDetailScreen from './pages/ChatDetailScreen';
 import SearchUsersScreen from './pages/SearchUsersScreen';
 import CallHistoryScreen from './pages/CallHistoryScreen';
+import SettingsScreen from './pages/SettingsScreen';
 import { ApiUtils } from './services/AuthService';
 
 function App() {
@@ -45,6 +46,7 @@ function App() {
             <Route path="/requests" element={<RequestsScreen />} />
             <Route path="/chat/:id" element={<ChatDetailScreen />} />
             <Route path="/call-history" element={<CallHistoryScreen />} />
+            <Route path="/settings" element={<SettingsScreen />} />
           </Routes>
         </Router>
       </CallProvider>

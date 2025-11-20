@@ -35,14 +35,14 @@ export default function ChatsScreen() {
     const [hasMore, setHasMore] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-    const buildInitials = (firstName, lastName, userName) => {
+    const buildInitials = (firstName, lastName, username) => {
         const safeFirst = (firstName || '').trim();
         const safeLast = (lastName || '').trim();
-        const safeUserName = (userName || '').trim();
+        const safeUsername = (username || '').trim();
 
         const firstInitial =
             (safeFirst && safeFirst.charAt(0)) ||
-            (safeUserName && safeUserName.charAt(0)) ||
+            (safeUsername && safeUsername.charAt(0)) ||
             '';
         const lastInitial = safeLast && safeLast.charAt(0);
 
@@ -67,7 +67,7 @@ export default function ChatsScreen() {
                 const initials = buildInitials(
                     profile.firstName,
                     profile.lastName,
-                    profile.userName
+                    profile.username
                 );
                 setUserProfile({
                     avatarUrl,
@@ -208,7 +208,7 @@ export default function ChatsScreen() {
                     const isCurrentUserUser1 = room.userId === finalUserId;
                     const otherUserName = isCurrentUserUser1
                         ? room.user2Name
-                        : room.userName;
+                        : room.username;
                     const otherUserId = isCurrentUserUser1 ? room.user2Id : room.userId;
                     const otherUserProfileURL = isCurrentUserUser1
                         ? room.user2ProfileURL
@@ -353,7 +353,7 @@ export default function ChatsScreen() {
             }
         } catch (error) {
             console.error('Error loading chat rooms:', error);
-            alert('Failed to load chat rooms');
+            // alert('Failed to load chat rooms');
             setChatRooms([]);
         } finally {
             setLoading(false);
@@ -458,6 +458,7 @@ export default function ChatsScreen() {
 
                     {/* Settings button */}
                     <button
+                        onClick={() => navigate('/settings')}
                         className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70"
                     >
                         <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">

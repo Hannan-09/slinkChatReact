@@ -39,9 +39,18 @@ class ChatApiService {
   // Generic fetch method with error handling
   async fetchWithErrorHandling(url, options = {}) {
     try {
+      // Try both accessToken and authToken for compatibility
+      const token =
+        localStorage.getItem("accessToken") ||
+        localStorage.getItem("authToken");
+
+      console.log("🔑 ChatApiService - Token found:", token ? "Yes" : "No");
+      console.log("🔗 ChatApiService - Request URL:", url);
+
       const response = await fetch(url, {
         headers: {
           "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
           ...options.headers,
         },
         ...options,
@@ -202,11 +211,14 @@ class ChatApiService {
   async uploadFiles(formData) {
     const url = `${this.baseUrl}/chat/file-upload`;
     try {
-      const token = localStorage.getItem("accessToken");
+      // Try both accessToken and authToken for compatibility
+      const token =
+        localStorage.getItem("accessToken") ||
+        localStorage.getItem("authToken");
       const response = await fetch(url, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...(token && { Authorization: `Bearer ${token}` }),
         },
         body: formData,
       });

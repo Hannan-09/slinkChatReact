@@ -116,9 +116,9 @@ export default function FriendsScreen() {
                     id: user.userId || user.id,
                     name:
                         `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
-                        user.userName ||
+                        user.username ||
                         'Unknown User',
-                    username: user.userName || '',
+                    username: user.username || '',
                     avatar:
                         user.profileURL ||
                         user.avatar ||
@@ -327,8 +327,8 @@ export default function FriendsScreen() {
                 <button
                     onClick={() => setActiveTab('requests')}
                     className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all ${activeTab === 'requests'
-                            ? 'bg-gradient-to-b from-[#252525] to-[#101010] text-white shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)]'
-                            : 'text-gray-400'
+                        ? 'bg-gradient-to-b from-[#252525] to-[#101010] text-white shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)]'
+                        : 'text-gray-400'
                         }`}
                 >
                     Requests ({chatRequests.length})
@@ -336,8 +336,8 @@ export default function FriendsScreen() {
                 <button
                     onClick={() => setActiveTab('search')}
                     className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all ${activeTab === 'search'
-                            ? 'bg-gradient-to-b from-[#252525] to-[#101010] text-white shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)]'
-                            : 'text-gray-400'
+                        ? 'bg-gradient-to-b from-[#252525] to-[#101010] text-white shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)]'
+                        : 'text-gray-400'
                         }`}
                 >
                     Search

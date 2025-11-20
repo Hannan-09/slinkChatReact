@@ -33,12 +33,27 @@ let authToken = null;
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
   async (config) => {
-    if (!authToken) {
-      authToken = localStorage.getItem("authToken");
-    }
+    // Skip token for login and register endpoints
+    const isPublicEndpoint =
+      config.url?.includes("/users/login") ||
+      config.url?.includes("/users/register");
 
-    if (authToken) {
-      config.headers.Authorization = `Bearer ${authToken}`;
+    if (!isPublicEndpoint) {
+      // Try both authToken and accessToken for compatibility
+      if (!authToken) {
+        authToken =
+          localStorage.getItem("authToken") ||
+          localStorage.getItem("accessToken");
+      }
+
+      if (authToken) {
+        config.headers.Authorization = `Bearer ${authToken}`;
+        console.log("🔑 JWT token added to request:", config.url);
+      } else {
+        console.warn("⚠️ No JWT token available for:", config.url);
+      }
+    } else {
+      console.log("🔓 Public endpoint, skipping token:", config.url);
     }
 
     return config;
@@ -60,6 +75,7 @@ apiClient.interceptors.response.use(
     // Handle 401 Unauthorized - token expired
     if (error.response?.status === 401) {
       localStorage.removeItem("authToken");
+      localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
       authToken = null;
       // You can add navigation to login screen here
@@ -75,17 +91,26 @@ export const AuthAPI = {
   login: async (email, password) => {
     try {
       const response = await apiClient.post("/users/login", {
-        userName: email,
+        username: email,
         password: password,
       });
       if (response.data && response.data.statusCode === 200) {
         const userData = response.data.data;
 
         try {
+          // Store JWT token (store as both authToken and accessToken for compatibility)
+          if (userData.token) {
+            localStorage.setItem("authToken", userData.token);
+            localStorage.setItem("accessToken", userData.token);
+            authToken = userData.token;
+          }
+
           // Store user data in localStorage
           localStorage.setItem("user", JSON.stringify(userData));
           localStorage.setItem("userId", userData.userId.toString());
-          localStorage.setItem("userName", userData.userName);
+          localStorage.setItem("username", userData.username);
+          localStorage.setItem("firstName", userData.firstName || "");
+          localStorage.setItem("lastName", userData.lastName || "");
           localStorage.setItem("isLoggedIn", "true");
 
           // Verify storage
@@ -101,6 +126,58 @@ export const AuthAPI = {
       return {
         success: false,
         error: error.response?.data?.message || "Login failed",
+      };
+    }
+  },
+
+  // Update user profile
+  updateProfile: async (userId, firstName, lastName, profileImage) => {
+    try {
+      const formData = new FormData();
+      formData.append("userId", userId);
+      if (firstName) formData.append("firstName", firstName);
+      if (lastName) formData.append("lastName", lastName);
+      if (profileImage) formData.append("profileImage", profileImage);
+
+      const response = await apiClient.put("/users/update-profile", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      // Update localStorage with new data
+      if (response.data && response.data.statusCode === 200) {
+        const userData = response.data.data;
+        localStorage.setItem("user", JSON.stringify(userData));
+        if (userData.firstName)
+          localStorage.setItem("firstName", userData.firstName);
+        if (userData.lastName)
+          localStorage.setItem("lastName", userData.lastName);
+      }
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to update profile",
+      };
+    }
+  },
+
+  // Update password
+  updatePassword: async (userId, oldPassword, newPassword) => {
+    try {
+      const response = await apiClient.patch("/users/update-password", {
+        userId,
+        oldPassword,
+        newPassword,
+      });
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to update password",
       };
     }
   },
@@ -125,10 +202,11 @@ export const AuthAPI = {
 
       // Clear stored data
       localStorage.removeItem("authToken");
+      localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
       localStorage.removeItem("user");
       localStorage.removeItem("userId");
-      localStorage.removeItem("userName");
+      localStorage.removeItem("username");
       localStorage.removeItem("isLoggedIn");
 
       authToken = null;
@@ -136,10 +214,11 @@ export const AuthAPI = {
     } catch (error) {
       // Clear local data even if API call fails
       localStorage.removeItem("authToken");
+      localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
       localStorage.removeItem("user");
       localStorage.removeItem("userId");
-      localStorage.removeItem("userName");
+      localStorage.removeItem("username");
       localStorage.removeItem("isLoggedIn");
 
       authToken = null;
@@ -538,16 +617,17 @@ export const ApiUtils = {
 
   // Get current username
   getCurrentUsername: async () => {
-    return localStorage.getItem("userName");
+    return localStorage.getItem("username");
   },
 
   // Clear all stored data
   clearStorage: async () => {
     localStorage.removeItem("authToken");
+    localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
     localStorage.removeItem("userId");
-    localStorage.removeItem("userName");
+    localStorage.removeItem("username");
     localStorage.removeItem("isLoggedIn");
     authToken = null;
   },
