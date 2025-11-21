@@ -58,7 +58,6 @@ export default function FriendsScreen() {
         setRequestsLoading(true);
         try {
             const result = await ChatRequestAPI.getAllChatRequests(
-                userId,
                 'PENDING',
                 'received'
             );
@@ -101,7 +100,7 @@ export default function FriendsScreen() {
         try {
             const result = await UserAPI.searchUsers(
                 query,
-                currentUserId,
+                // currentUserId,
                 pageNumber,
                 size
             );
@@ -224,7 +223,6 @@ export default function FriendsScreen() {
             };
 
             const result = await ChatRequestAPI.createChatRequest(
-                currentUserId,
                 receiverId,
                 requestData
             );
@@ -255,7 +253,6 @@ export default function FriendsScreen() {
         try {
             const result = await ChatRequestAPI.acceptChatRequest(
                 chatRequestId,
-                currentUserId
             );
 
             if (result.success) {
@@ -275,7 +272,6 @@ export default function FriendsScreen() {
         try {
             const result = await ChatRequestAPI.rejectChatRequest(
                 chatRequestId,
-                currentUserId
             );
 
             if (result.success) {

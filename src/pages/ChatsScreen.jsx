@@ -612,7 +612,9 @@ export default function ChatsScreen() {
                                     }}
                                 />
                             ) : (
-                                <span className="text-xs font-semibold text-white">
+                                <span
+                                    onClick={() => navigate('/settings')}
+                                    className="text-xs font-semibold text-white cursor-pointer">
                                     {userProfile.initials}
                                 </span>
                             )}

@@ -70,7 +70,7 @@ class ChatApiService {
 
   // Chat Request APIs
   async createChatRequest(senderId, receiverId, requestData) {
-    const url = `${this.baseUrl}/chat/requests/create/${senderId}/${receiverId}`;
+    const url = `${this.baseUrl}/chat/requests/create/${receiverId}`;
     return this.fetchWithErrorHandling(url, {
       method: "POST",
       body: JSON.stringify(requestData),
@@ -78,20 +78,20 @@ class ChatApiService {
   }
 
   async acceptChatRequest(chatRequestId, receiverId) {
-    const url = `${this.baseUrl}/chat/requests/accept/${chatRequestId}/${receiverId}`;
+    const url = `${this.baseUrl}/chat/requests/accept/${chatRequestId}`;
     return this.fetchWithErrorHandling(url, {
       method: "POST",
     });
   }
 
   async rejectChatRequest(chatRequestId, receiverId) {
-    const url = `${this.baseUrl}/chat/requests/reject/${chatRequestId}/${receiverId}`;
+    const url = `${this.baseUrl}/chat/requests/reject/${chatRequestId}`;
     return this.fetchWithErrorHandling(url, {
       method: "POST",
     });
   }
 
-  async getAllChatRequests(userId, options = {}) {
+  async getAllChatRequests(options = {}) {
     const {
       chatRequestStatus = "PENDING",
       pageNumber = 1,
@@ -108,12 +108,12 @@ class ChatApiService {
       sortDirection,
     });
 
-    const url = `${this.baseUrl}/chat/requests/get-all/${userId}?${params}`;
+    const url = `${this.baseUrl}/chat/requests/get-all?${params}`;
     return this.fetchWithErrorHandling(url);
   }
 
   async deleteChatRequest(chatRequestId, senderId) {
-    const url = `${this.baseUrl}/chat/requests/delete/${chatRequestId}/${senderId}`;
+    const url = `${this.baseUrl}/chat/requests/delete/${chatRequestId}`;
     return this.fetchWithErrorHandling(url, {
       method: "DELETE",
     });
@@ -135,7 +135,7 @@ class ChatApiService {
       sortDirection,
     });
 
-    const url = `${this.baseUrl}/chat/rooms/get-all/${userId}?${params}`;
+    const url = `${this.baseUrl}/chat/rooms/get-all?${params}`;
     return this.fetchWithErrorHandling(url);
   }
 
@@ -154,7 +154,7 @@ class ChatApiService {
       sortDirection,
     });
 
-    const url = `${this.baseUrl}/chat/rooms/messages/${chatRoomId}/${userId}?${params}`;
+    const url = `${this.baseUrl}/chat/rooms/messages/${chatRoomId}?${params}`;
     return this.fetchWithErrorHandling(url);
   }
 
@@ -175,7 +175,7 @@ class ChatApiService {
 
     const url = `${this.baseUrl}/chat/rooms/search/${encodeURIComponent(
       searchText
-    )}/${userId}?${params}`;
+    )}?${params}`;
     return this.fetchWithErrorHandling(url);
   }
 

@@ -48,14 +48,12 @@ export default function RequestsScreen() {
         try {
             // Load received requests (type = "received")
             const receivedResult = await ChatRequestAPI.getAllChatRequests(
-                userId,
                 'PENDING',
-                'received'
+                'received',
             );
 
             // Load sent requests (type = "sent")
             const sentResult = await ChatRequestAPI.getAllChatRequests(
-                userId,
                 'PENDING',
                 'sent'
             );
@@ -88,7 +86,6 @@ export default function RequestsScreen() {
         try {
             const result = await ChatRequestAPI.acceptChatRequest(
                 chatRequestId,
-                currentUserId
             );
 
             if (result.success) {
@@ -106,7 +103,6 @@ export default function RequestsScreen() {
         try {
             const result = await ChatRequestAPI.rejectChatRequest(
                 chatRequestId,
-                currentUserId
             );
 
             if (result.success) {

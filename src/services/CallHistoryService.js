@@ -12,7 +12,7 @@ export const CallHistoryAPI = {
     sortDirection = "desc"
   ) => {
     try {
-      let endpoint = `/call/history/user/${userId}?pageNumber=${pageNumber}&size=${size}&sortBy=${sortBy}&sortDirection=${sortDirection}`;
+      let endpoint = `/call/history/user?pageNumber=${pageNumber}&size=${size}&sortBy=${sortBy}&sortDirection=${sortDirection}`;
 
       if (callType) {
         endpoint += `&callType=${callType}`;
@@ -33,7 +33,7 @@ export const CallHistoryAPI = {
   getCallHistoryById: async (callHistoryId, userId) => {
     try {
       const response = await apiClient.get(
-        `/call/history/${callHistoryId}/user/${userId}`
+        `/call/history/${callHistoryId}/user`
       );
       return { success: true, data: response.data };
     } catch (error) {
@@ -49,7 +49,7 @@ export const CallHistoryAPI = {
   deleteCallHistory: async (callHistoryId, userId) => {
     try {
       const response = await apiClient.delete(
-        `/call/history/${callHistoryId}/user/${userId}`
+        `/call/history/${callHistoryId}/user`
       );
       return { success: true, data: response.data };
     } catch (error) {

@@ -50,7 +50,7 @@ export default function SearchUsersScreen() {
         try {
             const result = await UserAPI.searchUsers(
                 query,
-                currentUserId,
+                // currentUserId,
                 pageNumber,
                 size
             );
@@ -156,7 +156,6 @@ export default function SearchUsersScreen() {
             };
 
             const result = await ChatRequestAPI.createChatRequest(
-                currentUserId,
                 receiverId,
                 requestData
             );

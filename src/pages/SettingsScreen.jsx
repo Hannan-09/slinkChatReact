@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IoArrowBack, IoCamera, IoPerson, IoLockClosed, IoLogOut, IoCheckmark, IoClose } from 'react-icons/io5';
-import { ApiUtils, AuthAPI } from '../services/AuthService';
+import { ApiUtils, AuthAPI, UserAPI } from '../services/AuthService';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmDialog from '../components/ConfirmDialog';
 
@@ -244,7 +244,7 @@ export default function SettingsScreen() {
                     <div className="flex flex-col items-center mb-6">
                         <div className="relative">
                             <div className="w-24 h-24 rounded-full bg-gradient-to-b from-[#2e2e2e] via-[#151515] to-[#050505] border border-white/25 shadow-[0_18px_32px_rgba(0,0,0,0.9),inset_0_2px_3px_rgba(255,255,255,0.18),inset_0_-3px_6px_rgba(0,0,0,0.9)] flex items-center justify-center overflow-hidden">
-                                {avatarPreview || userProfile.avatar ? (
+                                {avatarPreview || userProfile.profileURL ? (
                                     <img
                                         src={avatarPreview || userProfile.profileURL}
                                         alt="Profile"

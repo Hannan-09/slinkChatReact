@@ -168,7 +168,6 @@ export const AuthAPI = {
   updatePassword: async (userId, oldPassword, newPassword) => {
     try {
       const response = await apiClient.patch("/users/update-password", {
-        userId,
         oldPassword,
         newPassword,
       });
@@ -284,11 +283,12 @@ export const AuthAPI = {
 
 // User API endpoints
 export const UserAPI = {
-  // Get user profile
-  getProfile: async (userId) => {
+  // Get user profile (userId from JWT token or specific userId for other users)
+  getProfile: async (userId = null) => {
     try {
-      // Backend endpoint: /api/v1/users/get-profile/{userId}
-      const response = await apiClient.get(`/users/get-profile/${userId}`);
+      // If userId provided, get that user's profile, otherwise get own profile from JWT
+      const endpoint = userId ? `/users/get-profile` : `/users/get-profile`;
+      const response = await apiClient.get(endpoint);
       return { success: true, data: response.data };
     } catch (error) {
       return {
@@ -298,10 +298,13 @@ export const UserAPI = {
     }
   },
 
-  // Update user profile
-  updateProfile: async (userId, profileData) => {
+  // Update user profile (userId from JWT token)
+  updateProfile: async (profileData) => {
     try {
-      const response = await apiClient.put(`/users/${userId}`, profileData);
+      const response = await apiClient.put(
+        `/users/update-profile`,
+        profileData
+      );
       return { success: true, data: response.data };
     } catch (error) {
       return {
@@ -311,12 +314,12 @@ export const UserAPI = {
     }
   },
 
-  // Search users
-  searchUsers: async (searchText, userId, pageNumber = 1, size = 10) => {
+  // Search users (userId from JWT token)
+  searchUsers: async (searchText, pageNumber = 1, size = 10) => {
     try {
       const endpoint = `/users/search/${encodeURIComponent(
         searchText
-      )}/${userId}?pageNumber=${pageNumber}&size=${size}`;
+      )}?pageNumber=${pageNumber}&size=${size}`;
       const response = await apiClient.get(endpoint);
       return { success: true, data: response.data };
     } catch (error) {
@@ -348,10 +351,10 @@ export const UserAPI = {
 
 // Chat Request API endpoints
 export const ChatRequestAPI = {
-  // Create chat request
-  createChatRequest: async (senderId, receiverId, requestData) => {
+  // Create chat request (senderId from JWT token)
+  createChatRequest: async (receiverId, requestData) => {
     try {
-      const endpoint = `/chat/requests/create/${senderId}/${receiverId}`;
+      const endpoint = `/chat/requests/create/${receiverId}`;
       const response = await apiClient.post(endpoint, requestData);
       return { success: true, data: response.data };
     } catch (error) {
@@ -367,11 +370,11 @@ export const ChatRequestAPI = {
     }
   },
 
-  // Accept chat request
-  acceptChatRequest: async (chatRequestId, receiverId) => {
+  // Accept chat request (receiverId from JWT token)
+  acceptChatRequest: async (chatRequestId) => {
     try {
       const response = await apiClient.post(
-        `/chat/requests/accept/${chatRequestId}/${receiverId}`
+        `/chat/requests/accept/${chatRequestId}`
       );
       return { success: true, data: response.data };
     } catch (error) {
@@ -382,11 +385,11 @@ export const ChatRequestAPI = {
     }
   },
 
-  // Reject chat request
-  rejectChatRequest: async (chatRequestId, receiverId) => {
+  // Reject chat request (receiverId from JWT token)
+  rejectChatRequest: async (chatRequestId) => {
     try {
       const response = await apiClient.post(
-        `/chat/requests/reject/${chatRequestId}/${receiverId}`
+        `/chat/requests/reject/${chatRequestId}`
       );
       return { success: true, data: response.data };
     } catch (error) {
@@ -397,9 +400,8 @@ export const ChatRequestAPI = {
     }
   },
 
-  // Get all chat requests by user
+  // Get all chat requests by user (userId from JWT token)
   getAllChatRequests: async (
-    userId,
     chatRequestStatus = "PENDING",
     type = "sent",
     pageNumber = 1,
@@ -408,7 +410,7 @@ export const ChatRequestAPI = {
     sortDirection = "desc"
   ) => {
     try {
-      const endpoint = `/chat/requests/get-all/${userId}?chatRequestStatus=${chatRequestStatus}&type=${type}&pageNumber=${pageNumber}&size=${size}&sortBy=${sortBy}&sortDirection=${sortDirection}`;
+      const endpoint = `/chat/requests/get-all?chatRequestStatus=${chatRequestStatus}&type=${type}&pageNumber=${pageNumber}&size=${size}&sortBy=${sortBy}&sortDirection=${sortDirection}`;
       const response = await apiClient.get(endpoint);
       return { success: true, data: response.data };
     } catch (error) {
@@ -420,11 +422,11 @@ export const ChatRequestAPI = {
     }
   },
 
-  // Delete chat request
-  deleteChatRequest: async (chatRequestId, senderId) => {
+  // Delete chat request (senderId from JWT token)
+  deleteChatRequest: async (chatRequestId) => {
     try {
       const response = await apiClient.delete(
-        `/chat/requests/delete/${chatRequestId}/${senderId}`
+        `/chat/requests/delete/${chatRequestId}`
       );
       return { success: true, data: response.data };
     } catch (error) {
