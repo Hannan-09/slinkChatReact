@@ -288,22 +288,111 @@ export default function ChatsScreen() {
                 sortDirection: 'desc',
             });
 
-            if (result.success && result.data) {
-                const rooms = result.data.data || [];
-                const transformedRooms = rooms.map((room) => ({
-                    chatRoomId: room.chatRoomId,
-                    name: room.chatRoomName || 'Unknown',
-                    message: room.lastMessage || 'No messages yet',
-                    time: room.lastMessageAt || room.createdAt,
-                    avatar: room.otherUserAvatar || '',
-                    receiverId: room.otherUserId,
-                    unreadCount: room.unreadCount || 0,
-                }));
-                setChatRooms(transformedRooms);
-                setHasMore(false); // Disable pagination for search results
-            }
+            console.log('🔍 Search API result:', result);
+
+            // Extract data from response - handle different response structures
+            const roomsData = result?.data?.data
+                ? (Array.isArray(result.data.data) ? result.data.data : [])
+                : result?.data
+                    ? (Array.isArray(result.data) ? result.data : [])
+                    : Array.isArray(result) ? result : [];
+
+            console.log('🔍 Extracted rooms data:', roomsData);
+
+            // Import decryption services
+            const EncryptionService = (await import('../services/EncryptionService')).default;
+            const { decryptEnvelope } = await import('../scripts/decryptEnvelope');
+            const { decryptMessage } = await import('../scripts/decryptMessage');
+
+            const privateKey = EncryptionService.decrypt(localStorage.getItem("decryptedBackendData"));
+            const userIdString = localStorage.getItem("userId");
+
+            const transformedRooms = await Promise.all(
+                roomsData.map(async (room) => {
+                    const isCurrentUserUser1 = room.userId === userId;
+                    const otherUserName = isCurrentUserUser1 ? room.user2Name : room.username;
+                    const otherUserId = isCurrentUserUser1 ? room.user2Id : room.userId;
+                    const otherUserProfileURL = isCurrentUserUser1 ? room.user2ProfileURL : room.userProfileURL;
+
+                    const lastMessage = room.lastMessage || null;
+                    const lastMessageAt = (lastMessage && lastMessage.sentAt) || room.lastMessageAt || room.lastMessageTime || null;
+                    const unseenCount = typeof room.unseenMessageCount === 'number' ? room.unseenMessageCount : room.unreadCount || 0;
+
+                    let lastMessageContent = (lastMessage && lastMessage.content) || room.lastMessageText || '';
+
+                    if (lastMessage && lastMessage.content && privateKey) {
+                        try {
+                            const envolop = (lastMessage.senderId?.toString() === userIdString) ? lastMessage.sender_envolop : lastMessage.receiver_envolop;
+                            if (envolop) {
+                                const envolopDecryptKey = await decryptEnvelope(envolop, privateKey);
+                                lastMessageContent = await decryptMessage(lastMessage.content, envolopDecryptKey);
+                            }
+                        } catch (error) {
+                            console.error("❌ Failed to decrypt last message:", error);
+                        }
+                    }
+
+                    let previewType = 'text';
+                    let messagePreview = '';
+                    const attachments = lastMessage && Array.isArray(lastMessage.attachments) ? lastMessage.attachments : [];
+
+                    if (lastMessage && lastMessage.isDeleted) {
+                        previewType = 'meta';
+                        messagePreview = 'Message deleted';
+                    } else if (lastMessageContent && lastMessageContent.trim().length > 0) {
+                        previewType = 'text';
+                        messagePreview = truncateMessage(lastMessageContent);
+                    } else if (attachments.length > 0) {
+                        const firstAttachment = attachments[0];
+                        const fileType = (firstAttachment.fileType || '').toLowerCase();
+                        if (fileType.startsWith('image/')) {
+                            previewType = 'image';
+                            messagePreview = 'Photo';
+                        } else if (fileType.startsWith('video/')) {
+                            previewType = 'video';
+                            messagePreview = 'Video';
+                        } else if (fileType.startsWith('audio/')) {
+                            previewType = 'audio';
+                            messagePreview = 'Audio';
+                        } else {
+                            previewType = 'document';
+                            messagePreview = 'Document';
+                        }
+                    } else if (lastMessageAt) {
+                        previewType = 'meta';
+                        messagePreview = formatTime(lastMessageAt);
+                    } else {
+                        previewType = 'meta';
+                        messagePreview = 'No messages yet';
+                    }
+
+                    const nameForInitials = otherUserName || '';
+                    const nameParts = nameForInitials.trim().split(' ').filter(Boolean);
+                    const firstName = nameParts[0] || nameForInitials;
+                    const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+                    const initials = buildInitials(firstName, lastName, otherUserName);
+
+                    return {
+                        id: room.chatRoomId?.toString(),
+                        chatRoomId: room.chatRoomId,
+                        name: otherUserName || 'Unknown User',
+                        message: messagePreview,
+                        time: lastMessageAt ? formatTime(lastMessageAt) : '',
+                        unreadCount: unseenCount,
+                        avatar: otherUserProfileURL || null,
+                        receiverId: otherUserId,
+                        previewType,
+                        initials,
+                    };
+                })
+            );
+
+            setChatRooms(transformedRooms);
+            setHasMore(false); // Disable pagination for search results
+            console.log('✅ Search results set to chatRooms:', transformedRooms.length, 'rooms');
         } catch (error) {
             console.error('Error searching chat rooms:', error);
+            toast.error('Failed to search chat rooms');
         } finally {
             setLoading(false);
         }

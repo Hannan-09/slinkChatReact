@@ -287,7 +287,9 @@ export const UserAPI = {
   getProfile: async (userId = null) => {
     try {
       // If userId provided, get that user's profile, otherwise get own profile from JWT
-      const endpoint = userId ? `/users/get-profile` : `/users/get-profile`;
+      const endpoint = userId
+        ? `/users/get-profile/${userId}`
+        : `/users/get-profile`;
       const response = await apiClient.get(endpoint);
       return { success: true, data: response.data };
     } catch (error) {
