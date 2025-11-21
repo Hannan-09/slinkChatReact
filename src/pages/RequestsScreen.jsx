@@ -228,22 +228,26 @@ export default function RequestsScreen() {
                             key={item.chatRequestId}
                             className="flex items-center px-5 py-4 hover:bg-white/5 transition-colors"
                         >
-                            <img
-                                src={
-                                    activeTab === 'received'
-                                        ? item.senderProfileURL || 'https://via.placeholder.com/50'
-                                        : item.receiverProfileURL || 'https://via.placeholder.com/50'
-                                }
-                                alt={
-                                    activeTab === 'received'
-                                        ? item.senderName || 'User'
-                                        : item.receiverName || 'User'
-                                }
-                                className="w-12 h-12 rounded-full mr-4 shadow-lg"
-                                onError={(e) => {
-                                    e.target.src = 'https://via.placeholder.com/50';
-                                }}
-                            />
+                            <div className="w-12 h-12 rounded-full mr-4 shadow-lg bg-gradient-to-b from-[#3a3a3a] to-[#1a1a1a] flex items-center justify-center overflow-hidden">
+                                {(activeTab === 'received' ? item.senderProfileURL : item.receiverProfileURL) ? (
+                                    <img
+                                        src={activeTab === 'received' ? item.senderProfileURL : item.receiverProfileURL}
+                                        alt={activeTab === 'received' ? item.senderName || 'User' : item.receiverName || 'User'}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.style.display = 'none';
+                                        }}
+                                    />
+                                ) : (
+                                    <span className="text-white text-sm font-semibold">
+                                        {activeTab === 'received'
+                                            ? (item.senderName || 'U').substring(0, 2).toUpperCase()
+                                            : (item.receiverName || 'U').substring(0, 2).toUpperCase()
+                                        }
+                                    </span>
+                                )}
+                            </div>
                             <div className="flex-1">
                                 <h3 className="text-white font-semibold text-base mb-1">
                                     {activeTab === 'received'

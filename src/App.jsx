@@ -19,6 +19,8 @@ import CameraScreen from './pages/CameraScreen';
 import UserProfileScreen from './pages/UserProfileScreen';
 import { ApiUtils } from './services/AuthService';
 import { useFirebaseNotifications } from './hooks/useFirebaseNotifications';
+import InAppNotificationManager from './components/InAppNotificationManager';
+import NotificationDebugPanel from './components/NotificationDebugPanel';
 
 // Inner component that uses Firebase notifications
 function AppContent({ currentUserId }) {
@@ -68,6 +70,7 @@ function AppContent({ currentUserId }) {
     <WebSocketProvider>
       <CallProvider currentUserId={currentUserId}>
         <Router>
+          <InAppNotificationManager currentUserId={currentUserId} />
           <CallManager />
           <Routes>
             <Route path="/" element={<SplashScreen />} />
