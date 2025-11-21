@@ -30,24 +30,30 @@ function AppContent({ currentUserId }) {
     const sendTokenToBackend = async () => {
       if (fcmToken && currentUserId) {
         console.log('📤 Sending FCM token to backend:', fcmToken);
+        console.log('📤 User ID:', currentUserId);
 
         try {
           const accessToken = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
           const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.0.200:8008/api/v1';
 
-          const response = await fetch(`${API_BASE_URL}/users/${currentUserId}/fcm-token`, {
+          const response = await fetch(`${API_BASE_URL}/users/set/fcm-token`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${accessToken}`
             },
-            body: JSON.stringify({ fcmToken })
+            body: JSON.stringify({
+              userId: parseInt(currentUserId),
+              token: fcmToken
+            })
           });
 
           if (response.ok) {
-            console.log('✅ FCM token sent to backend successfully');
+            const data = await response.json();
+            console.log('✅ FCM token sent to backend successfully:', data);
           } else {
-            console.error('❌ Failed to send FCM token to backend:', response.status);
+            const errorText = await response.text();
+            console.error('❌ Failed to send FCM token to backend:', response.status, errorText);
           }
         } catch (error) {
           console.error('❌ Error sending FCM token to backend:', error);
