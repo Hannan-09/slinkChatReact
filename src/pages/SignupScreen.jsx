@@ -46,6 +46,49 @@ export default function SignupScreen() {
         }
     }, [showCongratulations]);
 
+    // Validation functions matching backend
+    const validateUsername = (username) => {
+        if (!username.trim()) {
+            return 'Username is required';
+        }
+        const usernameRegex = /^[a-z0-9._]{3,15}$/;
+        if (!usernameRegex.test(username)) {
+            return 'Username can contain only lowercase letters, numbers, dot, underscore, and must be 3-15 characters long';
+        }
+        return '';
+    };
+
+    const validatePassword = (password) => {
+        if (!password) {
+            return 'Password is required';
+        }
+        const passwordRegex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&._-])[A-Za-z\d@$!%*?&._-]{6,20}$/;
+        if (!passwordRegex.test(password)) {
+            return 'Password must be 6-20 characters long, and include at least one uppercase letter, one lowercase letter, one digit, and one special character';
+        }
+        return '';
+    };
+
+    const validateFirstName = (name) => {
+        if (!name.trim()) {
+            return 'First name is required';
+        }
+        if (name.length > 15) {
+            return 'First name must not exceed 15 characters';
+        }
+        return '';
+    };
+
+    const validateLastName = (name) => {
+        if (!name.trim()) {
+            return 'Last name is required';
+        }
+        if (name.length > 15) {
+            return 'Last name must not exceed 15 characters';
+        }
+        return '';
+    };
+
     const validatePrivateKey = (key) => {
         if (!key.trim()) {
             return 'Private key is required';
@@ -128,12 +171,34 @@ export default function SignupScreen() {
     };
 
     const handleSignup = async () => {
+        // Validate all fields
+        const validationErrors = {};
+
+        const firstNameError = validateFirstName(firstName);
+        if (firstNameError) validationErrors.firstName = firstNameError;
+
+        const lastNameError = validateLastName(lastName);
+        if (lastNameError) validationErrors.lastName = lastNameError;
+
+        const usernameError = validateUsername(username);
+        if (usernameError) validationErrors.username = usernameError;
+
+        const passwordError = validatePassword(password);
+        if (passwordError) validationErrors.password = passwordError;
+
+        // If there are validation errors, show them and return
+        if (Object.keys(validationErrors).length > 0) {
+            setErrors(validationErrors);
+            toast.error('Please fix the validation errors');
+            return;
+        }
+
         setLoading(true);
         try {
             const userData = {
                 firstName: firstName.trim(),
                 lastName: lastName.trim(),
-                username: username.trim(),
+                username: username.trim().toLowerCase(), // Ensure lowercase
                 password: password,
             };
 
@@ -279,6 +344,11 @@ export default function SignupScreen() {
                         {errors.username && (
                             <p className="text-red-500 text-sm mt-1 ml-5">{errors.username}</p>
                         )}
+                        {!errors.username && username.length > 0 && (
+                            <p className="text-xs text-gray-500 mt-1 ml-5">
+                                Lowercase letters, numbers, dot, underscore only (3-15 chars)
+                            </p>
+                        )}
                     </div>
 
                     {/* Password Input */}
@@ -317,6 +387,25 @@ export default function SignupScreen() {
                         </div>
                         {errors.password && (
                             <p className="text-red-500 text-sm mt-1 ml-5">{errors.password}</p>
+                        )}
+                        {!errors.password && password.length > 0 && (
+                            <div className="mt-2 ml-5 text-xs space-y-1">
+                                <p className={password.length >= 6 && password.length <= 20 ? 'text-green-400' : 'text-gray-500'}>
+                                    • 6-20 characters
+                                </p>
+                                <p className={/[A-Z]/.test(password) ? 'text-green-400' : 'text-gray-500'}>
+                                    • One uppercase letter
+                                </p>
+                                <p className={/[a-z]/.test(password) ? 'text-green-400' : 'text-gray-500'}>
+                                    • One lowercase letter
+                                </p>
+                                <p className={/\d/.test(password) ? 'text-green-400' : 'text-gray-500'}>
+                                    • One digit
+                                </p>
+                                <p className={/[@$!%*?&._-]/.test(password) ? 'text-green-400' : 'text-gray-500'}>
+                                    • One special character (@$!%*?&._-)
+                                </p>
+                            </div>
                         )}
                     </div>
 

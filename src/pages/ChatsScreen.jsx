@@ -37,6 +37,9 @@ export default function ChatsScreen() {
     // Track processed messages to prevent duplicates
     const processedMessagesRef = useRef(new Set());
 
+    // Track subscribed room IDs to prevent unnecessary re-subscriptions
+    const subscribedRoomsRef = useRef(new Set());
+
     // Pagination state for chat rooms
     const PAGE_SIZE = 10;
     const [currentPage, setCurrentPage] = useState(1);
@@ -161,7 +164,10 @@ export default function ChatsScreen() {
                     messagePreview = 'Message deleted';
                 } else if (decryptedContent && decryptedContent.trim().length > 0) {
                     previewType = 'text';
-                    messagePreview = truncateMessage(decryptedContent);
+                    // Add "Edited" prefix if message was edited
+                    messagePreview = message.isEdited
+                        ? `Edited: ${truncateMessage(decryptedContent)}`
+                        : truncateMessage(decryptedContent);
                 } else if (attachments.length > 0) {
                     const firstAttachment = attachments[0];
                     const fileType = (firstAttachment.fileType || '').toLowerCase();
@@ -187,6 +193,8 @@ export default function ChatsScreen() {
                 updatedRoom.message = messagePreview;
                 updatedRoom.previewType = previewType;
                 updatedRoom.time = formatTime(message.timestamp || message.sentAt || new Date().toISOString());
+                updatedRoom.isEdited = message.isEdited || false;
+                updatedRoom.lastMessageId = message.chatMessageId || message.id;
 
                 // Increment unread count only if message is from another user
                 if (message.senderId?.toString() !== userIdString) {
@@ -207,13 +215,153 @@ export default function ChatsScreen() {
         }
     }, []);
 
+    // Handle message edit events
+    const handleMessageEdit = useCallback(async (editMsg) => {
+        console.log('✏️✏️✏️ ChatsScreen received EDIT message:', JSON.stringify(editMsg, null, 2));
+
+        const messageData = editMsg.data || editMsg;
+        const chatRoomId = messageData.chatRoomId;
+        const editedMessageId = messageData.chatMessageId;
+
+        console.log('📝 Edit details:', {
+            chatRoomId,
+            editedMessageId,
+            hasContent: !!messageData.content,
+            messageData
+        });
+
+        if (!chatRoomId) {
+            console.log('❌ No chatRoomId in edit message');
+            return;
+        }
+
+        try {
+            // Import decryption services
+            const EncryptionService = (await import('../services/EncryptionService')).default;
+            const { decryptEnvelope } = await import('../scripts/decryptEnvelope');
+            const { decryptMessage } = await import('../scripts/decryptMessage');
+
+            const privateKey = EncryptionService.decrypt(localStorage.getItem("decryptedBackendData"));
+            const userIdString = localStorage.getItem("userId");
+
+            let decryptedContent = messageData.content || '';
+
+            // Decrypt edited message content if encrypted
+            if (messageData.content && privateKey) {
+                try {
+                    const envolop = (messageData.senderId?.toString() === userIdString)
+                        ? messageData.sender_envolop
+                        : messageData.receiver_envolop;
+
+                    if (envolop) {
+                        const envolopDecryptKey = await decryptEnvelope(envolop, privateKey);
+                        decryptedContent = await decryptMessage(messageData.content, envolopDecryptKey);
+                        console.log('🔓 Decrypted edited content:', decryptedContent);
+                    }
+                } catch (error) {
+                    console.error("❌ Failed to decrypt edited message:", error);
+                }
+            }
+
+            // Update chat rooms list with edited message - ALWAYS update since backend sends this for last message
+            setChatRooms((prevRooms) => {
+                const roomIndex = prevRooms.findIndex((room) => room.chatRoomId === chatRoomId);
+
+                if (roomIndex === -1) {
+                    console.log('⚠️ Chat room not found for edit, chatRoomId:', chatRoomId);
+                    console.log('Available rooms:', prevRooms.map(r => ({ id: r.chatRoomId, name: r.name })));
+                    return prevRooms;
+                }
+
+                const updatedRooms = [...prevRooms];
+                const updatedRoom = { ...updatedRooms[roomIndex] };
+
+                // Update preview with edited content and "Edited:" prefix
+                updatedRoom.message = `Edited: ${truncateMessage(decryptedContent)}`;
+                updatedRoom.previewType = 'text';
+                updatedRoom.time = formatTime(messageData.editedAt || new Date().toISOString());
+                updatedRoom.isEdited = true;
+                updatedRoom.lastMessageId = editedMessageId;
+
+                // Put the updated room back into the array
+                updatedRooms[roomIndex] = updatedRoom;
+
+                console.log('✅✅✅ Chat room UPDATED with edited message:', updatedRoom.name, updatedRoom.message);
+                return updatedRooms;
+            });
+        } catch (error) {
+            console.error('❌ Error handling edit message in ChatsScreen:', error);
+        }
+    }, []);
+
+    // Handle message delete events
+    const handleMessageDelete = useCallback((deleteMsg) => {
+        console.log('🗑️🗑️🗑️ ChatsScreen received DELETE message:', JSON.stringify(deleteMsg, null, 2));
+
+        const messageData = deleteMsg.data || deleteMsg;
+        const chatRoomId = messageData.chatRoomId;
+        const deletedMessageId = messageData.chatMessageId;
+
+        console.log('🗑️ Delete details:', {
+            chatRoomId,
+            deletedMessageId,
+            messageData
+        });
+
+        if (!chatRoomId) {
+            console.log('❌ No chatRoomId in delete message');
+            return;
+        }
+
+        // Update chat rooms list with deleted message - ALWAYS update since backend sends this for last message
+        setChatRooms((prevRooms) => {
+            const roomIndex = prevRooms.findIndex((room) => room.chatRoomId === chatRoomId);
+
+            if (roomIndex === -1) {
+                console.log('⚠️ Chat room not found for delete, chatRoomId:', chatRoomId);
+                console.log('Available rooms:', prevRooms.map(r => ({ id: r.chatRoomId, name: r.name })));
+                return prevRooms;
+            }
+
+            const updatedRooms = [...prevRooms];
+            const updatedRoom = { ...updatedRooms[roomIndex] };
+
+            // Update preview to show "Message deleted"
+            updatedRoom.message = 'Message deleted';
+            updatedRoom.previewType = 'meta';
+            updatedRoom.time = formatTime(messageData.deletedAt || new Date().toISOString());
+            updatedRoom.isEdited = false;
+            updatedRoom.lastMessageId = deletedMessageId;
+
+            // Put the updated room back into the array
+            updatedRooms[roomIndex] = updatedRoom;
+
+            console.log('✅✅✅ Chat room UPDATED with deleted message:', updatedRoom.name, updatedRoom.message);
+            return updatedRooms;
+        });
+    }, []);
+
     // Subscribe to all chat rooms for real-time updates
     useEffect(() => {
         if (!socket.connected || !currentUserId || chatRooms.length === 0) {
             return;
         }
 
-        console.log('�  ChatsScreen subscribing to all chat rooms:', chatRooms.length);
+        // Get current room IDs
+        const currentRoomIds = new Set(chatRooms.map(r => r.chatRoomId).filter(Boolean));
+
+        // Check if room IDs have actually changed
+        const roomIdsChanged =
+            currentRoomIds.size !== subscribedRoomsRef.current.size ||
+            [...currentRoomIds].some(id => !subscribedRoomsRef.current.has(id));
+
+        if (!roomIdsChanged) {
+            console.log('🔌 Room IDs unchanged, skipping re-subscription');
+            return;
+        }
+
+        console.log('🔌 ChatsScreen subscribing to all chat rooms:', chatRooms.length);
+        subscribedRoomsRef.current = currentRoomIds;
 
         const subscriptions = [];
 
@@ -251,6 +399,49 @@ export default function ChatsScreen() {
             if (subscription) {
                 subscriptions.push({ destination: receiverDestination, subscription });
             }
+
+            // Subscribe to edit messages for this chat room
+            const editSenderDestination = `/topic/chat/edit/${room.chatRoomId}/${currentUserId}/${room.receiverId}`;
+            const editReceiverDestination = `/topic/chat/edit/${room.chatRoomId}/${room.receiverId}/${currentUserId}`;
+
+            console.log('🔌📝 Subscribing to EDIT (sender):', editSenderDestination);
+            const editSenderSub = socket.subscribe(editSenderDestination, (msg) => {
+                console.log('📨📝 EDIT message received on sender channel:', msg);
+                handleMessageEdit(msg);
+            });
+            if (editSenderSub) {
+                subscriptions.push({ destination: editSenderDestination, subscription: editSenderSub });
+                console.log('✅ Edit sender subscription successful');
+            } else {
+                console.log('❌ Edit sender subscription FAILED');
+            }
+
+            console.log('🔌📝 Subscribing to EDIT (receiver):', editReceiverDestination);
+            const editReceiverSub = socket.subscribe(editReceiverDestination, (msg) => {
+                console.log('📨📝 EDIT message received on receiver channel:', msg);
+                handleMessageEdit(msg);
+            });
+            if (editReceiverSub) {
+                subscriptions.push({ destination: editReceiverDestination, subscription: editReceiverSub });
+                console.log('✅ Edit receiver subscription successful');
+            } else {
+                console.log('❌ Edit receiver subscription FAILED');
+            }
+
+            // Subscribe to delete messages for this chat room
+            const deleteDestination = `/topic/chat/${room.chatRoomId}/delete`;
+
+            console.log('🔌🗑️ Subscribing to DELETE:', deleteDestination);
+            const deleteSub = socket.subscribe(deleteDestination, (msg) => {
+                console.log('📨🗑️ DELETE message received:', msg);
+                handleMessageDelete(msg);
+            });
+            if (deleteSub) {
+                subscriptions.push({ destination: deleteDestination, subscription: deleteSub });
+                console.log('✅ Delete subscription successful');
+            } else {
+                console.log('❌ Delete subscription FAILED');
+            }
         });
 
         // Cleanup subscriptions when component unmounts or chatRooms change
@@ -260,7 +451,7 @@ export default function ChatsScreen() {
                 socket.unsubscribe(destination);
             });
         };
-    }, [socket.connected, currentUserId, chatRooms, handleWebSocketMessage]);
+    }, [socket.connected, currentUserId, chatRooms, handleWebSocketMessage, handleMessageEdit, handleMessageDelete]);
 
 
 
@@ -341,7 +532,10 @@ export default function ChatsScreen() {
                         messagePreview = 'Message deleted';
                     } else if (lastMessageContent && lastMessageContent.trim().length > 0) {
                         previewType = 'text';
-                        messagePreview = truncateMessage(lastMessageContent);
+                        // Add "Edited" prefix if message was edited
+                        messagePreview = (lastMessage && lastMessage.isEdited)
+                            ? `Edited: ${truncateMessage(lastMessageContent)}`
+                            : truncateMessage(lastMessageContent);
                     } else if (attachments.length > 0) {
                         const firstAttachment = attachments[0];
                         const fileType = (firstAttachment.fileType || '').toLowerCase();
@@ -383,6 +577,8 @@ export default function ChatsScreen() {
                         receiverId: otherUserId,
                         previewType,
                         initials,
+                        isEdited: lastMessage && lastMessage.isEdited ? true : false,
+                        lastMessageId: lastMessage ? lastMessage.chatMessageId : null,
                     };
                 })
             );
@@ -552,7 +748,10 @@ export default function ChatsScreen() {
                         messagePreview = 'Message deleted';
                     } else if (lastMessageContent && lastMessageContent.trim().length > 0) {
                         previewType = 'text';
-                        messagePreview = truncateMessage(lastMessageContent);
+                        // Add "Edited" prefix if message was edited
+                        messagePreview = (lastMessage && lastMessage.isEdited)
+                            ? `Edited: ${truncateMessage(lastMessageContent)}`
+                            : truncateMessage(lastMessageContent);
                     } else if (attachments.length > 0) {
                         const firstAttachment = attachments[0];
                         const fileType = (firstAttachment.fileType || '').toLowerCase();
@@ -599,6 +798,8 @@ export default function ChatsScreen() {
                         receiverId: otherUserId,
                         previewType,
                         initials,
+                        isEdited: lastMessage && lastMessage.isEdited ? true : false,
+                        lastMessageId: lastMessage ? lastMessage.chatMessageId : null,
                     };
                 })
             );

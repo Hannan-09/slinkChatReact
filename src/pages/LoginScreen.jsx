@@ -29,10 +29,49 @@ export default function LoginScreen() {
         window.dispatchEvent(new Event('userLoggedOut'));
     }, []);
 
+    // Validation functions matching backend
+    const validateUsername = (username) => {
+        if (!username.trim()) {
+            return 'Username is required';
+        }
+        const usernameRegex = /^[a-z0-9._]{3,15}$/;
+        if (!usernameRegex.test(username)) {
+            return 'Username can contain only lowercase letters, numbers, dot, underscore, and must be 3-15 characters long';
+        }
+        return '';
+    };
+
+    const validatePassword = (password) => {
+        if (!password) {
+            return 'Password is required';
+        }
+        const passwordRegex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&._-])[A-Za-z\d@$!%*?&._-]{6,20}$/;
+        if (!passwordRegex.test(password)) {
+            return 'Password must be 6-20 characters long, and include at least one uppercase letter, one lowercase letter, one digit, and one special character';
+        }
+        return '';
+    };
+
     const handleLogin = async () => {
+        // Validate fields
+        const validationErrors = {};
+
+        const usernameError = validateUsername(email);
+        if (usernameError) validationErrors.email = usernameError;
+
+        const passwordError = validatePassword(password);
+        if (passwordError) validationErrors.password = passwordError;
+
+        // If there are validation errors, show them and return
+        if (Object.keys(validationErrors).length > 0) {
+            setErrors(validationErrors);
+            toast.error('Please fix the validation errors');
+            return;
+        }
+
         setLoading(true);
         try {
-            const result = await AuthAPI.login(email, password);
+            const result = await AuthAPI.login(email.toLowerCase(), password); // Ensure lowercase username
             if (result.success) {
                 setShowPrivateKeyModal(true);
             } else {

@@ -18,6 +18,72 @@ import SettingsScreen from './pages/SettingsScreen';
 import CameraScreen from './pages/CameraScreen';
 import UserProfileScreen from './pages/UserProfileScreen';
 import { ApiUtils } from './services/AuthService';
+import { useFirebaseNotifications } from './hooks/useFirebaseNotifications';
+
+// Inner component that uses Firebase notifications
+function AppContent({ currentUserId }) {
+  // Initialize Firebase notifications (inside ToastProvider)
+  const { fcmToken } = useFirebaseNotifications();
+
+  // Send FCM token to backend when user is logged in
+  useEffect(() => {
+    const sendTokenToBackend = async () => {
+      if (fcmToken && currentUserId) {
+        console.log('📤 Sending FCM token to backend:', fcmToken);
+
+        try {
+          const accessToken = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
+          const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.0.200:8008/api/v1';
+
+          const response = await fetch(`${API_BASE_URL}/users/${currentUserId}/fcm-token`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify({ fcmToken })
+          });
+
+          if (response.ok) {
+            console.log('✅ FCM token sent to backend successfully');
+          } else {
+            console.error('❌ Failed to send FCM token to backend:', response.status);
+          }
+        } catch (error) {
+          console.error('❌ Error sending FCM token to backend:', error);
+        }
+      }
+    };
+
+    sendTokenToBackend();
+  }, [fcmToken, currentUserId]);
+
+  return (
+    <WebSocketProvider>
+      <CallProvider currentUserId={currentUserId}>
+        <Router>
+          <CallManager />
+          <Routes>
+            <Route path="/" element={<SplashScreen />} />
+            <Route path="/permissions" element={<PermissionsScreen />} />
+            <Route path="/login" element={<LoginScreen />} />
+            <Route path="/signup" element={<SignupScreen />} />
+            <Route path="/home" element={<Navigate to="/chats" replace />} />
+            <Route path="/chats" element={<ChatsScreen />} />
+            <Route path="/search" element={<SearchUsersScreen />} />
+            <Route path="/friends" element={<FriendsScreen />} />
+            <Route path="/requests" element={<RequestsScreen />} />
+            <Route path="/chat/:id" element={<ChatDetailScreen />} />
+            <Route path="/call-history" element={<CallHistoryScreen />} />
+            <Route path="/settings" element={<SettingsScreen />} />
+            <Route path="/camera" element={<CameraScreen />} />
+            <Route path="/user-profile/:userId" element={<UserProfileScreen />} />
+          </Routes>
+        </Router>
+      </CallProvider>
+    </WebSocketProvider>
+  );
+}
 
 function App() {
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -34,29 +100,7 @@ function App() {
 
   return (
     <ToastProvider>
-      <WebSocketProvider>
-        <CallProvider currentUserId={currentUserId}>
-          <Router>
-            <CallManager />
-            <Routes>
-              <Route path="/" element={<SplashScreen />} />
-              <Route path="/permissions" element={<PermissionsScreen />} />
-              <Route path="/login" element={<LoginScreen />} />
-              <Route path="/signup" element={<SignupScreen />} />
-              <Route path="/home" element={<Navigate to="/chats" replace />} />
-              <Route path="/chats" element={<ChatsScreen />} />
-              <Route path="/search" element={<SearchUsersScreen />} />
-              <Route path="/friends" element={<FriendsScreen />} />
-              <Route path="/requests" element={<RequestsScreen />} />
-              <Route path="/chat/:id" element={<ChatDetailScreen />} />
-              <Route path="/call-history" element={<CallHistoryScreen />} />
-              <Route path="/settings" element={<SettingsScreen />} />
-              <Route path="/camera" element={<CameraScreen />} />
-              <Route path="/user-profile/:userId" element={<UserProfileScreen />} />
-            </Routes>
-          </Router>
-        </CallProvider>
-      </WebSocketProvider>
+      <AppContent currentUserId={currentUserId} />
     </ToastProvider>
   );
 }

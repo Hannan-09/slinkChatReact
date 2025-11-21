@@ -18,6 +18,7 @@
     "cordova-plugin-iosrtc-capacitor": "^6.0.20",
     "crypto-js": "^4.2.0",
     "emoji-picker-react": "^4.15.0",
+    "firebase": "^12.6.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-icons": "^5.5.0",
