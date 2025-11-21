@@ -139,10 +139,11 @@ export default function UserProfileScreen() {
                     <div className="flex gap-4 w-full max-w-xs">
                         <button
                             onClick={() => {
-                                // Navigate back to chat
+                                // Navigate to chat and initiate audio call
                                 if (chatRoomId) {
-                                    navigate(`/chat/${chatRoomId}?name=${encodeURIComponent(profile.firstName + ' ' + profile.lastName)}&avatar=${encodeURIComponent(profile.profileURL || '')}&receiverId=${userId}`);
+                                    navigate(`/chat/${chatRoomId}?name=${encodeURIComponent(profile.firstName + ' ' + profile.lastName)}&avatar=${encodeURIComponent(profile.profileURL || '')}&receiverId=${userId}&autoCall=audio`);
                                 } else {
+                                    toast.warning('Chat room not found');
                                     navigate(-1);
                                 }
                             }}
@@ -153,10 +154,11 @@ export default function UserProfileScreen() {
                         </button>
                         <button
                             onClick={() => {
-                                // Navigate back to chat
+                                // Navigate to chat and initiate video call
                                 if (chatRoomId) {
-                                    navigate(`/chat/${chatRoomId}?name=${encodeURIComponent(profile.firstName + ' ' + profile.lastName)}&avatar=${encodeURIComponent(profile.profileURL || '')}&receiverId=${userId}`);
+                                    navigate(`/chat/${chatRoomId}?name=${encodeURIComponent(profile.firstName + ' ' + profile.lastName)}&avatar=${encodeURIComponent(profile.profileURL || '')}&receiverId=${userId}&autoCall=video`);
                                 } else {
+                                    toast.warning('Chat room not found');
                                     navigate(-1);
                                 }
                             }}

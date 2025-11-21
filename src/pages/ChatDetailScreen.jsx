@@ -1789,6 +1789,28 @@ export default function ChatDetailScreen() {
         console.log("✅ initiateCall function called");
     };
 
+    // Auto-initiate call if autoCall parameter is present
+    useEffect(() => {
+        const autoCallType = searchParams.get("autoCall");
+
+        if (autoCallType && currentUserId && connected && receiverUserId) {
+            console.log("🎯 Auto-initiating call:", autoCallType);
+
+            // Small delay to ensure everything is loaded
+            const timer = setTimeout(() => {
+                const isVideo = autoCallType === "video";
+                handleCallPress(isVideo);
+
+                // Remove autoCall parameter from URL to prevent re-triggering
+                const newSearchParams = new URLSearchParams(searchParams);
+                newSearchParams.delete("autoCall");
+                navigate(`/chat/${id}?${newSearchParams.toString()}`, { replace: true });
+            }, 500);
+
+            return () => clearTimeout(timer);
+        }
+    }, [currentUserId, connected, receiverUserId, searchParams]);
+
     const scrollToBottom = (instant = false) => {
         console.log("instant", instant);
         const container = messagesContainerRef.current;
