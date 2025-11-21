@@ -43,11 +43,14 @@ export default function SettingsScreen() {
             if (result.success && result.data?.data) {
                 const profileData = result.data.data;
 
+                console.log('📸 Profile data received:', profileData);
+                console.log('📸 Profile URL:', profileData.profileURL);
+
                 setUserProfile({
                     firstName: profileData.firstName || '',
                     lastName: profileData.lastName || '',
                     username: profileData.username || '',
-                    avatar: profileData.profileURL || 'https://via.placeholder.com/150',
+                    avatar: profileData.profileURL || '',
                 });
                 setEditedProfile({
                     firstName: profileData.firstName || '',
@@ -58,17 +61,20 @@ export default function SettingsScreen() {
                 if (profileData.firstName) localStorage.setItem('firstName', profileData.firstName);
                 if (profileData.lastName) localStorage.setItem('lastName', profileData.lastName);
                 if (profileData.username) localStorage.setItem('username', profileData.username);
+                if (profileData.profileURL) localStorage.setItem('profileURL', profileData.profileURL);
             } else {
                 // Fallback to localStorage if API fails
                 const firstName = localStorage.getItem('firstName') || '';
                 const lastName = localStorage.getItem('lastName') || '';
                 const username = localStorage.getItem('username') || '';
 
+                const profileURL = localStorage.getItem('profileURL') || '';
+
                 setUserProfile({
                     firstName,
                     lastName,
                     username,
-                    avatar: 'https://via.placeholder.com/150',
+                    avatar: profileURL,
                 });
                 setEditedProfile({
                     firstName,
@@ -82,12 +88,13 @@ export default function SettingsScreen() {
             const firstName = localStorage.getItem('firstName') || '';
             const lastName = localStorage.getItem('lastName') || '';
             const username = localStorage.getItem('username') || '';
+            const profileURL = localStorage.getItem('profileURL') || '';
 
             setUserProfile({
                 firstName,
                 lastName,
                 username,
-                avatar: 'https://via.placeholder.com/150',
+                avatar: profileURL,
             });
             setEditedProfile({
                 firstName,
@@ -227,11 +234,14 @@ export default function SettingsScreen() {
                 <div className="flex items-center justify-between p-4">
                     <button
                         onClick={() => navigate(-1)}
-                        className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] border border-black/70 shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)]"
+                        className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 mr-2 sm:mr-4 flex-shrink-0"
                     >
-                        <IoArrowBack className="text-white text-xl" />
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
+                            <IoArrowBack className="text-white text-lg sm:text-xl" />
+                        </div>
                     </button>
-                    <h1 className="text-white text-xl font-bold">Settings</h1>
+
+                    <h1 className="text-2xl font-bold text-white flex-1">Settings</h1>
                     <div className="w-10" />
                 </div>
             </div>
@@ -244,13 +254,13 @@ export default function SettingsScreen() {
                     <div className="flex flex-col items-center mb-6">
                         <div className="relative">
                             <div className="w-24 h-24 rounded-full bg-gradient-to-b from-[#2e2e2e] via-[#151515] to-[#050505] border border-white/25 shadow-[0_18px_32px_rgba(0,0,0,0.9),inset_0_2px_3px_rgba(255,255,255,0.18),inset_0_-3px_6px_rgba(0,0,0,0.9)] flex items-center justify-center overflow-hidden">
-                                {avatarPreview || userProfile.profileURL ? (
+                                {avatarPreview || (userProfile.avatar && userProfile.avatar !== 'https://via.placeholder.com/150') ? (
                                     <img
-                                        src={avatarPreview || userProfile.profileURL}
+                                        src={avatarPreview || userProfile.avatar}
                                         alt="Profile"
                                         className="w-full h-full object-cover"
                                         onError={(e) => {
-                                            console.error('Avatar load error:', avatarPreview || userProfile.avatar);
+                                            console.error('Avatar load error:', e.target.src);
                                             e.target.style.display = 'none';
                                         }}
                                     />
