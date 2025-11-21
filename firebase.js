@@ -82,7 +82,7 @@ export const requestNotificationPermission = async () => {
     // Get FCM token with VAPID key
     const token = await getToken(messaging, {
       vapidKey:
-        "BODkRYV046nuxt7iBLNxsXTdB6CIb7Tnf-kCUSXQBAW4fXadzOxMJwUrUFa5FHsG6-jk-b50FjLOwXJSrkioVgg",
+        "BJAQsGRAecBhKwG5r_wJgij-e2f_XUreIp1A6ekMIBVSBg_OSDPOKtpELpx20lV_OFjHNdhaeO33GTpA4cBg55Y",
       serviceWorkerRegistration: await navigator.serviceWorker.ready,
     });
 
