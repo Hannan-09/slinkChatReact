@@ -155,7 +155,11 @@ export default function ChatsScreen() {
 
                 const attachments = Array.isArray(message.attachments) ? message.attachments : [];
 
-                if (decryptedContent && decryptedContent.trim().length > 0) {
+                // Check if message is deleted
+                if (message.isDeleted) {
+                    previewType = 'meta';
+                    messagePreview = 'Message deleted';
+                } else if (decryptedContent && decryptedContent.trim().length > 0) {
                     previewType = 'text';
                     messagePreview = truncateMessage(decryptedContent);
                 } else if (attachments.length > 0) {
@@ -453,7 +457,11 @@ export default function ChatsScreen() {
                             ? lastMessage.attachments
                             : [];
 
-                    if (lastMessageContent && lastMessageContent.trim().length > 0) {
+                    // Check if message is deleted
+                    if (lastMessage && lastMessage.isDeleted) {
+                        previewType = 'meta';
+                        messagePreview = 'Message deleted';
+                    } else if (lastMessageContent && lastMessageContent.trim().length > 0) {
                         previewType = 'text';
                         messagePreview = truncateMessage(lastMessageContent);
                     } else if (attachments.length > 0) {
