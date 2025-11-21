@@ -43,7 +43,7 @@ function AppContent({ currentUserId }) {
               'Authorization': `Bearer ${accessToken}`
             },
             body: JSON.stringify({
-              userId: parseInt(currentUserId),
+              // userId: parseInt(currentUserId),
               token: fcmToken
             })
           });
