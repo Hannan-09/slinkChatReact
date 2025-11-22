@@ -125,7 +125,7 @@ export default function ActiveCallScreen() {
     };
 
     return (
-        <div className="min-h-screen bg-[#1a1a1a] relative overflow-hidden">
+        <div className="min-h-screen bg-[#1a1a1a] relative overflow-hidden safe-area-top">
             {/* Audio elements */}
             <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
             <audio ref={localAudioRef} muted className="hidden" />

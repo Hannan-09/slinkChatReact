@@ -143,7 +143,7 @@ export default function CallHistoryScreen() {
     };
 
     return (
-        <div className="h-screen bg-[#0a0a0a] flex flex-col">
+        <div className="h-screen bg-[#1a1a1a] flex flex-col overflow-hidden safe-area-top">
             {/* Header */}
             <div className="bg-gradient-to-b from-[#1a1a1a] to-[#0f0f0f] border-b border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
                 <div className="flex items-center px-5 py-4">

@@ -74,7 +74,7 @@ export default function PermissionsScreen() {
     const allPermissionsGranted = permissions.microphone && permissions.camera && permissions.storage;
 
     return (
-        <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden safe-area-top">
             {/* Animated background */}
             <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900 opacity-50"></div>
             <div className="absolute top-10 left-10 w-64 h-64 bg-white/5 rounded-full blur-3xl animate-pulse"></div>

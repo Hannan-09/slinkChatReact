@@ -152,7 +152,7 @@ export default function RequestsScreen() {
     const currentRequests = activeTab === 'received' ? receivedRequests : sentRequests;
 
     return (
-        <div className="h-screen bg-[#1a1a1a] flex flex-col overflow-hidden">
+        <div className="h-screen bg-[#1a1a1a] flex flex-col overflow-hidden safe-area-top">
             {/* Header */}
             <div className="flex items-center px-5 py-4">
                 {/* Back button - match ChatDetailScreen 3D back button */}

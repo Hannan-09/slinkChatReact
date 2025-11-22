@@ -75,7 +75,7 @@ export default function ActiveCallScreen() {
     };
 
     return (
-        <div className="fixed inset-0 bg-[#1a1a1a] z-50 flex flex-col">
+        <div className="fixed inset-0 bg-[#1a1a1a] z-50 flex flex-col safe-area-top">
             {/* Audio elements */}
             <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
             <audio ref={localAudioRef} muted className="hidden" />

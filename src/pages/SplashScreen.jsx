@@ -23,7 +23,7 @@ export default function SplashScreen() {
     }, [navigate]);
 
     return (
-        <div className="min-h-screen bg-black flex items-center justify-center relative overflow-hidden">
+        <div className="min-h-screen bg-black flex items-center justify-center relative safe-area-top overflow-hidden">
             {/* Animated background gradient */}
             <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900 opacity-50"></div>
 

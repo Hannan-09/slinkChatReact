@@ -247,7 +247,7 @@ export default function SignupScreen() {
     };
 
     return (
-        <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center px-4 py-8">
+        <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center px-4 py-8 safe-area-top">
             <div className="w-full max-w-md">
                 {/* Header */}
                 <div className="text-center mb-10 relative">

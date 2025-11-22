@@ -86,7 +86,7 @@ export default function OutgoingCallScreen() {
     };
 
     return (
-        <div className="min-h-screen bg-[#1a1a1a] flex flex-col justify-between py-12 px-6">
+        <div className="min-h-screen bg-[#1a1a1a] flex flex-col justify-between safe-area-top py-12 px-6">
             {/* Receiver Info */}
             <div className="flex-1 flex flex-col items-center justify-center">
                 {/* Avatar with pulse animation */}

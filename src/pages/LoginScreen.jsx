@@ -155,7 +155,7 @@ export default function LoginScreen() {
     };
 
     return (
-        <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center px-4 py-8">
+        <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center safe-area-top px-4 py-8">
             <div className="w-full max-w-md">
                 {/* Header */}
                 <div className="text-center mb-12">

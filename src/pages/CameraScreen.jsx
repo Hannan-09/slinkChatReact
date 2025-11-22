@@ -325,7 +325,7 @@ export default function CameraScreen() {
     };
 
     return (
-        <div className="h-screen bg-black flex flex-col overflow-hidden relative">
+        <div className="h-screen bg-[#1a1a1a] flex flex-col overflow-hidden safe-area-top">
             {/* Camera View or Preview */}
             {!capturedMedia ? (
                 <>

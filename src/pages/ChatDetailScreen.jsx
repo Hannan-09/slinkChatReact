@@ -1908,7 +1908,7 @@ export default function ChatDetailScreen() {
     };
 
     return (
-        <div className="h-screen flex flex-col overflow-hidden chat-detail-bg safe-area-top">
+        <div className="h-screen bg-[#1a1a1a] flex flex-col overflow-hidden safe-area-top">
             {/* Header - Sticky Top */}
             <div className="sticky top-0 z-10 flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 bg-[#1a1a1a] border-b border-gray-800 shadow-lg">
                 <div className="flex items-center flex-1 min-w-0">

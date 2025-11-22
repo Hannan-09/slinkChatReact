@@ -286,7 +286,7 @@ export default function FriendsScreen() {
     };
 
     return (
-        <div className="min-h-screen bg-[#1a1a1a] flex flex-col">
+        <div className="h-screen bg-[#1a1a1a] flex flex-col overflow-hidden safe-area-top">
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4">
                 <h1 className="text-2xl font-bold text-white">Friends</h1>
