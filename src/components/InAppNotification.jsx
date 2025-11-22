@@ -29,8 +29,15 @@ export default function InAppNotification({ notification, onClose }) {
     const handleClick = () => {
         if (notification.onClick) {
             notification.onClick();
+        } else if (notification.chatRoomId && notification.type === 'message') {
+            const params = new URLSearchParams({
+                name: notification.senderName || 'User',
+                avatar: notification.senderProfile || '',
+                receiverId: notification.receiverId || notification.senderId || '',
+            });
+            navigate(`/chat/${notification.chatRoomId}?${params.toString()}`);
         } else if (notification.chatRoomId) {
-            navigate(`/chat/${notification.chatRoomId}?name=${encodeURIComponent(notification.senderName || 'User')}&receiverId=${notification.senderId || 0}`);
+            navigate(`/chat/${notification.chatRoomId}`);
         } else if (notification.type === 'chat_request') {
             navigate('/requests');
         }

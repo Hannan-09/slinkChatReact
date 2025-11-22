@@ -1,15 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import InAppNotification from './InAppNotification';
 import EncryptionService from '../services/EncryptionService';
 import { decryptEnvelope } from '../scripts/decryptEnvelope';
 import { decryptMessage } from '../scripts/decryptMessage';
+import chatApiService from '../services/ChatApiService';
 
 export default function InAppNotificationManager({ currentUserId }) {
     const [notifications, setNotifications] = useState([]);
     const location = useLocation();
-    const { socket, connected } = useWebSocket();
+    const socket = useWebSocket();
+    const chatRoomMetaCache = useRef(new Map());
 
     // Get current chat room ID from URL
     const getCurrentChatRoomId = useCallback(() => {
@@ -17,7 +19,101 @@ export default function InAppNotificationManager({ currentUserId }) {
         return match ? parseInt(match[1]) : null;
     }, [location.pathname]);
 
+    const fetchChatRoomMetadata = useCallback(async (chatRoomId) => {
+        const storedUserId = localStorage.getItem('userId');
+        const resolvedUserId = currentUserId || (storedUserId ? parseInt(storedUserId) : null);
+
+        if (!chatRoomId || !resolvedUserId) {
+            return null;
+        }
+
+        const cacheKey = Number(chatRoomId);
+        if (chatRoomMetaCache.current.has(cacheKey)) {
+            return chatRoomMetaCache.current.get(cacheKey);
+        }
+
+        try {
+            const response = await chatApiService.getAllChatRooms(resolvedUserId, {
+                pageNumber: 1,
+                size: 200,
+                sortBy: 'createdAt',
+                sortDirection: 'desc',
+            });
+
+            const rooms = Array.isArray(response?.data)
+                ? response.data
+                : Array.isArray(response)
+                    ? response
+                    : [];
+
+            const room = rooms.find(
+                (roomItem) => Number(roomItem.chatRoomId) === cacheKey
+            );
+
+            if (!room) {
+                return null;
+            }
+
+            const currentIdNum = Number(resolvedUserId);
+            const isCurrentUserUser1 =
+                Number(room.userId) === currentIdNum ||
+                String(room.userId) === String(currentIdNum);
+
+            const otherUserName = isCurrentUserUser1 ? room.user2Name : room.username;
+            const otherUserId = isCurrentUserUser1 ? room.user2Id : room.userId;
+            const otherUserProfileURL = isCurrentUserUser1
+                ? room.user2ProfileURL
+                : room.userProfileURL;
+
+            const meta = {
+                name: otherUserName || 'Unknown',
+                receiverId: otherUserId,
+                avatar: otherUserProfileURL || null,
+            };
+
+            chatRoomMetaCache.current.set(cacheKey, meta);
+            return meta;
+        } catch (error) {
+            console.error('❌ Failed to fetch chat room metadata for notification:', error);
+            return null;
+        }
+    }, [currentUserId]);
+
     // Handle incoming notifications from backend (LiveMessage format)
+    const decryptNotificationContent = useCallback(async (encryptedContent, envelopes) => {
+        if (!encryptedContent) {
+            return 'New message';
+        }
+
+        try {
+            const encryptedPrivateKey = localStorage.getItem('decryptedBackendData');
+            if (!encryptedPrivateKey) {
+                return 'New message';
+            }
+
+            const privateKey = EncryptionService.decrypt(encryptedPrivateKey);
+            if (!privateKey) {
+                return 'New message';
+            }
+
+            const envolop =
+                envelopes?.receiver_envolop ||
+                envelopes?.receiverEnvolop ||
+                envelopes?.receiver_envelope;
+
+            if (!envolop) {
+                return 'New message';
+            }
+
+            const envolopDecryptKey = await decryptEnvelope(envolop, privateKey);
+            const decryptedContent = await decryptMessage(encryptedContent, envolopDecryptKey);
+            return decryptedContent || 'New message';
+        } catch (error) {
+            console.error('❌ Failed to decrypt notification content:', error);
+            return 'New message';
+        }
+    }, []);
+
     const handleNotification = useCallback(async (payload, rawMessage) => {
         console.log('📬 In-app notification received:', payload);
         console.log('📬 Raw message:', rawMessage);
@@ -40,10 +136,33 @@ export default function InAppNotificationManager({ currentUserId }) {
             const dataStr = actualPayload.data || actualPayload.message || payload.data || payload.message || '';
             console.log('📝 Data string:', dataStr);
 
-            let title = 'Notification';
+            const senderNameFromPayload = actualPayload.senderName || payload.senderName || 'Notification';
+            let title = senderNameFromPayload;
             let message = dataStr;
             let notificationType = 'message';
             const currentChatRoomId = getCurrentChatRoomId();
+            let encryptedContent = dataStr;
+            const envelopes = actualPayload.envolops || payload.envolops;
+            const payloadChatRoomIdRaw =
+                actualPayload.chatRoomId ??
+                payload.chatRoomId ??
+                actualPayload.chatroomId ??
+                payload.chatroomId ??
+                null;
+            const payloadChatRoomId = payloadChatRoomIdRaw != null ? Number(payloadChatRoomIdRaw) : null;
+            const normalizedChatRoomId = Number.isNaN(payloadChatRoomId) ? null : payloadChatRoomId;
+            let receiverId = actualPayload.senderId || payload.senderId || null;
+            let senderProfile = actualPayload.senderProfile || payload.senderProfile || null;
+            let senderName = senderNameFromPayload;
+
+            if (
+                currentChatRoomId !== null &&
+                normalizedChatRoomId !== null &&
+                currentChatRoomId === normalizedChatRoomId
+            ) {
+                console.log('🚫 Skipping in-app notification for current chat room', currentChatRoomId);
+                return;
+            }
 
             // Detect notification type from message content
             if (dataStr.includes('New Chat Request From') || dataStr.includes('New Chat Request')) {
@@ -68,40 +187,32 @@ export default function InAppNotificationManager({ currentUserId }) {
                 // Message: "John Doe : encrypted_message"
                 notificationType = 'message';
                 const parts = dataStr.split(' : ');
-                title = parts[0]; // Sender name
-                const encryptedContent = parts[1];
+                title = senderName || parts[0]; // Prefer senderName from payload
+                encryptedContent = parts[1] || dataStr;
                 console.log('✅ Detected: Message from', title);
+            }
 
-                // Don't show if user is in that chat room
-                // (We can't check chatRoomId since backend doesn't send it, but we can skip based on sender)
-                // For now, always show message notifications
-
-                // Try to decrypt the message if envelopes are provided
-                if (payload.envolops && encryptedContent) {
-                    try {
-                        const privateKey = EncryptionService.decrypt(localStorage.getItem("decryptedBackendData"));
-
-                        if (privateKey) {
-                            // Use receiver_envolop since we're the receiver
-                            const envolop = payload.envolops.receiver_envolop;
-
-                            if (envolop) {
-                                const envolopDecryptKey = await decryptEnvelope(envolop, privateKey);
-                                const decryptedContent = await decryptMessage(encryptedContent, envolopDecryptKey);
-                                message = decryptedContent;
-                                console.log('🔓 Message decrypted:', decryptedContent);
-                            } else {
-                                message = 'New message'; // Fallback if no envelope
-                            }
-                        } else {
-                            message = 'New message'; // Fallback if no private key
-                        }
-                    } catch (error) {
-                        console.error('❌ Failed to decrypt message:', error);
-                        message = 'New message'; // Fallback on error
-                    }
+            // Try to decrypt chat messages using envelopes, fallback to original content
+            if (notificationType === 'message' && encryptedContent) {
+                if (envelopes) {
+                    const decryptedContent = await decryptNotificationContent(encryptedContent, envelopes);
+                    message = decryptedContent || 'New message';
+                    console.log('🔓 Notification message decrypted:', decryptedContent);
                 } else {
                     message = encryptedContent || 'New message';
+                }
+            }
+
+            // Enrich metadata for navigation if needed
+            if (normalizedChatRoomId && (!receiverId || !senderProfile || !senderName || senderName === 'Notification')) {
+                const meta = await fetchChatRoomMetadata(normalizedChatRoomId);
+                if (meta) {
+                    receiverId = receiverId || meta.receiverId || null;
+                    senderProfile = senderProfile || meta.avatar || senderProfile;
+                    if (!senderName || senderName === 'Notification') {
+                        senderName = meta.name || senderName;
+                        title = senderName;
+                    }
                 }
             }
 
@@ -110,15 +221,18 @@ export default function InAppNotificationManager({ currentUserId }) {
                 type: notificationType,
                 title,
                 message,
-                senderProfile: actualPayload.senderProfile || payload.senderProfile,
+                senderProfile,
+                senderName,
+                chatRoomId: normalizedChatRoomId || undefined,
+                senderId: actualPayload.senderId || payload.senderId,
+                receiverId: receiverId || undefined,
                 timestamp: new Date(),
             };
 
             console.log('🔔 Creating notification:', notification);
-            setNotifications((prev) => {
-                console.log('📋 Current notifications:', prev.length);
-                console.log('📋 Adding notification, new total:', prev.length + 1);
-                return [...prev, notification];
+            setNotifications(() => {
+                console.log('📋 Replacing existing notifications with the latest one');
+                return [notification];
             });
 
             // Play notification sound
@@ -135,12 +249,28 @@ export default function InAppNotificationManager({ currentUserId }) {
         } catch (error) {
             console.error('❌ Error handling notification:', error);
         }
-    }, [getCurrentChatRoomId]);
+    }, [getCurrentChatRoomId, decryptNotificationContent, fetchChatRoomMetadata]);
+
+    // Remove notifications that belong to the currently open chat room
+    useEffect(() => {
+        const activeChatRoomId = getCurrentChatRoomId();
+        if (
+            activeChatRoomId !== null &&
+            notifications.some((notification) => notification.chatRoomId === activeChatRoomId)
+        ) {
+            console.log('🧹 Clearing notifications for active chat room', activeChatRoomId);
+            setNotifications((prev) => prev.filter((n) => n.chatRoomId !== activeChatRoomId));
+        }
+    }, [getCurrentChatRoomId, notifications]);
 
     // Subscribe to notification WebSocket topic
     useEffect(() => {
-        if (!connected || !currentUserId || !socket) {
-            console.log('⏳ Waiting for WebSocket connection...', { connected, currentUserId, hasSocket: !!socket });
+        if (!socket?.connected || !currentUserId) {
+            console.log('⏳ Waiting for WebSocket connection...', { 
+                connected: socket?.connected, 
+                currentUserId, 
+                hasSocket: !!socket 
+            });
             return;
         }
 
@@ -148,9 +278,10 @@ export default function InAppNotificationManager({ currentUserId }) {
         console.log('🔔 Subscribing to in-app notifications:', destination);
 
         try {
-            const subscription = socket.subscribe(destination, (data) => {
+            const subscription = socket.subscribe(destination, (data, rawMessage) => {
                 console.log('📨 Raw notification data:', data);
-                handleNotification(data);
+                console.log('📨 Raw STOMP message:', rawMessage);
+                handleNotification(data, rawMessage);
             });
 
             return () => {
@@ -162,7 +293,7 @@ export default function InAppNotificationManager({ currentUserId }) {
         } catch (error) {
             console.error('❌ Error subscribing to notifications:', error);
         }
-    }, [connected, currentUserId, socket, handleNotification]);
+    }, [socket?.connected, currentUserId, socket, handleNotification]);
 
     const removeNotification = (id) => {
         setNotifications((prev) => prev.filter((n) => n.id !== id));

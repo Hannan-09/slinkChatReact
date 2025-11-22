@@ -2,8 +2,25 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 
+const DEFAULT_WS_PORT = import.meta.env.VITE_WEBSOCKET_PORT || "8008";
+
+const getDefaultWebSocketUrl = () => {
+  try {
+    if (typeof window !== "undefined" && window.location) {
+      const protocol = window.location.protocol === "https:" ? "https" : "http";
+      const host = window.location.hostname || "localhost";
+      return `${protocol}://${host}:${DEFAULT_WS_PORT}/ws`;
+    }
+  } catch {
+    // Ignore and fall back below
+  }
+
+  // Fallback if window/location not available
+  return `http://localhost:${DEFAULT_WS_PORT}/ws`;
+};
+
 const WEBSOCKET_URL =
-  import.meta.env.VITE_WEBSOCKET_URL || "http://192.168.0.200:8008/ws";
+  import.meta.env.VITE_WEBSOCKET_URL || getDefaultWebSocketUrl();
 
 export default function useStompSocket(options = {}) {
   const [connected, setConnected] = useState(false);
