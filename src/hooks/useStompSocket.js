@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Client } from "@stomp/stompjs";
-import SockJS from "sockjs-client";
 
 const WEBSOCKET_URL =
   import.meta.env.VITE_WEBSOCKET_URL || "http://192.168.0.200:8008/ws";
@@ -60,7 +59,7 @@ export default function useStompSocket(options = {}) {
       const connectHeaders = userId ? { userId: userId } : {};
 
       const client = new Client({
-        webSocketFactory: () => new SockJS(WEBSOCKET_URL),
+        brokerURL: WEBSOCKET_URL,
         connectHeaders: connectHeaders,
         debug: config.debug ? (str) => log(str, "debug") : undefined,
         reconnectDelay: 5000,
