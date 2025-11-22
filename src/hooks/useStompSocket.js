@@ -2,25 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 
-const DEFAULT_WS_PORT = import.meta.env.VITE_WEBSOCKET_PORT || "8008";
-
-const getDefaultWebSocketUrl = () => {
-  try {
-    if (typeof window !== "undefined" && window.location) {
-      const protocol = window.location.protocol === "https:" ? "https" : "http";
-      const host = window.location.hostname || "localhost";
-      return `${protocol}://${host}:${DEFAULT_WS_PORT}/ws`;
-    }
-  } catch {
-    // Ignore and fall back below
-  }
-
-  // Fallback if window/location not available
-  return `http://localhost:${DEFAULT_WS_PORT}/ws`;
-};
-
 const WEBSOCKET_URL =
-  import.meta.env.VITE_WEBSOCKET_URL || getDefaultWebSocketUrl();
+  import.meta.env.VITE_WEBSOCKET_URL || "http://192.168.0.200:8008/ws";
 
 export default function useStompSocket(options = {}) {
   const [connected, setConnected] = useState(false);
@@ -193,6 +176,19 @@ export default function useStompSocket(options = {}) {
 
               // Try to parse as JSON
               parsedMessage = JSON.parse(message.body);
+
+              // For notification topics, pass the raw parsed message
+              if (destination.includes("/topic/notification/")) {
+                console.log("🔔 ========================================");
+                console.log("🔔 NOTIFICATION MESSAGE IN STOMP HOOK");
+                console.log("🔔 Destination:", destination);
+                console.log("🔔 Parsed message:", parsedMessage);
+                console.log("🔔 ========================================");
+                if (callback) {
+                  callback(parsedMessage, message);
+                }
+                return;
+              }
 
               let actualMessage = parsedMessage;
               if (

@@ -241,6 +241,14 @@ export default function ChatDetailScreen() {
 
     const receiverUserId = parseInt(receiverId);
 
+    // Debug: Log component mount and params
+    useEffect(() => {
+        console.log('🎬 ChatDetailScreen MOUNTED/UPDATED');
+        console.log('📍 Route params:', { id, chatRoomId: parseInt(id) });
+        console.log('📍 Query params:', { name, avatar, receiverId, receiverUserId });
+        console.log('📍 Valid receiverUserId:', !isNaN(receiverUserId));
+    }, [id, name, avatar, receiverId, receiverUserId]);
+
     // Use the global online status hook
     const isReceiverOnline = useUserOnlineStatus(receiverUserId);
 
@@ -338,7 +346,14 @@ export default function ChatDetailScreen() {
 
     // Subscribe to WebSocket messages
     useEffect(() => {
-        if (!connected || !currentUserId || !chatRoomId) {
+        if (!connected || !currentUserId || !chatRoomId || !receiverUserId || isNaN(receiverUserId)) {
+            console.log('⏳ Waiting for WebSocket subscription requirements:', {
+                connected,
+                currentUserId,
+                chatRoomId,
+                receiverUserId,
+                isValid: !isNaN(receiverUserId)
+            });
             return;
         }
         // Subscribe to messages we send (as sender)

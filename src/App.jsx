@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { WebSocketProvider } from './contexts/WebSocketContext';
 import { CallProvider } from './contexts/CallContext';
 import { ToastProvider } from './contexts/ToastContext';
@@ -20,6 +20,13 @@ import UserProfileScreen from './pages/UserProfileScreen';
 import { ApiUtils } from './services/AuthService';
 import { useFirebaseNotifications } from './hooks/useFirebaseNotifications';
 import InAppNotificationManager from './components/InAppNotificationManager';
+
+// Wrapper to force ChatDetailScreen remount on navigation
+function ChatDetailScreenWrapper() {
+  const location = useLocation();
+  // Use full location (pathname + search) as key to force remount when query params change
+  return <ChatDetailScreen key={location.pathname + location.search} />;
+}
 
 // Inner component that uses Firebase notifications
 function AppContent({ currentUserId }) {
@@ -81,7 +88,7 @@ function AppContent({ currentUserId }) {
             <Route path="/search" element={<SearchUsersScreen />} />
             <Route path="/friends" element={<FriendsScreen />} />
             <Route path="/requests" element={<RequestsScreen />} />
-            <Route path="/chat/:id" element={<ChatDetailScreen />} />
+            <Route path="/chat/:id" element={<ChatDetailScreenWrapper />} />
             <Route path="/call-history" element={<CallHistoryScreen />} />
             <Route path="/settings" element={<SettingsScreen />} />
             <Route path="/camera" element={<CameraScreen />} />

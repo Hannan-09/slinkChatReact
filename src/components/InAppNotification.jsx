@@ -27,21 +27,42 @@ export default function InAppNotification({ notification, onClose }) {
     };
 
     const handleClick = () => {
-        if (notification.onClick) {
-            notification.onClick();
-        } else if (notification.chatRoomId && notification.type === 'message') {
-            const params = new URLSearchParams({
-                name: notification.senderName || 'User',
-                avatar: notification.senderProfile || '',
-                receiverId: notification.receiverId || notification.senderId || '',
-            });
-            navigate(`/chat/${notification.chatRoomId}?${params.toString()}`);
-        } else if (notification.chatRoomId) {
-            navigate(`/chat/${notification.chatRoomId}`);
-        } else if (notification.type === 'chat_request') {
-            navigate('/requests');
-        }
+        // Close notification first
         handleClose();
+
+        // Navigate after a small delay to ensure smooth transition
+        setTimeout(() => {
+            // Handle different notification types
+            if (notification.type === 'message' && notification.chatRoomId) {
+                // Navigate to chat room with query parameters
+                const senderName = notification.senderName || notification.title || 'User';
+                const senderId = notification.senderId || '';
+                const senderProfile = notification.senderProfile || '';
+
+                console.log('🚀 Navigating to chat from notification:', {
+                    chatRoomId: notification.chatRoomId,
+                    senderName,
+                    senderId,
+                    senderProfile,
+                    fullNotification: notification
+                });
+
+                if (!senderId) {
+                    console.error('❌ Missing senderId in notification - navigation may fail!', notification);
+                }
+
+                navigate(`/chat/${notification.chatRoomId}?name=${encodeURIComponent(senderName)}&avatar=${encodeURIComponent(senderProfile)}&receiverId=${senderId}`);
+            } else if (notification.type === 'chat_request' || notification.type === 'request_accepted') {
+                // Navigate to requests screen
+                navigate('/requests');
+            } else if (notification.type === 'missed_call') {
+                // Navigate to call history
+                navigate('/call-history');
+            } else if (notification.onClick) {
+                // Custom onClick handler
+                notification.onClick();
+            }
+        }, 100);
     };
 
     const getIcon = () => {

@@ -1,168 +1,44 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import InAppNotification from './InAppNotification';
 import EncryptionService from '../services/EncryptionService';
 import { decryptEnvelope } from '../scripts/decryptEnvelope';
 import { decryptMessage } from '../scripts/decryptMessage';
-import chatApiService from '../services/ChatApiService';
 
 export default function InAppNotificationManager({ currentUserId }) {
     const [notifications, setNotifications] = useState([]);
     const location = useLocation();
     const socket = useWebSocket();
-    const chatRoomMetaCache = useRef(new Map());
-
-    // Get current chat room ID from URL
-    const getCurrentChatRoomId = useCallback(() => {
-        const match = location.pathname.match(/^\/chat\/(\d+)/);
-        return match ? parseInt(match[1]) : null;
-    }, [location.pathname]);
-
-    const fetchChatRoomMetadata = useCallback(async (chatRoomId) => {
-        const storedUserId = localStorage.getItem('userId');
-        const resolvedUserId = currentUserId || (storedUserId ? parseInt(storedUserId) : null);
-
-        if (!chatRoomId || !resolvedUserId) {
-            return null;
-        }
-
-        const cacheKey = Number(chatRoomId);
-        if (chatRoomMetaCache.current.has(cacheKey)) {
-            return chatRoomMetaCache.current.get(cacheKey);
-        }
-
-        try {
-            const response = await chatApiService.getAllChatRooms(resolvedUserId, {
-                pageNumber: 1,
-                size: 200,
-                sortBy: 'createdAt',
-                sortDirection: 'desc',
-            });
-
-            const rooms = Array.isArray(response?.data)
-                ? response.data
-                : Array.isArray(response)
-                    ? response
-                    : [];
-
-            const room = rooms.find(
-                (roomItem) => Number(roomItem.chatRoomId) === cacheKey
-            );
-
-            if (!room) {
-                return null;
-            }
-
-            const currentIdNum = Number(resolvedUserId);
-            const isCurrentUserUser1 =
-                Number(room.userId) === currentIdNum ||
-                String(room.userId) === String(currentIdNum);
-
-            const otherUserName = isCurrentUserUser1 ? room.user2Name : room.username;
-            const otherUserId = isCurrentUserUser1 ? room.user2Id : room.userId;
-            const otherUserProfileURL = isCurrentUserUser1
-                ? room.user2ProfileURL
-                : room.userProfileURL;
-
-            const meta = {
-                name: otherUserName || 'Unknown',
-                receiverId: otherUserId,
-                avatar: otherUserProfileURL || null,
-            };
-
-            chatRoomMetaCache.current.set(cacheKey, meta);
-            return meta;
-        } catch (error) {
-            console.error('❌ Failed to fetch chat room metadata for notification:', error);
-            return null;
-        }
-    }, [currentUserId]);
+    const connected = socket?.connected || false;
 
     // Handle incoming notifications from backend (LiveMessage format)
-    const decryptNotificationContent = useCallback(async (encryptedContent, envelopes) => {
-        if (!encryptedContent) {
-            return 'New message';
-        }
-
-        try {
-            const encryptedPrivateKey = localStorage.getItem('decryptedBackendData');
-            if (!encryptedPrivateKey) {
-                return 'New message';
-            }
-
-            const privateKey = EncryptionService.decrypt(encryptedPrivateKey);
-            if (!privateKey) {
-                return 'New message';
-            }
-
-            const envolop =
-                envelopes?.receiver_envolop ||
-                envelopes?.receiverEnvolop ||
-                envelopes?.receiver_envelope;
-
-            if (!envolop) {
-                return 'New message';
-            }
-
-            const envolopDecryptKey = await decryptEnvelope(envolop, privateKey);
-            const decryptedContent = await decryptMessage(encryptedContent, envolopDecryptKey);
-            return decryptedContent || 'New message';
-        } catch (error) {
-            console.error('❌ Failed to decrypt notification content:', error);
-            return 'New message';
-        }
-    }, []);
-
     const handleNotification = useCallback(async (payload, rawMessage) => {
-        console.log('📬 In-app notification received:', payload);
-        console.log('📬 Raw message:', rawMessage);
+        console.log('📬 ========== NOTIFICATION RECEIVED ==========');
+        console.log('📬 Payload:', JSON.stringify(payload, null, 2));
         console.log('📬 Payload type:', typeof payload);
-        console.log('📬 Payload keys:', Object.keys(payload || {}));
-        console.log('📬 Payload.data:', payload?.data);
-        console.log('📬 Payload.senderProfile:', payload?.senderProfile);
+        console.log('📬 Payload keys:', Object.keys(payload));
+        console.log('📬 Raw message:', rawMessage);
+        console.log('📬 ==========================================');
 
         try {
-            // Handle different payload formats
-            let actualPayload = payload;
+            // Backend sends: { senderProfile: "url", senderName: "name", data: "encrypted_message", envolops: {...}, chatRoomId: 123 }
+            const senderProfile = payload.senderProfile || payload.sender_profile || '';
+            const senderName = payload.senderName || payload.sender_name || 'Someone';
+            const dataStr = payload.data || payload.message || '';
+            const envolops = payload.envolops || payload.envelopes || null;
+            const chatRoomId = payload.chatRoomId || payload.chat_room_id || payload.roomId;
 
-            // If payload has a 'data' property that's an object, use that
-            if (payload?.data && typeof payload.data === 'object') {
-                actualPayload = payload.data;
-                console.log('📦 Using nested data object:', actualPayload);
-            }
-
-            // Backend sends: { senderProfile: "url", data: "message", envolops: {...} }
-            const dataStr = actualPayload.data || actualPayload.message || payload.data || payload.message || '';
+            console.log('📝 Sender Profile:', senderProfile);
+            console.log('📝 Sender Name:', senderName);
+            console.log('📝 Sender ID:', payload.senderId);
             console.log('📝 Data string:', dataStr);
+            console.log('📝 Envolops:', envolops);
+            console.log('📝 Chat Room ID:', chatRoomId);
 
-            const senderNameFromPayload = actualPayload.senderName || payload.senderName || 'Notification';
-            let title = senderNameFromPayload;
+            let title = senderName;
             let message = dataStr;
             let notificationType = 'message';
-            const currentChatRoomId = getCurrentChatRoomId();
-            let encryptedContent = dataStr;
-            const envelopes = actualPayload.envolops || payload.envolops;
-            const payloadChatRoomIdRaw =
-                actualPayload.chatRoomId ??
-                payload.chatRoomId ??
-                actualPayload.chatroomId ??
-                payload.chatroomId ??
-                null;
-            const payloadChatRoomId = payloadChatRoomIdRaw != null ? Number(payloadChatRoomIdRaw) : null;
-            const normalizedChatRoomId = Number.isNaN(payloadChatRoomId) ? null : payloadChatRoomId;
-            let receiverId = actualPayload.senderId || payload.senderId || null;
-            let senderProfile = actualPayload.senderProfile || payload.senderProfile || null;
-            let senderName = senderNameFromPayload;
-
-            if (
-                currentChatRoomId !== null &&
-                normalizedChatRoomId !== null &&
-                currentChatRoomId === normalizedChatRoomId
-            ) {
-                console.log('🚫 Skipping in-app notification for current chat room', currentChatRoomId);
-                return;
-            }
 
             // Detect notification type from message content
             if (dataStr.includes('New Chat Request From') || dataStr.includes('New Chat Request')) {
@@ -183,56 +59,80 @@ export default function InAppNotificationManager({ currentUserId }) {
                 title = 'Missed Call';
                 message = dataStr;
                 console.log('✅ Detected: Missed Call');
-            } else if (dataStr.includes(' : ')) {
-                // Message: "John Doe : encrypted_message"
+            } else if (envolops && dataStr) {
+                // Encrypted message - decrypt it
                 notificationType = 'message';
-                const parts = dataStr.split(' : ');
-                title = senderName || parts[0]; // Prefer senderName from payload
-                encryptedContent = parts[1] || dataStr;
-                console.log('✅ Detected: Message from', title);
-            }
+                title = senderName;
+                console.log('✅ Detected: Encrypted message from', senderName);
 
-            // Try to decrypt chat messages using envelopes, fallback to original content
-            if (notificationType === 'message' && encryptedContent) {
-                if (envelopes) {
-                    const decryptedContent = await decryptNotificationContent(encryptedContent, envelopes);
-                    message = decryptedContent || 'New message';
-                    console.log('🔓 Notification message decrypted:', decryptedContent);
-                } else {
-                    message = encryptedContent || 'New message';
+                // Check if user is currently in this chat room by reading current location
+                const currentPath = window.location.pathname;
+                const match = currentPath.match(/^\/chat\/(\d+)/);
+                const currentChatRoomId = match ? parseInt(match[1]) : null;
+
+                if (currentChatRoomId && chatRoomId && currentChatRoomId === chatRoomId) {
+                    console.log('⏭️ User is in chat room', chatRoomId, '- skipping notification');
+                    return; // Don't show notification if user is in the chat
                 }
-            }
 
-            // Enrich metadata for navigation if needed
-            if (normalizedChatRoomId && (!receiverId || !senderProfile || !senderName || senderName === 'Notification')) {
-                const meta = await fetchChatRoomMetadata(normalizedChatRoomId);
-                if (meta) {
-                    receiverId = receiverId || meta.receiverId || null;
-                    senderProfile = senderProfile || meta.avatar || senderProfile;
-                    if (!senderName || senderName === 'Notification') {
-                        senderName = meta.name || senderName;
-                        title = senderName;
+                try {
+                    const privateKey = EncryptionService.decrypt(localStorage.getItem("decryptedBackendData"));
+
+                    if (privateKey) {
+                        // Use receiver_envolop since we're the receiver
+                        const envolop = envolops.receiver_envolop;
+
+                        if (envolop) {
+                            console.log('🔐 Decrypting notification message...');
+                            const envolopDecryptKey = await decryptEnvelope(envolop, privateKey);
+                            const decryptedContent = await decryptMessage(dataStr, envolopDecryptKey);
+                            message = decryptedContent;
+                            console.log('🔓 Notification message decrypted:', decryptedContent);
+                        } else {
+                            message = 'New message';
+                            console.log('⚠️ No receiver envelope found');
+                        }
+                    } else {
+                        message = 'New message';
+                        console.log('⚠️ No private key found');
                     }
+                } catch (error) {
+                    console.error('❌ Failed to decrypt notification message:', error);
+                    message = 'New message';
                 }
+            } else {
+                // Plain text message or unknown format
+                message = dataStr || 'New notification';
+                console.log('✅ Plain text notification');
             }
+
+            // Extract senderId - try multiple possible fields
+            const senderId = payload.senderId || payload.sender_id || payload.sender?.id || payload.sender?.userId || '';
+
+            console.log('🔍 Extracting senderId from payload:', {
+                'payload.senderId': payload.senderId,
+                'payload.sender_id': payload.sender_id,
+                'payload.sender': payload.sender,
+                'extracted senderId': senderId
+            });
 
             const notification = {
                 id: Date.now() + Math.random(),
                 type: notificationType,
                 title,
                 message,
-                senderProfile,
-                senderName,
-                chatRoomId: normalizedChatRoomId || undefined,
-                senderId: actualPayload.senderId || payload.senderId,
-                receiverId: receiverId || undefined,
+                senderProfile: senderProfile,
+                senderName: senderName,
+                chatRoomId: chatRoomId,
+                senderId: senderId,
                 timestamp: new Date(),
             };
 
             console.log('🔔 Creating notification:', notification);
-            setNotifications(() => {
-                console.log('📋 Replacing existing notifications with the latest one');
-                return [notification];
+            setNotifications((prev) => {
+                console.log('📋 Current notifications:', prev.length);
+                console.log('📋 Adding notification, new total:', prev.length + 1);
+                return [...prev, notification];
             });
 
             // Play notification sound
@@ -249,51 +149,76 @@ export default function InAppNotificationManager({ currentUserId }) {
         } catch (error) {
             console.error('❌ Error handling notification:', error);
         }
-    }, [getCurrentChatRoomId, decryptNotificationContent, fetchChatRoomMetadata]);
-
-    // Remove notifications that belong to the currently open chat room
-    useEffect(() => {
-        const activeChatRoomId = getCurrentChatRoomId();
-        if (
-            activeChatRoomId !== null &&
-            notifications.some((notification) => notification.chatRoomId === activeChatRoomId)
-        ) {
-            console.log('🧹 Clearing notifications for active chat room', activeChatRoomId);
-            setNotifications((prev) => prev.filter((n) => n.chatRoomId !== activeChatRoomId));
-        }
-    }, [getCurrentChatRoomId, notifications]);
+    }, []); // No dependencies - stable function
 
     // Subscribe to notification WebSocket topic
     useEffect(() => {
-        if (!socket?.connected || !currentUserId) {
-            console.log('⏳ Waiting for WebSocket connection...', { 
-                connected: socket?.connected, 
-                currentUserId, 
-                hasSocket: !!socket 
+        console.log('🔍 InAppNotificationManager useEffect triggered:', {
+            connected,
+            currentUserId,
+            hasSocket: !!socket,
+            socketType: typeof socket,
+            socketKeys: socket ? Object.keys(socket) : []
+        });
+
+        if (!connected || !currentUserId || !socket) {
+            console.log('⏳ Waiting for WebSocket connection...', {
+                connected,
+                currentUserId,
+                hasSocket: !!socket,
+                socketConnected: socket?.connected
             });
             return;
         }
 
         const destination = `/topic/notification/${currentUserId}`;
-        console.log('🔔 Subscribing to in-app notifications:', destination);
+        console.log('🔔 ========================================');
+        console.log('🔔 SUBSCRIBING TO IN-APP NOTIFICATIONS');
+        console.log('🔔 Destination:', destination);
+        console.log('🔔 User ID:', currentUserId);
+        console.log('🔔 Socket connected:', socket.connected);
+        console.log('🔔 ========================================');
+
+        // Create a stable reference to handleNotification
+        const notificationHandler = (data, rawMessage) => {
+            console.log('  =========================================');
+            console.log('📨 NOTIFICATION RECEIVED ON TOPIC:', destination);
+            console.log('📨 Data:', data);
+            console.log('📨 Raw message:', rawMessage);
+            console.log('📨 ========================================');
+            handleNotification(data, rawMessage);
+        };
 
         try {
-            const subscription = socket.subscribe(destination, (data, rawMessage) => {
-                console.log('📨 Raw notification data:', data);
-                console.log('📨 Raw STOMP message:', rawMessage);
-                handleNotification(data, rawMessage);
-            });
+            const subscription = socket.subscribe(destination, notificationHandler);
+
+            if (subscription) {
+                console.log('✅ ========================================');
+                console.log('✅ SUCCESSFULLY SUBSCRIBED TO NOTIFICATIONS');
+                console.log('✅ Destination:', destination);
+                console.log('✅ Subscription object:', subscription);
+                console.log('✅ ========================================');
+            } else {
+                console.error('❌ ========================================');
+                console.error('❌ SUBSCRIPTION FAILED - RETURNED NULL');
+                console.error('❌ Destination:', destination);
+                console.error('❌ ========================================');
+            }
 
             return () => {
                 if (subscription) {
-                    console.log('🔕 Unsubscribing from in-app notifications');
+                    console.log('🔕 Unsubscribing from in-app notifications:', destination);
                     socket.unsubscribe(destination);
                 }
             };
         } catch (error) {
-            console.error('❌ Error subscribing to notifications:', error);
+            console.error('❌ ========================================');
+            console.error('❌ ERROR SUBSCRIBING TO NOTIFICATIONS');
+            console.error('❌ Error:', error);
+            console.error('❌ Stack:', error.stack);
+            console.error('❌ ========================================');
         }
-    }, [socket?.connected, currentUserId, socket, handleNotification]);
+    }, [connected, currentUserId, socket]); // Removed handleNotification from dependencies
 
     const removeNotification = (id) => {
         setNotifications((prev) => prev.filter((n) => n.id !== id));
