@@ -39,13 +39,28 @@ if (typeof window !== "undefined") {
 // ----------------------------
 let messaging = null;
 
+// Check if browser supports FCM (not available on iOS Safari)
+const isFCMSupported = () => {
+  return (
+    typeof window !== "undefined" &&
+    "serviceWorker" in navigator &&
+    "Notification" in window &&
+    "PushManager" in window
+  );
+};
+
 // Ensure Service Worker exists & browser supports notifications
-if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+if (isFCMSupported()) {
   try {
     messaging = getMessaging(app);
+    console.log("✅ Firebase Cloud Messaging initialized");
   } catch (error) {
-    console.error("Firebase Messaging init error:", error);
+    console.warn("⚠️ Firebase Messaging init error:", error.message);
   }
+} else {
+  console.warn(
+    "⚠️ Firebase Cloud Messaging not supported on this browser (iOS Safari)"
+  );
 }
 
 // ----------------------------

@@ -24,6 +24,7 @@ const apiClient = axios.create({
   timeout: config.timeout,
   headers: {
     "Content-Type": "application/json",
+    "ngrok-skip-browser-warning": "1",
   },
 });
 
@@ -70,7 +71,30 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error) => {
-    console.error("API Error:", error.response?.status, error.response?.data);
+    // Better error logging for debugging
+    if (error.response) {
+      // Server responded with error status
+      console.error("API Error Response:", {
+        status: error.response.status,
+        data: error.response.data,
+        url: error.config?.url,
+      });
+    } else if (error.request) {
+      // Request was made but no response received
+      console.error("API No Response:", {
+        message: error.message,
+        url: error.config?.url,
+        baseURL: error.config?.baseURL,
+      });
+      console.error("Possible causes:");
+      console.error("1. Network connection issue");
+      console.error("2. CORS policy blocking request");
+      console.error("3. SSL certificate issue (iOS)");
+      console.error("4. Server is down or unreachable");
+    } else {
+      // Error in request setup
+      console.error("API Request Setup Error:", error.message);
+    }
 
     // Handle 401 Unauthorized - token expired
     if (error.response?.status === 401) {
@@ -184,12 +208,44 @@ export const AuthAPI = {
   // Register user
   register: async (userData) => {
     try {
+      console.log(
+        "📤 Sending registration request to:",
+        `${config.baseURL}/users/register`
+      );
+      console.log("📤 Registration data:", {
+        ...userData,
+        password: "[HIDDEN]",
+      });
+
       const response = await apiClient.post("/users/register", userData);
+
+      console.log("✅ Registration successful:", response.data);
       return { success: true, data: response.data };
     } catch (error) {
+      console.error("❌ Registration failed:");
+
+      let errorMessage = "Registration failed";
+
+      if (error.response) {
+        // Server responded with error
+        errorMessage =
+          error.response.data?.message ||
+          `Server error: ${error.response.status}`;
+        console.error("Server error:", error.response.data);
+      } else if (error.request) {
+        // No response received
+        errorMessage =
+          "Cannot connect to server. Please check your internet connection.";
+        console.error("No response from server");
+      } else {
+        // Request setup error
+        errorMessage = error.message || "Request failed";
+        console.error("Request error:", error.message);
+      }
+
       return {
         success: false,
-        error: error.response?.data?.message || "Registration failed",
+        error: errorMessage,
       };
     }
   },

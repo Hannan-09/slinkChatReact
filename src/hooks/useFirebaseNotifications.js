@@ -7,10 +7,15 @@ import {
 } from "../../firebase";
 import { useToast } from "../contexts/ToastContext";
 
+// Check if Notification API is supported (not available on iOS Safari)
+const isNotificationSupported = () => {
+  return typeof window !== "undefined" && "Notification" in window;
+};
+
 export const useFirebaseNotifications = () => {
   const [fcmToken, setFcmToken] = useState(null);
   const [notificationPermission, setNotificationPermission] = useState(
-    typeof window !== "undefined" ? Notification.permission : "default"
+    isNotificationSupported() ? Notification.permission : "unsupported"
   );
 
   const toast = useToast();
@@ -19,6 +24,14 @@ export const useFirebaseNotifications = () => {
   // 1. Request notification permissions on mount
   // ----------------------------------------
   useEffect(() => {
+    // Skip if Notification API is not supported (iOS Safari)
+    if (!isNotificationSupported()) {
+      console.warn(
+        "⚠️ Notification API not supported on this browser (iOS Safari)"
+      );
+      return;
+    }
+
     const initializeNotifications = async () => {
       try {
         const token = await requestNotificationPermission();
@@ -44,6 +57,11 @@ export const useFirebaseNotifications = () => {
   // 2. Listen to foreground messages
   // ----------------------------------------
   useEffect(() => {
+    // Skip if Notification API is not supported (iOS Safari)
+    if (!isNotificationSupported()) {
+      return;
+    }
+
     const unsubscribe = onMessageListener()
       .then((payload) => {
         console.log("Foreground notification:", payload);
@@ -70,6 +88,11 @@ export const useFirebaseNotifications = () => {
   // 3. Manual permission requester
   // ----------------------------------------
   const requestPermission = async () => {
+    if (!isNotificationSupported()) {
+      console.warn("⚠️ Notification API not supported on this browser");
+      return null;
+    }
+
     const token = await requestNotificationPermission();
     if (token) {
       setFcmToken(token);
@@ -83,6 +106,7 @@ export const useFirebaseNotifications = () => {
     notificationPermission,
     requestPermission,
     isPermissionGranted: notificationPermission === "granted",
+    isSupported: isNotificationSupported(),
   };
 };
 

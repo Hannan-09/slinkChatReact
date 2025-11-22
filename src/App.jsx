@@ -17,6 +17,8 @@ import CallHistoryScreen from './pages/CallHistoryScreen';
 import SettingsScreen from './pages/SettingsScreen';
 import CameraScreen from './pages/CameraScreen';
 import UserProfileScreen from './pages/UserProfileScreen';
+import IosInstallGuide from './pages/IosInstallGuide';
+import DebugScreen from './pages/DebugScreen';
 import { ApiUtils } from './services/AuthService';
 import { useFirebaseNotifications } from './hooks/useFirebaseNotifications';
 import InAppNotificationManager from './components/InAppNotificationManager';
@@ -93,6 +95,8 @@ function AppContent({ currentUserId }) {
             <Route path="/settings" element={<SettingsScreen />} />
             <Route path="/camera" element={<CameraScreen />} />
             <Route path="/user-profile/:userId" element={<UserProfileScreen />} />
+            <Route path="/ios" element={<IosInstallGuide />} />
+            <Route path="/debug" element={<DebugScreen />} />
           </Routes>
         </Router>
       </CallProvider>

@@ -52,6 +52,7 @@ class ChatApiService {
           "Content-Type": "application/json",
           ...(token && { Authorization: `Bearer ${token}` }),
           ...options.headers,
+          "ngrok-skip-browser-warning": "1",
         },
         ...options,
       });
@@ -219,6 +220,7 @@ class ChatApiService {
         method: "POST",
         headers: {
           ...(token && { Authorization: `Bearer ${token}` }),
+          "ngrok-skip-browser-warning": "1",
         },
         body: formData,
       });
