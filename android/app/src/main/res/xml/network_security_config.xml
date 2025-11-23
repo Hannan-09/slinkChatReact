@@ -11,6 +11,7 @@
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">103.85.89.39</domain>
         <domain includeSubdomains="true">8hspqmjm-8008.inc1.devtunnels.ms</domain>
+        <domain includeSubdomains="true">endoplasmic-unpoetically-geraldo.ngrok-free.dev</domain>
         <domain includeSubdomains="true">localhost</domain>
     </domain-config>
 </network-security-config>

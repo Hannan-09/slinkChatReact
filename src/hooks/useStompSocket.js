@@ -60,7 +60,10 @@ export default function useStompSocket(options = {}) {
 
       const client = new Client({
         brokerURL: WEBSOCKET_URL,
-        connectHeaders: connectHeaders,
+        connectHeaders: {
+          ...connectHeaders,
+          "ngrok-skip-browser-warning": "1",
+        },
         debug: config.debug ? (str) => log(str, "debug") : undefined,
         reconnectDelay: 5000,
         heartbeatIncoming: 20000,
@@ -85,9 +88,11 @@ export default function useStompSocket(options = {}) {
       };
 
       client.onWebSocketError = (error) => {
-        const errorMsg = `WebSocket error: ${error.message}`;
+        const errorMsg = `WebSocket error: ${error.message || "Unknown error"}`;
         log(errorMsg, "error");
         console.error("❌ WEBSOCKET ERROR:", error);
+        console.error("❌ WebSocket URL:", WEBSOCKET_URL);
+        console.error("❌ Is Android:", /android/i.test(navigator.userAgent));
         setError(errorMsg);
         setConnecting(false);
       };

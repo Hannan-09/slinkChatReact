@@ -3,8 +3,19 @@
   "appName": "slink.chat",
   "webDir": "dist",
   "server": {
-    "androidScheme": "http",
-    "allowNavigation": ["103.85.89.39", "8hspqmjm-8008.inc1.devtunnels.ms"],
+    "androidScheme": "https",
+    "allowNavigation": [
+      "103.85.89.39",
+      "8hspqmjm-8008.inc1.devtunnels.ms",
+      "endoplasmic-unpoetically-geraldo.ngrok-free.dev",
+      "*.ngrok-free.dev",
+      "*.ngrok.io"
+    ],
     "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true
   }
 }
