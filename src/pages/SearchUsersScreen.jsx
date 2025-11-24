@@ -63,23 +63,30 @@ export default function SearchUsersScreen() {
                 } else if (Array.isArray(responseData)) {
                     users = responseData;
                 }
-                const transformedUsers = users.map((user) => ({
-                    id: user.userId || user.id,
-                    name:
-                        `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
-                        user.username ||
-                        'Unknown User',
-                    username: user.username || '',
-                    avatar:
-                        user.profileURL ||
-                        user.avatar ||
-                        'https://via.placeholder.com/50',
-                    isOnline: user.isOnline || false,
-                    alreadyFriend: user.alreadyFriend || false,
-                    chatRequestStatus: user.chatRequestStatus || null,
-                    friendRequestSent: user.friendRequestSent || false,
-                    chatRoomId: user.chatRoomId || null
-                }));
+                const transformedUsers = users.map((user) => {
+                    const firstName = user.firstName || '';
+                    const lastName = user.lastName || '';
+                    const username = user.username || '';
+                    const fullName = `${firstName} ${lastName}`.trim() || username || 'Unknown User';
+
+                    // Generate initials from first and last name
+                    const firstInitial = firstName.charAt(0).toUpperCase() || username.charAt(0).toUpperCase() || 'U';
+                    const lastInitial = lastName.charAt(0).toUpperCase() || '';
+                    const initials = `${firstInitial}${lastInitial}`;
+
+                    return {
+                        id: user.userId || user.id,
+                        name: fullName,
+                        username: username,
+                        avatar: user.profileURL || user.avatar || null,
+                        initials: initials,
+                        isOnline: user.isOnline || false,
+                        alreadyFriend: user.alreadyFriend || false,
+                        chatRequestStatus: user.chatRequestStatus || null,
+                        friendRequestSent: user.friendRequestSent || false,
+                        chatRoomId: user.chatRoomId || null
+                    };
+                });
                 setSearchResults(transformedUsers);
             } else {
                 console.error('Search failed:', result.error);
@@ -250,15 +257,22 @@ export default function SearchUsersScreen() {
                             className="flex items-center px-5 py-4 cursor-pointer transition-all rounded-2xl bg-gradient-to-b from-white/8 via-white/4 to-white/2 border border-white/15 shadow-[0_16px_30px_rgba(0,0,0,0.85),0_0_0_1px_rgba(255,255,255,0.04),inset_0_1px_2px_rgba(255,255,255,0.2),inset_0_-2px_4px_rgba(0,0,0,0.85)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.08),inset_0_2px_3px_rgba(255,255,255,0.24),inset_0_-3px_5px_rgba(0,0,0,0.9)] hover:bg-white/8"
                         >
                             <div className="w-12 h-12 mr-4 rounded-full bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_16px_24px_rgba(0,0,0,0.97),0_0_0_1px_rgba(255,255,255,0.16),inset_0_3px_4px_rgba(255,255,255,0.24),inset_0_-4px_7px_rgba(0,0,0,0.96),inset_3px_0_4px_rgba(255,255,255,0.18),inset_-3px_0_4px_rgba(0,0,0,0.82)] border border-black/70 flex items-center justify-center flex-shrink-0">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center">
-                                    <img
-                                        src={item.avatar || 'https://via.placeholder.com/50'}
-                                        alt={item.name}
-                                        className="w-8 h-8 rounded-full object-cover"
-                                        onError={(e) => {
-                                            e.target.src = 'https://via.placeholder.com/50';
-                                        }}
-                                    />
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center overflow-hidden">
+                                    {item.avatar ? (
+                                        <img
+                                            src={item.avatar}
+                                            alt={item.name}
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                                e.target.style.display = 'none';
+                                                e.target.parentElement.innerHTML = `<span class="text-xs font-semibold text-white">${item.initials}</span>`;
+                                            }}
+                                        />
+                                    ) : (
+                                        <span className="text-xs font-semibold text-white">
+                                            {item.initials}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                             <div className="flex-1">

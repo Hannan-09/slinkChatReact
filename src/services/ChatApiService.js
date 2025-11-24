@@ -180,6 +180,13 @@ class ChatApiService {
     return this.fetchWithErrorHandling(url);
   }
 
+  async deleteChatRoom(chatRoomId) {
+    const url = `${this.baseUrl}/chat/rooms/delete/${chatRoomId}`;
+    return this.fetchWithErrorHandling(url, {
+      method: "DELETE",
+    });
+  }
+
   // Send message via API (fallback if WebSocket fails)
   async sendMessage(chatRoomId, senderId, receiverId, messageData) {
     const url = `${this.baseUrl}/chat/rooms/messages/send`;

@@ -34,6 +34,11 @@ export default function ChatsScreen() {
     });
     const [currentUserId, setCurrentUserId] = useState(null);
 
+    // Delete chat room states
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [chatToDelete, setChatToDelete] = useState(null);
+    const [deleting, setDeleting] = useState(false);
+
     // Track processed messages to prevent duplicates
     const processedMessagesRef = useRef(new Set());
 
@@ -607,6 +612,42 @@ export default function ChatsScreen() {
         }
     }, [searchQuery]);
 
+    // Delete chat room handlers
+    const handleDeleteChat = (chat, event) => {
+        event.stopPropagation(); // Prevent navigation to chat
+        setChatToDelete(chat);
+        setShowDeleteDialog(true);
+    };
+
+    const confirmDeleteChat = async () => {
+        if (!chatToDelete) return;
+
+        setDeleting(true);
+        try {
+            const result = await chatApiService.deleteChatRoom(chatToDelete.id);
+
+            if (result.success !== false) {
+                // Remove chat from local state
+                setChatRooms(prevChats => prevChats.filter(chat => chat.id !== chatToDelete.id));
+                toast.success('Chat deleted successfully');
+            } else {
+                toast.error(result.message || 'Failed to delete chat');
+            }
+        } catch (error) {
+            console.error('Error deleting chat:', error);
+            toast.error('Failed to delete chat');
+        } finally {
+            setDeleting(false);
+            setShowDeleteDialog(false);
+            setChatToDelete(null);
+        }
+    };
+
+    const cancelDeleteChat = () => {
+        setShowDeleteDialog(false);
+        setChatToDelete(null);
+    };
+
     const loadChatRooms = async (pageToLoad = 1, reset = false) => {
         try {
             const isFirstPage = pageToLoad === 1;
@@ -970,70 +1011,85 @@ export default function ChatsScreen() {
                                 return (
                                     <div
                                         key={item.id || item.chatRoomId?.toString() || `chat-${index}`}
-                                        onClick={() => handleChatClick(item)}
-                                        className="flex items-center px-5 py-3 cursor-pointer transition-all border-b border-white/10 last:border-b-0 rounded-2xl hover:bg-white/5"
+                                        className="flex items-center px-5 py-3 transition-all border-b border-white/10 last:border-b-0 rounded-2xl hover:bg-white/5"
                                     >
-                                        <div className="w-12 h-12 mr-4 rounded-full bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_16px_24px_rgba(0,0,0,0.97),0_0_0_1px_rgba(255,255,255,0.16),inset_0_3px_4px_rgba(255,255,255,0.24),inset_0_-4px_7px_rgba(0,0,0,0.96),inset_3px_0_4px_rgba(255,255,255,0.18),inset_-3px_0_4px_rgba(0,0,0,0.82)] border border-black/70 flex items-center justify-center flex-shrink-0">
-                                            <div className="w-10 h-10 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center overflow-hidden">
-                                                {item.avatar ? (
-                                                    <img
-                                                        src={item.avatar}
-                                                        alt={item.name || 'User'}
-                                                        className="w-8 h-8 rounded-full object-cover"
-                                                        onError={(e) => {
-                                                            e.target.onerror = null;
-                                                            e.target.src =
-                                                                'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face';
-                                                        }}
-                                                    />
-                                                ) : (
-                                                    <span className="text-xs font-semibold text-white">
-                                                        {item.initials}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="flex items-center justify-between mb-1">
-                                                <h3 className="text-white font-semibold text-base">
-                                                    {item.name || 'Unknown User'}
-                                                </h3>
-                                                <span className="text-white text-[11px] sm:text-xs whitespace-nowrap">
-                                                    {item.time ? item.time : ''}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center flex-1 mr-2 overflow-hidden">
-                                                    {item.previewType === 'image' && (
-                                                        <IoImages className="text-gray-400 text-sm mr-1.5 flex-shrink-0" />
+                                        {/* Main chat content - clickable */}
+                                        <div
+                                            onClick={() => handleChatClick(item)}
+                                            className="flex items-center flex-1 cursor-pointer"
+                                        >
+                                            <div className="w-12 h-12 mr-4 rounded-full bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_16px_24px_rgba(0,0,0,0.97),0_0_0_1px_rgba(255,255,255,0.16),inset_0_3px_4px_rgba(255,255,255,0.24),inset_0_-4px_7px_rgba(0,0,0,0.96),inset_3px_0_4px_rgba(255,255,255,0.18),inset_-3px_0_4px_rgba(0,0,0,0.82)] border border-black/70 flex items-center justify-center flex-shrink-0">
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center overflow-hidden">
+                                                    {item.avatar ? (
+                                                        <img
+                                                            src={item.avatar}
+                                                            alt={item.name || 'User'}
+                                                            className="w-full h-full object-cover"
+                                                            onError={(e) => {
+                                                                e.target.style.display = 'none';
+                                                                e.target.parentElement.innerHTML = `<span class="text-xs font-semibold text-white">${item.initials || 'U'}</span>`;
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <span className="text-xs font-semibold text-white">
+                                                            {item.initials}
+                                                        </span>
                                                     )}
-                                                    {item.previewType === 'video' && (
-                                                        <IoPlayCircle className="text-gray-400 text-sm mr-1.5 flex-shrink-0" />
-                                                    )}
-                                                    {item.previewType === 'document' && (
-                                                        <IoDocumentText className="text-gray-400 text-sm mr-1.5 flex-shrink-0" />
-                                                    )}
-                                                    {item.previewType === 'audio' && (
-                                                        <IoMic className="text-gray-400 text-sm mr-1.5 flex-shrink-0" />
-                                                    )}
-                                                    <p className="text-gray-400 text-sm truncate">
-                                                        {item.message || 'No messages yet'}
-                                                    </p>
                                                 </div>
-                                                {item.unreadCount > 0 && (
-                                                    <div className="flex items-center justify-center flex-shrink-0">
-                                                        {/* Outer neumorphic ring, matching header/add-friend theme */}
-                                                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_8px_12px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.18),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70">
-                                                            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
-                                                                <span className="text-white text-[10px] sm:text-xs font-bold">
-                                                                    {item.unreadCount > 9 ? '9+' : item.unreadCount}
-                                                                </span>
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <h3 className="text-white font-semibold text-base">
+                                                        {item.name || 'Unknown User'}
+                                                    </h3>
+                                                    <span className="text-white text-[11px] sm:text-xs whitespace-nowrap">
+                                                        {item.time ? item.time : ''}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center flex-1 mr-2 overflow-hidden">
+                                                        {item.previewType === 'image' && (
+                                                            <IoImages className="text-gray-400 text-sm mr-1.5 flex-shrink-0" />
+                                                        )}
+                                                        {item.previewType === 'video' && (
+                                                            <IoPlayCircle className="text-gray-400 text-sm mr-1.5 flex-shrink-0" />
+                                                        )}
+                                                        {item.previewType === 'document' && (
+                                                            <IoDocumentText className="text-gray-400 text-sm mr-1.5 flex-shrink-0" />
+                                                        )}
+                                                        {item.previewType === 'audio' && (
+                                                            <IoMic className="text-gray-400 text-sm mr-1.5 flex-shrink-0" />
+                                                        )}
+                                                        <p className="text-gray-400 text-sm truncate">
+                                                            {item.message || 'No messages yet'}
+                                                        </p>
+                                                    </div>
+                                                    {item.unreadCount > 0 && (
+                                                        <div className="flex items-center justify-center flex-shrink-0">
+                                                            {/* Outer neumorphic ring, matching header/add-friend theme */}
+                                                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_8px_12px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.18),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70">
+                                                                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
+                                                                    <span className="text-white text-[10px] sm:text-xs font-bold">
+                                                                        {item.unreadCount > 9 ? '9+' : item.unreadCount}
+                                                                    </span>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                )}
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
+
+                                        {/* Delete button - always visible */}
+                                        <button
+                                            onClick={(e) => handleDeleteChat(item, e)}
+                                            className="ml-3 p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-all flex-shrink-0"
+                                            title="Delete chat"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
                                     </div>
                                 );
                             } catch (error) {
@@ -1093,8 +1149,59 @@ export default function ChatsScreen() {
                     </div>
                 </button>
 
-
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            {showDeleteDialog && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-gradient-to-b from-[#2a2a2a] to-[#1a1a1a] rounded-2xl p-6 max-w-sm w-full border border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.9)]">
+                        <div className="text-center">
+                            {/* Warning Icon */}
+                            <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-red-500/20 mb-4 border border-red-500/30">
+                                <svg className="h-7 w-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                </svg>
+                            </div>
+
+                            <h3 className="text-xl font-semibold text-white mb-2">
+                                Delete Chat
+                            </h3>
+
+                            <p className="text-gray-300 mb-6 text-sm">
+                                Are you sure you want to delete this chat with{' '}
+                                <span className="font-semibold text-white">
+                                    {chatToDelete?.name || 'Unknown User'}
+                                </span>
+                                ? This action cannot be undone.
+                            </p>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={cancelDeleteChat}
+                                    disabled={deleting}
+                                    className="flex-1 px-4 py-3 bg-gradient-to-b from-[#2a2a2a] to-[#1a1a1a] text-white rounded-xl border border-white/10 hover:from-[#333] hover:to-[#222] transition-all disabled:opacity-50 font-medium"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmDeleteChat}
+                                    disabled={deleting}
+                                    className="flex-1 px-4 py-3 bg-gradient-to-b from-red-600 to-red-700 text-white rounded-xl hover:from-red-700 hover:to-red-800 transition-all disabled:opacity-50 flex items-center justify-center gap-2 font-medium shadow-[0_4px_12px_rgba(220,38,38,0.4)]"
+                                >
+                                    {deleting ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            Deleting...
+                                        </>
+                                    ) : (
+                                        'Delete'
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
