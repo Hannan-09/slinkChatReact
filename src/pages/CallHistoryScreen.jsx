@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { IoArrowBack, IoCall, IoVideocam, IoTrash, IoCheckmark, IoClose, IoPhonePortrait, IoChatbubblesOutline, IoCamera, IoTime, IoPeopleOutline } from 'react-icons/io5';
+import { IoArrowBack, IoCall, IoCallOutline, IoVideocam, IoTrash, IoCheckmark, IoClose, IoPhonePortrait, IoChatbubblesOutline, IoCamera, IoCameraOutline, IoTime, IoPeopleOutline } from 'react-icons/io5';
 import { CallHistoryAPI } from '../services/CallHistoryService';
 import { ApiUtils } from '../services/AuthService';
 import { useToast } from '../contexts/ToastContext';
@@ -201,6 +201,12 @@ export default function CallHistoryScreen() {
                                 : { name: call.senderName, avatar: call.senderProfileURL, id: call.senderId };
                             const status = getCallStatus(call);
 
+                            // Generate initials from name
+                            const nameParts = (otherUser.name || '').split(' ');
+                            const firstInitial = nameParts[0]?.charAt(0).toUpperCase() || 'U';
+                            const lastInitial = nameParts[1]?.charAt(0).toUpperCase() || '';
+                            const initials = `${firstInitial}${lastInitial}`;
+
                             return (
                                 <div
                                     key={call.callHistoryId}
@@ -209,11 +215,21 @@ export default function CallHistoryScreen() {
                                     <div className="flex items-center gap-3">
                                         {/* Avatar */}
                                         <div className="w-14 h-14 rounded-full bg-gradient-to-b from-[#2e2e2e] via-[#151515] to-[#050505] border border-white/25 shadow-[0_18px_32px_rgba(0,0,0,0.9),inset_0_2px_3px_rgba(255,255,255,0.18),inset_0_-3px_6px_rgba(0,0,0,0.9)] flex items-center justify-center overflow-hidden">
-                                            <img
-                                                src={otherUser.avatar || 'https://via.placeholder.com/150'}
-                                                alt={otherUser.name}
-                                                className="w-full h-full object-cover"
-                                            />
+                                            {otherUser.avatar ? (
+                                                <img
+                                                    src={otherUser.avatar}
+                                                    alt={otherUser.name}
+                                                    className="w-full h-full object-cover"
+                                                    onError={(e) => {
+                                                        e.target.style.display = 'none';
+                                                        e.target.parentElement.innerHTML = `<span class="text-sm font-semibold text-white">${initials}</span>`;
+                                                    }}
+                                                />
+                                            ) : (
+                                                <span className="text-sm font-semibold text-white">
+                                                    {initials}
+                                                </span>
+                                            )}
                                         </div>
 
                                         {/* Call Info */}
@@ -273,15 +289,15 @@ export default function CallHistoryScreen() {
                     </div>
                 </button>
 
-                {/* Camera */}
+                {/* Camera (inactive) - outline icon */}
                 <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 hover:bg-[#1d1d1d] transition-colors">
                     <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
-                        <IoCamera className="text-gray-300 text-2xl" />
+                        <IoCameraOutline className="text-gray-300 text-2xl" />
                     </div>
                 </button>
 
-                {/* Call History (active) */}
-                <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 animate-pulse">
+                {/* Call History (active) - solid icon, no animation */}
+                <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70">
                     <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
                         <IoCall className="text-white text-3xl" />
                     </div>

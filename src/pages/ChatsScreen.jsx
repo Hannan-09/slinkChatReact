@@ -6,16 +6,19 @@ import {
     IoPersonAdd,
     IoSearch,
     IoCall,
+    IoCallOutline,
     IoPeopleOutline,
     IoSettingsOutline,
     IoImages,
     IoPlayCircle,
     IoDocumentText,
     IoMic,
-    IoCamera
+    IoCamera,
+    IoCameraOutline,
+    IoTrashOutline
 } from 'react-icons/io5';
 import { Colors } from '../constants/Colors';
-import { ApiUtils, UserAPI } from '../services/AuthService';
+import { ApiUtils, UserAPI, ChatRequestAPI } from '../services/AuthService';
 import chatApiService from '../services/ChatApiService';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import { useToast } from '../contexts/ToastContext';
@@ -33,6 +36,9 @@ export default function ChatsScreen() {
         initials: '',
     });
     const [currentUserId, setCurrentUserId] = useState(null);
+
+    // Pending request count
+    const [pendingRequestCount, setPendingRequestCount] = useState(0);
 
     // Delete chat room states
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -97,6 +103,29 @@ export default function ChatsScreen() {
         }
     };
 
+    // Fetch pending request count
+    const fetchPendingRequestCount = useCallback(async () => {
+        if (!currentUserId) return;
+
+        try {
+            console.log('🔄 Fetching pending request count for user:', currentUserId);
+            const result = await ChatRequestAPI.getAllChatRequests(
+                'PENDING',
+                'received',
+                1,
+                100 // Get all pending requests to count them
+            );
+
+            if (result.success && result.data) {
+                const count = result.data.data?.length || 0;
+                console.log('✅ Pending request count:', count);
+                setPendingRequestCount(count);
+            }
+        } catch (error) {
+            console.error('❌ Error fetching pending request count:', error);
+        }
+    }, [currentUserId]);
+
     useEffect(() => {
         const initializeScreen = async () => {
             const userId = await ApiUtils.getCurrentUserId();
@@ -105,6 +134,128 @@ export default function ChatsScreen() {
         };
         initializeScreen();
     }, []);
+
+    // Fetch pending request count when currentUserId is available
+    useEffect(() => {
+        if (currentUserId) {
+            fetchPendingRequestCount();
+
+            // Refresh count every 5 seconds for real-time accuracy
+            // (since backend doesn't send notification on delete)
+            const interval = setInterval(() => {
+                fetchPendingRequestCount();
+            }, 5000);
+
+            return () => clearInterval(interval);
+        }
+    }, [currentUserId]);
+
+    // Listen for visibility change to refresh count when user returns to tab
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (!document.hidden && currentUserId) {
+                console.log('👁️ Tab visible, refreshing request count');
+                fetchPendingRequestCount();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [currentUserId, fetchPendingRequestCount]);
+
+    // Listen for custom events from RequestsScreen
+    useEffect(() => {
+        const handleRequestAction = (event) => {
+            console.log('🔔 Request action event received:', event.detail);
+            const { action } = event.detail || {};
+
+            if (action === 'accepted' || action === 'rejected' || action === 'deleted') {
+                console.log('➖ Request removed, decreasing count');
+                setPendingRequestCount(prev => Math.max(0, prev - 1));
+            } else if (action === 'created') {
+                console.log('➕ Request created, increasing count');
+                setPendingRequestCount(prev => prev + 1);
+            } else {
+                // Refresh from API for unknown actions
+                fetchPendingRequestCount();
+            }
+        };
+
+        window.addEventListener('chatRequestAction', handleRequestAction);
+        return () => window.removeEventListener('chatRequestAction', handleRequestAction);
+    }, [fetchPendingRequestCount]);
+
+    // Subscribe to real-time chat request notifications
+    useEffect(() => {
+        if (!socket.connected || !currentUserId) {
+            console.log('⚠️ WebSocket not ready:', { connected: socket.connected, currentUserId });
+            return;
+        }
+
+        console.log('🔌💬 ChatsScreen: Subscribing to notifications for user:', currentUserId);
+
+        // Subscribe to the actual notification topic that backend uses
+        const notificationDestination = `/topic/notification/${currentUserId}`;
+        console.log('🔌💬 Notification destination:', notificationDestination);
+
+        const notificationSubscription = socket.subscribe(notificationDestination, (message) => {
+            console.log('📨💬 ChatsScreen: Notification received:', message);
+
+            try {
+                // Parse the message data
+                const data = typeof message === 'string' ? message : message.data || message;
+                const messageText = typeof data === 'string' ? data : JSON.stringify(data);
+
+                console.log('📨💬 Message text:', messageText);
+
+                // Convert to lowercase for easier matching
+                const lowerText = messageText.toLowerCase();
+
+                // Check if it's a chat request notification
+                if (lowerText.includes('chat request')) {
+                    console.log('✅💬 Detected chat request notification!');
+
+                    // Increment count for new request
+                    if (lowerText.includes('new chat request') || lowerText.includes('have new chat request')) {
+                        console.log('➕ New request received');
+                        setPendingRequestCount(prev => {
+                            const newCount = prev + 1;
+                            console.log('✅💬 Count INCREASED:', prev, '->', newCount);
+                            return newCount;
+                        });
+                    }
+                    // Decrement count for any action that removes a request
+                    else if (
+                        lowerText.includes('accepted') ||
+                        lowerText.includes('rejected') ||
+                        lowerText.includes('deleted') ||
+                        lowerText.includes('removed') ||
+                        lowerText.includes('cancelled') ||
+                        lowerText.includes('declined')
+                    ) {
+                        console.log('➖ Request removed/handled');
+                        setPendingRequestCount(prev => {
+                            const newCount = Math.max(0, prev - 1);
+                            console.log('✅💬 Count DECREASED:', prev, '->', newCount);
+                            return newCount;
+                        });
+                    }
+                    // If we can't determine the action, refresh from API
+                    else {
+                        console.log('🔄 Unknown request action, refreshing count from API');
+                        fetchPendingRequestCount();
+                    }
+                }
+            } catch (error) {
+                console.error('❌💬 Error processing notification:', error);
+            }
+        });
+
+        return () => {
+            console.log('🔌💬 ChatsScreen: Unsubscribing from notifications');
+            socket.unsubscribe(notificationDestination);
+        };
+    }, [socket.connected, currentUserId]);
 
     // Handle real-time WebSocket messages to update chat list
     const handleWebSocketMessage = useCallback(async (message) => {
@@ -1080,15 +1231,15 @@ export default function ChatsScreen() {
                                             </div>
                                         </div>
 
-                                        {/* Delete button - always visible */}
+                                        {/* Delete button - neumorphic style */}
                                         <button
                                             onClick={(e) => handleDeleteChat(item, e)}
-                                            className="ml-3 p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-all flex-shrink-0"
+                                            className="ml-3 w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 transition-transform hover:scale-105 flex-shrink-0"
                                             title="Delete chat"
                                         >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
+                                            <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                                                <IoTrashOutline className="text-[#ff3b30] text-lg" />
+                                            </div>
                                         </button>
                                     </div>
                                 );
@@ -1115,38 +1266,49 @@ export default function ChatsScreen() {
 
             {/* Bottom Navigation - glass / 3D neumorphic (same base as back button, with glassy background) */}
             <div className="flex items-center justify-around px-6 py-3 mx-4 mb-4 rounded-[28px] bg-gradient-to-b from-white/16 via-white/10 to-white/6 border border-white/25 shadow-[0_22px_44px_rgba(0,0,0,0.98),0_0_0_1px_rgba(255,255,255,0.12),inset_0_3px_5px_rgba(255,255,255,0.26),inset_0_-4px_7px_rgba(0,0,0,0.92),inset_3px_0_4px_rgba(255,255,255,0.14),inset_-3px_0_4px_rgba(0,0,0,0.7)] backdrop-blur-2xl bg-clip-padding">
-                {/* Chats (active) */}
-                <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 animate-pulse">
+                {/* Chats (active) - solid icon */}
+                <button className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70">
                     <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
                         <IoChatbubbles className="text-white text-3xl" />
                     </div>
                 </button>
 
+                {/* Camera (inactive) - outline icon */}
                 <button
                     onClick={() => navigate('/camera')}
-                    className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 animate-pulse hover:bg-[#1d1d1d] transition-colors">
+                    className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 hover:bg-[#1d1d1d] transition-colors">
                     <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
-                        <IoCamera className="text-white text-3xl" />
+                        <IoCameraOutline className="text-gray-300 text-3xl" />
                     </div>
                 </button>
 
-                {/* Placeholder middle icon */}
+                {/* Call History (inactive) - outline icon */}
                 <button
                     onClick={() => navigate('/call-history')}
                     className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] border border-black/70 shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] hover:bg-[#1d1d1d] transition-colors">
                     <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
-                        <IoCall className="text-gray-300 text-2xl" />
+                        <IoCallOutline className="text-gray-300 text-2xl" />
                     </div>
                 </button>
 
-                {/* Friends / Requests entry from Chats - go directly to Requests page */}
+                {/* Requests (inactive) - outline icon */}
                 <button
                     onClick={() => navigate('/requests')}
-                    className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] border border-black/70 shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] hover:bg-[#1d1d1d] transition-colors"
+                    className="relative w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] border border-black/70 shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] hover:bg-[#1d1d1d] transition-colors"
                 >
                     <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
                         <IoPeopleOutline className="text-gray-300 text-2xl" />
                     </div>
+                    {/* Notification Badge */}
+                    {pendingRequestCount > 0 && (
+                        <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_4px_8px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.14),inset_0_1px_2px_rgba(255,255,255,0.18),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70">
+                            <div className="w-5 h-5 rounded-full flex items-center justify-center bg-gradient-to-b from-[#ff3b30] to-[#d32f2f] shadow-[inset_0_1px_2px_rgba(255,255,255,0.6),inset_0_-2px_3px_rgba(0,0,0,0.85)]">
+                                <span className="text-white text-[10px] font-bold">
+                                    {pendingRequestCount > 9 ? '9+' : pendingRequestCount}
+                                </span>
+                            </div>
+                        </div>
+                    )}
                 </button>
 
             </div>

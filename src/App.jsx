@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { App as CapacitorApp } from '@capacitor/app';
 import { WebSocketProvider } from './contexts/WebSocketContext';
 import { CallProvider } from './contexts/CallContext';
 import { ToastProvider } from './contexts/ToastContext';
@@ -20,7 +21,7 @@ import UserProfileScreen from './pages/UserProfileScreen';
 import IosInstallGuide from './pages/IosInstallGuide';
 import DebugScreen from './pages/DebugScreen';
 import { ApiUtils } from './services/AuthService';
-import { useFirebaseNotifications } from './hooks/useFirebaseNotifications';
+import { usePushNotifications } from './hooks/usePushNotifications';
 import InAppNotificationManager from './components/InAppNotificationManager';
 
 // Wrapper to force ChatDetailScreen remount on navigation
@@ -30,10 +31,44 @@ function ChatDetailScreenWrapper() {
   return <ChatDetailScreen key={location.pathname + location.search} />;
 }
 
-// Inner component that uses Firebase notifications
+// Component to handle Android back button
+function BackButtonHandler() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const handleBackButton = CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+      console.log('📱 Android back button pressed');
+      console.log('📍 Current path:', location.pathname);
+      console.log('🔙 Can go back:', canGoBack);
+
+      // Define routes where back button should exit the app
+      const exitRoutes = ['/chats', '/login', '/splash'];
+
+      if (exitRoutes.includes(location.pathname)) {
+        console.log('🚪 On exit route, closing app');
+        CapacitorApp.exitApp();
+      } else if (canGoBack) {
+        console.log('⬅️ Navigating back');
+        navigate(-1);
+      } else {
+        console.log('🚪 Cannot go back, closing app');
+        CapacitorApp.exitApp();
+      }
+    });
+
+    return () => {
+      handleBackButton.remove();
+    };
+  }, [navigate, location]);
+
+  return null;
+}
+
+// Inner component that uses Push notifications (Web + Mobile)
 function AppContent({ currentUserId }) {
-  // Initialize Firebase notifications (inside ToastProvider)
-  const { fcmToken } = useFirebaseNotifications();
+  // Initialize Push notifications (works for both web and mobile)
+  const { fcmToken, isNative } = usePushNotifications();
 
   // Send FCM token to backend when user is logged in
   useEffect(() => {
@@ -78,6 +113,7 @@ function AppContent({ currentUserId }) {
     <WebSocketProvider>
       <CallProvider currentUserId={currentUserId}>
         <Router>
+          <BackButtonHandler />
           <InAppNotificationManager currentUserId={currentUserId} />
           <CallManager />
           <Routes>

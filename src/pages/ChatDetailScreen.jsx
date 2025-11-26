@@ -855,6 +855,13 @@ export default function ChatDetailScreen() {
                         }
                     }
 
+                    // Generate initials from sender name
+                    const senderName = msg.senderName || (msg.senderId === currentUserId ? "You" : name);
+                    const nameParts = senderName.split(' ');
+                    const firstInitial = nameParts[0]?.charAt(0).toUpperCase() || 'U';
+                    const lastInitial = nameParts[1]?.charAt(0).toUpperCase() || '';
+                    const senderInitials = `${firstInitial}${lastInitial}`;
+
                     return {
                         id:
                             msg.chatMessageId?.toString() ||
@@ -865,8 +872,9 @@ export default function ChatDetailScreen() {
                         isMe: msg.senderId === currentUserId,
                         status: msg.isRead ? "read" : msg.status || "delivered",
                         timestamp: msg.sentAt || new Date().toISOString(),
-                        senderName:
-                            msg.senderName || (msg.senderId === currentUserId ? "You" : name),
+                        senderName: senderName,
+                        senderProfileURL: msg.senderProfileURL || null,
+                        senderInitials: senderInitials,
                         senderId: msg.senderId,
                         receiverId: msg.receiverId,
                         isEncrypted: !!msg.envolop,
@@ -1908,9 +1916,9 @@ export default function ChatDetailScreen() {
     };
 
     return (
-        <div className="h-screen bg-[#1a1a1a] flex flex-col overflow-hidden safe-area-top">
-            {/* Header - Sticky Top */}
-            <div className="sticky top-0 z-10 flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 bg-[#1a1a1a] border-b border-gray-800 shadow-lg">
+        <div className="h-screen bg-[#1a1a1a] flex flex-col safe-area-top">
+            {/* Header - Fixed Top */}
+            <div className="flex-shrink-0 z-10 flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 bg-[#1a1a1a] border-b border-gray-800 shadow-lg">
                 <div className="flex items-center flex-1 min-w-0">
                     {/* Back button - 3D ring matching add-friend button */}
                     <button
@@ -1929,15 +1937,30 @@ export default function ChatDetailScreen() {
                     >
                         {/* Chat avatar - 3D ring around avatar */}
                         <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full mr-2 sm:mr-4 bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_14px_22px_rgba(0,0,0,0.96),0_0_0_1px_rgba(255,255,255,0.14),inset_0_3px_4px_rgba(255,255,255,0.22),inset_0_-4px_7px_rgba(0,0,0,0.95),inset_3px_0_4px_rgba(255,255,255,0.18),inset_-3px_0_4px_rgba(0,0,0,0.8)] border border-black/70 flex-shrink-0 flex items-center justify-center">
-                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center">
-                                <img
-                                    src={decodeURIComponent(avatar || "")}
-                                    alt={name}
-                                    className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover"
-                                    onError={(e) => {
-                                        e.target.src = "https://via.placeholder.com/40";
-                                    }}
-                                />
+                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center overflow-hidden">
+                                {avatar && decodeURIComponent(avatar) ? (
+                                    <img
+                                        src={decodeURIComponent(avatar)}
+                                        alt={name}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                            const nameParts = name.split(' ');
+                                            const firstInitial = nameParts[0]?.charAt(0).toUpperCase() || 'U';
+                                            const lastInitial = nameParts[1]?.charAt(0).toUpperCase() || '';
+                                            e.target.style.display = 'none';
+                                            e.target.parentElement.innerHTML = `<span class="text-xs font-semibold text-white">${firstInitial}${lastInitial}</span>`;
+                                        }}
+                                    />
+                                ) : (
+                                    <span className="text-xs font-semibold text-white">
+                                        {(() => {
+                                            const nameParts = name.split(' ');
+                                            const firstInitial = nameParts[0]?.charAt(0).toUpperCase() || 'U';
+                                            const lastInitial = nameParts[1]?.charAt(0).toUpperCase() || '';
+                                            return `${firstInitial}${lastInitial}`;
+                                        })()}
+                                    </span>
+                                )}
                             </div>
                         </div>
                         <div className="flex-1 min-w-0 text-left">
@@ -1946,7 +1969,7 @@ export default function ChatDetailScreen() {
                             </h2>
                             <p className="text-xs sm:text-sm truncate flex items-center">
                                 {typingUsers.length > 0 ? (
-                                    <span className="text-blue-400 italic">Typing...</span>
+                                    <span className="text-gray-300 italic">Typing...</span>
                                 ) : isReceiverOnline ? (
                                     <>
                                         <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>
@@ -2000,7 +2023,8 @@ export default function ChatDetailScreen() {
             <div
                 ref={messagesContainerRef}
                 onScroll={handleScroll}
-                className="flex-1 overflow-y-auto px-3 sm:px-5 pb-3 sm:pb-5 scrollbar-hide"
+                className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-5 pb-3 sm:pb-5 scrollbar-hide"
+                style={{ minHeight: 0 }}
             >
                 {loading ? (
                     <div className="flex items-center justify-center py-12">
@@ -2476,9 +2500,9 @@ export default function ChatDetailScreen() {
                                                     {item.isMe && !item.isDeleted && (
                                                         <div className="ml-2 flex items-center">
                                                             {item.isRead || item.status === "read" ? (
-                                                                // Double tick - Blue (Read by receiver)
+                                                                // Double tick - White (Read by receiver)
                                                                 <IoCheckmarkDone
-                                                                    className="text-blue-500 text-base"
+                                                                    className="text-white text-base"
                                                                     title="Read"
                                                                 />
                                                             ) : item.status === "sending" ? (
@@ -2526,13 +2550,13 @@ export default function ChatDetailScreen() {
                 </button>
             )}
 
-            {/* Message Input - Sticky Bottom */}
-            <div className="sticky bottom-0 z-10 bg-[#1a1a1a] px-3 sm:px-5 py-3 sm:py-4 border-t border-gray-800 shadow-lg">
+            {/* Message Input - Fixed Bottom */}
+            <div className="flex-shrink-0 z-10 bg-[#1a1a1a] px-3 sm:px-5 py-3 sm:py-4 border-t border-gray-800 shadow-lg">
                 {/* Edit Mode Indicator */}
                 {editingMessageId && (
                     <div className="mb-2 flex items-center justify-between bg-[#2d2d2d] px-3 py-2 rounded-lg border border-gray-700">
                         <div className="flex items-center gap-2">
-                            <IoCreateOutline className="text-blue-400 text-lg" />
+                            <IoCreateOutline className="text-gray-300 text-lg" />
                             <span className="text-sm text-gray-300">Editing message</span>
                         </div>
                         <button
@@ -2628,7 +2652,7 @@ export default function ChatDetailScreen() {
                                             }}
                                             className="w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3 rounded-t-2xl"
                                         >
-                                            <IoCamera className="text-xl text-blue-400" />
+                                            <IoCamera className="text-xl text-gray-300" />
                                             <span className="text-sm">Camera</span>
                                         </button>
                                         <button

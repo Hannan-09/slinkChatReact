@@ -41,6 +41,7 @@ export const CallProvider = ({ children, currentUserId }) => {
     const [receiverId, setReceiverId] = useState(null);
     const [callerInfo, setCallerInfo] = useState(null);
     const [receiverInfo, setReceiverInfo] = useState(null);
+    const [currentUserProfile, setCurrentUserProfile] = useState(null);
 
     // Media streams
     const [localStream, setLocalStream] = useState(null);
@@ -78,6 +79,28 @@ export const CallProvider = ({ children, currentUserId }) => {
         callStartSoundRef.current.load();
         callEndSoundRef.current.load();
     }, []);
+
+    // Fetch current user profile
+    useEffect(() => {
+        const fetchUserProfile = async () => {
+            if (!currentUserId) return;
+
+            try {
+                const storedUser = localStorage.getItem('user');
+                if (storedUser) {
+                    const userData = JSON.parse(storedUser);
+                    setCurrentUserProfile({
+                        name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.username || 'User',
+                        avatar: userData.profilePicture || userData.profileURL || ''
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching user profile:', error);
+            }
+        };
+
+        fetchUserProfile();
+    }, [currentUserId]);
 
     // Subscribe to call events
     useEffect(() => {
@@ -280,15 +303,15 @@ export const CallProvider = ({ children, currentUserId }) => {
             console.error('WebRTC init error:', error);
         }
 
-        // Send to backend
+        // Send to backend with actual caller info
         publish(`/app/call/${effectiveCallerId}/${receiver.id}/initiate`, {
             callType: isVideo ? 'VIDEO' : 'AUDIO',
             signalData: {
                 callerId: effectiveCallerId,
                 receiverId: receiver.id,
                 isVideoCall: isVideo,
-                callerName: 'You',
-                callerAvatar: ''
+                callerName: currentUserProfile?.name || 'User',
+                callerAvatar: currentUserProfile?.avatar || ''
             }
         });
     };

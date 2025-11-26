@@ -339,7 +339,7 @@ export default function CameraScreen() {
                     />
 
                     {/* Top Controls */}
-                    <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-10">
+                    <div className="absolute top-0 left-0 right-0 p-8 flex items-center justify-between z-10">
                         <button
                             onClick={() => navigate('/chats')}
                             className="w-12 h-12 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center"
@@ -446,9 +446,11 @@ export default function CameraScreen() {
 
                         <button
                             onClick={handleSendClick}
-                            className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center shadow-lg"
+                            className="w-20 h-20 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 hover:from-[#2a2a2a] hover:to-[#151515] transition-all"
                         >
-                            <IoSend className="text-white text-3xl" />
+                            <div className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                                <IoSend className="text-white text-2xl" />
+                            </div>
                         </button>
                     </div>
                 </>
@@ -475,8 +477,8 @@ export default function CameraScreen() {
                                 key={chat.chatRoomId}
                                 onClick={() => handleChatSelect(chat)}
                                 className={`flex items-center p-3 rounded-xl mb-2 cursor-pointer transition-all ${selectedChat?.chatRoomId === chat.chatRoomId
-                                    ? 'bg-blue-600'
-                                    : 'bg-white/5 hover:bg-white/10'
+                                    ? 'bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)] border border-white/20'
+                                    : 'bg-white/5 hover:bg-white/10 border border-transparent'
                                     }`}
                             >
                                 <div className="w-12 h-12 rounded-full bg-gradient-to-b from-[#252525] to-[#101010] flex items-center justify-center mr-3">
@@ -506,7 +508,7 @@ export default function CameraScreen() {
                             <button
                                 onClick={sendMedia}
                                 disabled={sending}
-                                className="w-full py-4 rounded-full bg-blue-600 text-white font-semibold text-lg disabled:opacity-50"
+                                className="w-full py-4 rounded-full bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 text-white font-semibold text-lg disabled:opacity-50 hover:from-[#2a2a2a] hover:to-[#151515] transition-all"
                             >
                                 {sending ? 'Sending...' : `Send to ${selectedChat.name}`}
                             </button>
