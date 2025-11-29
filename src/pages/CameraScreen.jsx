@@ -26,6 +26,14 @@ export default function CameraScreen() {
     const streamRef = useRef(null);
     const chunksRef = useRef([]);
 
+    // Get URL parameters for direct chat sending
+    const searchParams = new URLSearchParams(window.location.search);
+    const returnTo = searchParams.get('returnTo');
+    const chatName = searchParams.get('name');
+    const chatAvatar = searchParams.get('avatar');
+    const chatReceiverId = searchParams.get('receiverId');
+    const chatRoomId = searchParams.get('chatRoomId');
+
     const [facingMode, setFacingMode] = useState('user'); // 'user' = front, 'environment' = back
     const [flashEnabled, setFlashEnabled] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
@@ -37,6 +45,9 @@ export default function CameraScreen() {
     const [chatRooms, setChatRooms] = useState([]);
     const [selectedChat, setSelectedChat] = useState(null);
     const [sending, setSending] = useState(false);
+
+    // If coming from a specific chat, pre-select it
+    const isDirectSend = !!(chatRoomId && chatReceiverId && chatName);
 
     // Initialize camera
     useEffect(() => {
@@ -251,12 +262,23 @@ export default function CameraScreen() {
     };
 
     const handleSendClick = () => {
-        // Pause video preview when opening chat list
-        if (previewVideoRef.current && mediaType === 'video') {
-            previewVideoRef.current.pause();
+        // If coming from a specific chat, send directly
+        if (isDirectSend) {
+            setSelectedChat({
+                chatRoomId: parseInt(chatRoomId),
+                name: chatName,
+                avatar: chatAvatar,
+                receiverId: parseInt(chatReceiverId),
+            });
+            sendMedia();
+        } else {
+            // Pause video preview when opening chat list
+            if (previewVideoRef.current && mediaType === 'video') {
+                previewVideoRef.current.pause();
+            }
+            loadChatRooms();
+            setShowChatList(true);
         }
-        loadChatRooms();
-        setShowChatList(true);
     };
 
     const handleChatSelect = (chat) => {
@@ -264,7 +286,15 @@ export default function CameraScreen() {
     };
 
     const sendMedia = async () => {
-        if (!selectedChat || !capturedMedia) return;
+        // Use pre-selected chat if coming from ChatDetailScreen
+        const targetChat = isDirectSend ? {
+            chatRoomId: parseInt(chatRoomId),
+            name: chatName,
+            avatar: chatAvatar,
+            receiverId: parseInt(chatReceiverId),
+        } : selectedChat;
+
+        if (!targetChat || !capturedMedia) return;
 
         try {
             setSending(true);
@@ -295,15 +325,20 @@ export default function CameraScreen() {
                 };
 
                 const success = socket.sendMessage(
-                    selectedChat.chatRoomId,
+                    targetChat.chatRoomId,
                     userId,
-                    selectedChat.receiverId,
+                    targetChat.receiverId,
                     payload
                 );
 
                 if (success) {
                     toast.success(`${mediaType === 'photo' ? 'Photo' : 'Video'} sent successfully!`);
-                    navigate('/chats');
+                    // Navigate back to the chat if coming from ChatDetailScreen
+                    if (returnTo) {
+                        navigate(returnTo);
+                    } else {
+                        navigate('/chats');
+                    }
                 } else {
                     throw new Error('Failed to send via WebSocket');
                 }
@@ -339,9 +374,9 @@ export default function CameraScreen() {
                     />
 
                     {/* Top Controls */}
-                    <div className="absolute top-0 left-0 right-0 p-8 flex items-center justify-between z-10">
+                    <div className="absolute top-0 left-0 right-0 p-8 flex items-center justify-between z-10 safe-area-top">
                         <button
-                            onClick={() => navigate('/chats')}
+                            onClick={() => returnTo ? navigate(returnTo) : navigate('/chats')}
                             className="w-12 h-12 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center"
                         >
                             <IoClose className="text-white text-2xl" />
@@ -435,6 +470,29 @@ export default function CameraScreen() {
                         )}
                     </div>
 
+                    {/* Preview Top Controls - Close Button */}
+                    <div className="absolute top-0 left-0 right-0 p-8 flex items-center justify-between z-10 safe-area-top">
+                        <button
+                            onClick={() => {
+                                // Clean up captured media
+                                if (capturedMedia) {
+                                    URL.revokeObjectURL(capturedMedia.url);
+                                }
+                                setCapturedMedia(null);
+                                setMediaType(null);
+                                // Navigate back
+                                if (returnTo) {
+                                    navigate(returnTo);
+                                } else {
+                                    navigate('/chats');
+                                }
+                            }}
+                            className="w-12 h-12 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center"
+                        >
+                            <IoClose className="text-white text-2xl" />
+                        </button>
+                    </div>
+
                     {/* Preview Controls */}
                     <div className="absolute bottom-0 left-0 right-0 p-6 flex items-center justify-around z-10">
                         <button
@@ -446,7 +504,8 @@ export default function CameraScreen() {
 
                         <button
                             onClick={handleSendClick}
-                            className="w-20 h-20 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 hover:from-[#2a2a2a] hover:to-[#151515] transition-all"
+                            disabled={sending}
+                            className={`w-20 h-20 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 hover:from-[#2a2a2a] hover:to-[#151515] transition-all ${sending ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                             <div className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
                                 <IoSend className="text-white text-2xl" />

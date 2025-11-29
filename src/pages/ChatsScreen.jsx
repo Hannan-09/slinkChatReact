@@ -139,16 +139,8 @@ export default function ChatsScreen() {
     useEffect(() => {
         if (currentUserId) {
             fetchPendingRequestCount();
-
-            // Refresh count every 5 seconds for real-time accuracy
-            // (since backend doesn't send notification on delete)
-            const interval = setInterval(() => {
-                fetchPendingRequestCount();
-            }, 5000);
-
-            return () => clearInterval(interval);
         }
-    }, [currentUserId]);
+    }, [currentUserId, fetchPendingRequestCount]);
 
     // Listen for visibility change to refresh count when user returns to tab
     useEffect(() => {

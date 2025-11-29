@@ -43,8 +43,8 @@ import {
     useWebSocket,
     useUserOnlineStatus,
 } from "../contexts/WebSocketContext";
-import { useToast } from '../contexts/ToastContext';
-import ConfirmDialog from '../components/ConfirmDialog';
+import { useToast } from "../contexts/ToastContext";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 // WhatsApp-style Audio Player Component
 const WhatsAppAudioPlayer = ({ audioUrl, isMe }) => {
@@ -238,15 +238,23 @@ export default function ChatDetailScreen() {
     const [showMediaViewer, setShowMediaViewer] = useState(false);
     const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
     const [viewerMediaList, setViewerMediaList] = useState([]);
+    const [imageZoom, setImageZoom] = useState(1);
+    const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+    const imageRef = useRef(null);
 
     const receiverUserId = parseInt(receiverId);
 
     // Debug: Log component mount and params
     useEffect(() => {
-        console.log('🎬 ChatDetailScreen MOUNTED/UPDATED');
-        console.log('📍 Route params:', { id, chatRoomId: parseInt(id) });
-        console.log('📍 Query params:', { name, avatar, receiverId, receiverUserId });
-        console.log('📍 Valid receiverUserId:', !isNaN(receiverUserId));
+        console.log("🎬 ChatDetailScreen MOUNTED/UPDATED");
+        console.log("📍 Route params:", { id, chatRoomId: parseInt(id) });
+        console.log("📍 Query params:", {
+            name,
+            avatar,
+            receiverId,
+            receiverUserId,
+        });
+        console.log("📍 Valid receiverUserId:", !isNaN(receiverUserId));
     }, [id, name, avatar, receiverId, receiverUserId]);
 
     // Use the global online status hook
@@ -346,13 +354,19 @@ export default function ChatDetailScreen() {
 
     // Subscribe to WebSocket messages
     useEffect(() => {
-        if (!connected || !currentUserId || !chatRoomId || !receiverUserId || isNaN(receiverUserId)) {
-            console.log('⏳ Waiting for WebSocket subscription requirements:', {
+        if (
+            !connected ||
+            !currentUserId ||
+            !chatRoomId ||
+            !receiverUserId ||
+            isNaN(receiverUserId)
+        ) {
+            console.log("⏳ Waiting for WebSocket subscription requirements:", {
                 connected,
                 currentUserId,
                 chatRoomId,
                 receiverUserId,
-                isValid: !isNaN(receiverUserId)
+                isValid: !isNaN(receiverUserId),
             });
             return;
         }
@@ -370,15 +384,18 @@ export default function ChatDetailScreen() {
             }
 
             // Decrypt message if encrypted
-            const privateKey = EncryptionService.decrypt(localStorage.getItem("decryptedBackendData"));
+            const privateKey = EncryptionService.decrypt(
+                localStorage.getItem("decryptedBackendData")
+            );
             const userId = localStorage.getItem("userId");
             let decryptedText = wsMessage.content || wsMessage.message || "";
 
             if (wsMessage.sender_envolop || wsMessage.receiver_envolop) {
                 try {
-                    const envolop = (wsMessage.senderId?.toString() === userId)
-                        ? wsMessage.sender_envolop
-                        : wsMessage.receiver_envolop;
+                    const envolop =
+                        wsMessage.senderId?.toString() === userId
+                            ? wsMessage.sender_envolop
+                            : wsMessage.receiver_envolop;
 
                     if (envolop && privateKey) {
                         console.log("🔐 Decrypting WebSocket envelope");
@@ -402,14 +419,23 @@ export default function ChatDetailScreen() {
             // Decrypt replyTo message if exists
             let decryptedReplyTo = wsMessage.replyTo;
             if (wsMessage.replyTo && wsMessage.replyTo.content && privateKey) {
-                console.log("🔍 WebSocket replyTo object:", JSON.stringify(wsMessage.replyTo, null, 2));
+                console.log(
+                    "🔍 WebSocket replyTo object:",
+                    JSON.stringify(wsMessage.replyTo, null, 2)
+                );
                 try {
-                    const replyEnvolop = (wsMessage.replyTo.senderId?.toString() === userId)
-                        ? wsMessage.replyTo.sender_envolop
-                        : wsMessage.replyTo.receiver_envolop;
+                    const replyEnvolop =
+                        wsMessage.replyTo.senderId?.toString() === userId
+                            ? wsMessage.replyTo.sender_envolop
+                            : wsMessage.replyTo.receiver_envolop;
 
                     console.log("🔍 Reply envelope found:", !!replyEnvolop);
-                    console.log("🔍 Reply senderId:", wsMessage.replyTo.senderId, "Current userId:", userId);
+                    console.log(
+                        "🔍 Reply senderId:",
+                        wsMessage.replyTo.senderId,
+                        "Current userId:",
+                        userId
+                    );
 
                     if (replyEnvolop) {
                         console.log("🔐 Decrypting WebSocket reply envelope");
@@ -427,7 +453,7 @@ export default function ChatDetailScreen() {
 
                         decryptedReplyTo = {
                             ...wsMessage.replyTo,
-                            content: decryptedReplyContent
+                            content: decryptedReplyContent,
                         };
                     } else {
                         console.warn("⚠️ No reply envelope found for decryption");
@@ -461,6 +487,14 @@ export default function ChatDetailScreen() {
                 })),
             };
 
+            console.log('📨 WebSocket message received:', {
+                id: newMsg.id,
+                text: newMsg.text.substring(0, 30),
+                isMe: newMsg.isMe,
+                attachmentsCount: newMsg.attachments?.length || 0,
+                attachments: newMsg.attachments
+            });
+
             // Check if message is from another user
             const isNewMessageFromOthers = !newMsg.isMe;
 
@@ -483,23 +517,38 @@ export default function ChatDetailScreen() {
                         const isTempOrPseudo =
                             m.id.toString().startsWith("temp-") ||
                             m.id.toString().includes(`${currentUserId}-`);
-                        return isTempOrPseudo && m.isMe && m.text === newMsg.text;
+
+                        if (!isTempOrPseudo || !m.isMe) return false;
+
+                        // Match by text content
+                        const textMatches = m.text === newMsg.text;
+
+                        // Match by attachments (if both have attachments, compare count and types)
+                        const bothHaveAttachments = m.attachments?.length > 0 && newMsg.attachments?.length > 0;
+                        const attachmentsMatch = bothHaveAttachments
+                            ? m.attachments.length === newMsg.attachments.length
+                            : true;
+
+                        return textMatches && attachmentsMatch;
                     });
 
                     if (tempIndex !== -1) {
                         const updated = [...prev];
                         const tempMessage = prev[tempIndex];
-                        // Preserve replyTo from temp message if not in newMsg
+                        // Preserve replyTo from temp message if not in newMsg, and merge attachments
                         updated[tempIndex] = {
                             ...newMsg,
                             status: "sent",
                             replyTo: newMsg.replyTo || tempMessage.replyTo,
+                            attachments: newMsg.attachments || tempMessage.attachments || [],
                         };
+                        console.log('✅ Replaced temp message with real message:', updated[tempIndex]);
                         return updated;
                     } else {
                         console.log(
                             "⚠️ No matching temp message found for:",
-                            newMsg.text.substring(0, 20)
+                            newMsg.text.substring(0, 20),
+                            "Attachments:", newMsg.attachments?.length || 0
                         );
                     }
                 }
@@ -515,6 +564,21 @@ export default function ChatDetailScreen() {
                     return newCount;
                 });
                 setShowNewMessageNotification(true);
+
+                // Auto-scroll if user is at bottom
+                setTimeout(() => {
+                    const container = messagesContainerRef.current;
+                    if (container) {
+                        const { scrollTop, scrollHeight, clientHeight } = container;
+                        const isAtBottom = scrollTop + clientHeight >= scrollHeight - 100;
+                        if (isAtBottom) {
+                            scrollToBottom(false);
+                        }
+                    }
+                }, 100);
+            } else {
+                // For messages from current user, always auto-scroll
+                setTimeout(() => scrollToBottom(false), 100);
             }
         };
 
@@ -573,15 +637,18 @@ export default function ChatDetailScreen() {
             const editedMessageId = messageData.chatMessageId;
 
             // Decrypt edited message content
-            const privateKey = EncryptionService.decrypt(localStorage.getItem("decryptedBackendData"));
+            const privateKey = EncryptionService.decrypt(
+                localStorage.getItem("decryptedBackendData")
+            );
             const userId = localStorage.getItem("userId");
             let decryptedContent = messageData.content;
 
             if (messageData.sender_envolop || messageData.receiver_envolop) {
                 try {
-                    const envolop = (messageData.senderId?.toString() === userId)
-                        ? messageData.sender_envolop
-                        : messageData.receiver_envolop;
+                    const envolop =
+                        messageData.senderId?.toString() === userId
+                            ? messageData.sender_envolop
+                            : messageData.receiver_envolop;
 
                     if (envolop && privateKey) {
                         console.log("🔐 Decrypting edited message envelope");
@@ -606,9 +673,10 @@ export default function ChatDetailScreen() {
             let decryptedReplyTo = messageData.replyTo;
             if (messageData.replyTo && messageData.replyTo.content && privateKey) {
                 try {
-                    const replyEnvolop = (messageData.replyTo.senderId?.toString() === userId)
-                        ? messageData.replyTo.sender_envolop
-                        : messageData.replyTo.receiver_envolop;
+                    const replyEnvolop =
+                        messageData.replyTo.senderId?.toString() === userId
+                            ? messageData.replyTo.sender_envolop
+                            : messageData.replyTo.receiver_envolop;
 
                     if (replyEnvolop) {
                         console.log("🔐 Decrypting edited message reply envelope");
@@ -622,11 +690,14 @@ export default function ChatDetailScreen() {
                             messageData.replyTo.content,
                             replyEnvolopKey
                         );
-                        console.log("✅ Decrypted edited message reply:", decryptedReplyContent);
+                        console.log(
+                            "✅ Decrypted edited message reply:",
+                            decryptedReplyContent
+                        );
 
                         decryptedReplyTo = {
                             ...messageData.replyTo,
-                            content: decryptedReplyContent
+                            content: decryptedReplyContent,
                         };
                     }
                 } catch (error) {
@@ -775,13 +846,18 @@ export default function ChatDetailScreen() {
                     : [];
 
             // Decrypt messages before mapping
-            const privateKey = EncryptionService.decrypt(localStorage.getItem("decryptedBackendData"));
+            const privateKey = EncryptionService.decrypt(
+                localStorage.getItem("decryptedBackendData")
+            );
             const userId = localStorage.getItem("userId");
             console.log("Decrypted private key:", privateKey);
 
             const pageMessages = await Promise.all(
                 responseData.map(async (msg, index) => {
-                    let envolop = (msg.senderId.toString() === userId) ? msg?.sender_envolop || null : msg?.receiver_envolop || null;
+                    let envolop =
+                        msg.senderId.toString() === userId
+                            ? msg?.sender_envolop || null
+                            : msg?.receiver_envolop || null;
                     let decryptedText = msg?.content || null;
                     let envolopDecryptKey = null;
                     // // decryptEnvolop
@@ -796,10 +872,7 @@ export default function ChatDetailScreen() {
                             );
                             console.log("envolopDecryptKey", envolopDecryptKey);
                         } catch (error) {
-                            console.error(
-                                "❌ Failed to decrypt Envolope:",
-                                error
-                            );
+                            console.error("❌ Failed to decrypt Envolope:", error);
                         }
                     }
                     // decryptMessage
@@ -826,9 +899,10 @@ export default function ChatDetailScreen() {
                     if (msg.replyTo && msg.replyTo.content && privateKey) {
                         try {
                             // Get envelope for reply message
-                            const replyEnvolop = (msg.replyTo.senderId?.toString() === userId)
-                                ? msg.replyTo.sender_envolop || null
-                                : msg.replyTo.receiver_envolop || null;
+                            const replyEnvolop =
+                                msg.replyTo.senderId?.toString() === userId
+                                    ? msg.replyTo.sender_envolop || null
+                                    : msg.replyTo.receiver_envolop || null;
 
                             if (replyEnvolop) {
                                 console.log("🔐 Decrypting reply envelope");
@@ -837,7 +911,10 @@ export default function ChatDetailScreen() {
                                     privateKey
                                 );
 
-                                console.log("🔐 Decrypting reply message:", msg.replyTo.content);
+                                console.log(
+                                    "🔐 Decrypting reply message:",
+                                    msg.replyTo.content
+                                );
                                 const decryptedReplyContent = await DecryptMessage(
                                     msg.replyTo.content,
                                     replyEnvolopKey
@@ -846,7 +923,7 @@ export default function ChatDetailScreen() {
 
                                 decryptedReplyTo = {
                                     ...msg.replyTo,
-                                    content: decryptedReplyContent
+                                    content: decryptedReplyContent,
                                 };
                             }
                         } catch (error) {
@@ -856,10 +933,11 @@ export default function ChatDetailScreen() {
                     }
 
                     // Generate initials from sender name
-                    const senderName = msg.senderName || (msg.senderId === currentUserId ? "You" : name);
-                    const nameParts = senderName.split(' ');
-                    const firstInitial = nameParts[0]?.charAt(0).toUpperCase() || 'U';
-                    const lastInitial = nameParts[1]?.charAt(0).toUpperCase() || '';
+                    const senderName =
+                        msg.senderName || (msg.senderId === currentUserId ? "You" : name);
+                    const nameParts = senderName.split(" ");
+                    const firstInitial = nameParts[0]?.charAt(0).toUpperCase() || "U";
+                    const lastInitial = nameParts[1]?.charAt(0).toUpperCase() || "";
                     const senderInitials = `${firstInitial}${lastInitial}`;
 
                     return {
@@ -1282,25 +1360,12 @@ export default function ChatDetailScreen() {
         setTimeout(() => textInputRef.current?.focus(), 100);
     };
 
-    // Open camera
-    const openCamera = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "user" },
-                audio: false,
-            });
-            setCameraStream(stream);
-            setShowCamera(true);
-            // Set video stream after state update
-            setTimeout(() => {
-                if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
-                }
-            }, 100);
-        } catch (error) {
-            console.error("Error accessing camera:", error);
-            toast.error("Could not access camera. Please check permissions.");
-        }
+    // Open camera - Navigate to full camera screen
+    const openCamera = () => {
+        // Build the full return URL with all query parameters
+        const returnUrl = `/chat/${id}?name=${encodeURIComponent(name)}&avatar=${encodeURIComponent(avatar || '')}&receiverId=${receiverId}`;
+        // Navigate to camera screen with chat context
+        navigate(`/camera?returnTo=${encodeURIComponent(returnUrl)}&name=${encodeURIComponent(name)}&avatar=${encodeURIComponent(avatar || '')}&receiverId=${receiverId}&chatRoomId=${chatRoomId}`);
     };
 
     // Close camera
@@ -1366,8 +1431,12 @@ export default function ChatDetailScreen() {
 
     // File upload functions
     const handleFileSelect = (event, type = "file") => {
+        console.log('File select triggered, type:', type);
+        console.log('Files selected:', event.target.files.length);
+
         const files = Array.from(event.target.files);
         if (files.length > 0) {
+            console.log('Processing files:', files.map(f => f.name));
             const filesWithPreview = files.map((file) => ({
                 file,
                 preview: URL.createObjectURL(file),
@@ -1378,7 +1447,11 @@ export default function ChatDetailScreen() {
             setSelectedFiles(filesWithPreview);
             setShowFilePreview(true);
             setShowAttachMenu(false);
+        } else {
+            console.log('No files selected');
         }
+        // Reset input value to allow selecting the same file again
+        event.target.value = '';
     };
 
     const removeSelectedFile = (index) => {
@@ -1417,8 +1490,21 @@ export default function ChatDetailScreen() {
                 const uploadResult = await uploadFilesToServer(selectedFiles);
                 // Handle different response structures
                 attachments = Array.isArray(uploadResult) ? uploadResult : [];
-                console.log("Upload result:", uploadResult);
-                console.log("Attachments:", attachments);
+                console.log("📤 Upload result:", uploadResult);
+                console.log("📎 Parsed attachments:", attachments);
+
+                // Validate attachment URLs
+                attachments.forEach((att, idx) => {
+                    console.log(`📎 Attachment ${idx}:`, {
+                        fileURL: att.fileURL,
+                        fileType: att.fileType,
+                        fullObject: att
+                    });
+
+                    if (!att.fileURL || att.fileURL.length < 10) {
+                        console.error(`❌ Invalid fileURL for attachment ${idx}:`, att);
+                    }
+                });
             }
 
             // Prepare message
@@ -1459,14 +1545,25 @@ export default function ChatDetailScreen() {
                 attachments: mappedAttachments,
             };
 
-            console.log("New message object:", newMessage);
+            console.log("📤 New message object with attachments:", newMessage);
+            console.log("📎 Attachments count:", mappedAttachments.length);
 
             // Add to UI immediately
-            setMessages((prev) => [...prev, newMessage]);
+            setMessages((prev) => {
+                const updated = [...prev, newMessage];
+                console.log("✅ Added temp message to UI, total messages:", updated.length);
+                console.log("📎 Temp message attachments:", newMessage.attachments);
+                return updated;
+            });
             setMessage("");
             setReplyingToMessage(null);
             setSelectedFiles([]);
             setShowFilePreview(false);
+
+            // Force scroll to show new message
+            setTimeout(() => {
+                scrollToBottom();
+            }, 100);
 
             // Send via WebSocket
             if (connected && sendSocketMessage) {
@@ -1709,16 +1806,22 @@ export default function ChatDetailScreen() {
         setShowMediaViewer(false);
         setCurrentMediaIndex(0);
         setViewerMediaList([]);
+        setImageZoom(1);
+        setImagePosition({ x: 0, y: 0 });
     };
 
     const goToNextMedia = () => {
         setCurrentMediaIndex((prev) => (prev + 1) % viewerMediaList.length);
+        setImageZoom(1);
+        setImagePosition({ x: 0, y: 0 });
     };
 
     const goToPrevMedia = () => {
         setCurrentMediaIndex(
             (prev) => (prev - 1 + viewerMediaList.length) % viewerMediaList.length
         );
+        setImageZoom(1);
+        setImagePosition({ x: 0, y: 0 });
     };
 
     const getFileIcon = (fileType) => {
@@ -1795,7 +1898,9 @@ export default function ChatDetailScreen() {
         }
 
         if (!currentUserId) {
-            toast.warning("Please wait for the app to load completely before making a call");
+            toast.warning(
+                "Please wait for the app to load completely before making a call"
+            );
             return;
         }
 
@@ -1827,12 +1932,56 @@ export default function ChatDetailScreen() {
                 // Remove autoCall parameter from URL to prevent re-triggering
                 const newSearchParams = new URLSearchParams(searchParams);
                 newSearchParams.delete("autoCall");
-                navigate(`/chat/${id}?${newSearchParams.toString()}`, { replace: true });
+                navigate(`/chat/${id}?${newSearchParams.toString()}`, {
+                    replace: true,
+                });
             }, 500);
 
             return () => clearTimeout(timer);
         }
     }, [currentUserId, connected, receiverUserId, searchParams]);
+
+    // Mark unread messages as read when chat is opened or new messages arrive
+    useEffect(() => {
+        const markUnreadMessagesAsRead = async () => {
+            if (!chatRoomId || !currentUserId || messages.length === 0) return;
+
+            // Find all unread messages that were sent by the other user (not by me)
+            const unreadMessages = messages.filter(
+                msg => !msg.isMe && !msg.isRead && !msg.isSeen && msg.chatMessageId
+            );
+
+            if (unreadMessages.length === 0) return;
+
+            const messageIds = unreadMessages.map(msg => msg.chatMessageId);
+
+            console.log('📖 Marking messages as read:', messageIds);
+
+            try {
+                await chatApiService.markMessagesAsRead(chatRoomId, currentUserId, messageIds);
+
+                // Update local state to mark these messages as read
+                setMessages(prevMessages =>
+                    prevMessages.map(msg =>
+                        messageIds.includes(msg.chatMessageId)
+                            ? { ...msg, isRead: true, isSeen: true }
+                            : msg
+                    )
+                );
+
+                console.log('✅ Messages marked as read successfully');
+            } catch (error) {
+                console.error('❌ Error marking messages as read:', error);
+            }
+        };
+
+        // Mark messages as read after a short delay to ensure user is viewing them
+        const timer = setTimeout(() => {
+            markUnreadMessagesAsRead();
+        }, 1000);
+
+        return () => clearTimeout(timer);
+    }, [messages.length, chatRoomId, currentUserId]);
 
     const scrollToBottom = (instant = false) => {
         console.log("instant", instant);
@@ -1922,7 +2071,7 @@ export default function ChatDetailScreen() {
                 <div className="flex items-center flex-1 min-w-0">
                     {/* Back button - 3D ring matching add-friend button */}
                     <button
-                        onClick={() => navigate(-1)}
+                        onClick={() => navigate('/chats')}
                         className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 mr-2 sm:mr-4 flex-shrink-0"
                     >
                         <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
@@ -1932,7 +2081,11 @@ export default function ChatDetailScreen() {
 
                     {/* Chat avatar and info - Clickable */}
                     <button
-                        onClick={() => navigate(`/user-profile/${receiverUserId}?chatRoomId=${chatRoomId}`)}
+                        onClick={() =>
+                            navigate(
+                                `/user-profile/${receiverUserId}?chatRoomId=${chatRoomId}`
+                            )
+                        }
                         className="flex items-center flex-1 min-w-0 hover:opacity-80 transition-opacity"
                     >
                         {/* Chat avatar - 3D ring around avatar */}
@@ -1944,19 +2097,23 @@ export default function ChatDetailScreen() {
                                         alt={name}
                                         className="w-full h-full object-cover"
                                         onError={(e) => {
-                                            const nameParts = name.split(' ');
-                                            const firstInitial = nameParts[0]?.charAt(0).toUpperCase() || 'U';
-                                            const lastInitial = nameParts[1]?.charAt(0).toUpperCase() || '';
-                                            e.target.style.display = 'none';
+                                            const nameParts = name.split(" ");
+                                            const firstInitial =
+                                                nameParts[0]?.charAt(0).toUpperCase() || "U";
+                                            const lastInitial =
+                                                nameParts[1]?.charAt(0).toUpperCase() || "";
+                                            e.target.style.display = "none";
                                             e.target.parentElement.innerHTML = `<span class="text-xs font-semibold text-white">${firstInitial}${lastInitial}</span>`;
                                         }}
                                     />
                                 ) : (
                                     <span className="text-xs font-semibold text-white">
                                         {(() => {
-                                            const nameParts = name.split(' ');
-                                            const firstInitial = nameParts[0]?.charAt(0).toUpperCase() || 'U';
-                                            const lastInitial = nameParts[1]?.charAt(0).toUpperCase() || '';
+                                            const nameParts = name.split(" ");
+                                            const firstInitial =
+                                                nameParts[0]?.charAt(0).toUpperCase() || "U";
+                                            const lastInitial =
+                                                nameParts[1]?.charAt(0).toUpperCase() || "";
                                             return `${firstInitial}${lastInitial}`;
                                         })()}
                                     </span>
@@ -2202,6 +2359,23 @@ export default function ChatDetailScreen() {
                                                                                                 const remaining =
                                                                                                     mediaAttachments.length - 4;
 
+                                                                                                // Debug logging
+                                                                                                if (!fileUrl) {
+                                                                                                    console.error('❌ Missing fileUrl for attachment:', {
+                                                                                                        idx,
+                                                                                                        fileType,
+                                                                                                        att,
+                                                                                                        messageId: item.id,
+                                                                                                        messageStatus: item.status
+                                                                                                    });
+                                                                                                } else {
+                                                                                                    console.log('🖼️ Rendering attachment:', {
+                                                                                                        idx,
+                                                                                                        fileUrl: fileUrl.substring(0, 50) + '...',
+                                                                                                        fileType
+                                                                                                    });
+                                                                                                }
+
                                                                                                 // Prepare media list for viewer
                                                                                                 const mediaList =
                                                                                                     mediaAttachments.map((a) => ({
@@ -2238,7 +2412,11 @@ export default function ChatDetailScreen() {
                                                                                                             }
                                                                                             `}
                                                                                                     >
-                                                                                                        {fileType.startsWith(
+                                                                                                        {!fileUrl ? (
+                                                                                                            <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+                                                                                                                <span className="text-gray-400 text-xs">Loading...</span>
+                                                                                                            </div>
+                                                                                                        ) : fileType.startsWith(
                                                                                                             "image/"
                                                                                                         ) ? (
                                                                                                             <img
@@ -2253,11 +2431,17 @@ export default function ChatDetailScreen() {
                                                                                                                 }
                                                                                                                 onError={(e) => {
                                                                                                                     console.error(
-                                                                                                                        "Image load error:",
+                                                                                                                        "❌ Image load error:",
                                                                                                                         fileUrl
                                                                                                                     );
                                                                                                                     e.target.style.display =
                                                                                                                         "none";
+                                                                                                                }}
+                                                                                                                onLoad={() => {
+                                                                                                                    console.log(
+                                                                                                                        "✅ Image loaded successfully:",
+                                                                                                                        fileUrl
+                                                                                                                    );
                                                                                                                 }}
                                                                                                             />
                                                                                                         ) : (
@@ -2499,10 +2683,10 @@ export default function ChatDetailScreen() {
                                                     {/* Read receipts for sent messages */}
                                                     {item.isMe && !item.isDeleted && (
                                                         <div className="ml-2 flex items-center">
-                                                            {item.isRead || item.status === "read" ? (
-                                                                // Double tick - White (Read by receiver)
+                                                            {item.isRead || item.status === "read" || item.isSeen ? (
+                                                                // Double tick - BLUE (Read/Seen by receiver)
                                                                 <IoCheckmarkDone
-                                                                    className="text-white text-base"
+                                                                    className="text-[#4FC3F7] text-base"
                                                                     title="Read"
                                                                 />
                                                             ) : item.status === "sending" ? (
@@ -2512,10 +2696,10 @@ export default function ChatDetailScreen() {
                                                                     title="Sending"
                                                                 />
                                                             ) : (
-                                                                // Single tick - Gray (Sent but not read)
-                                                                <IoCheckmark
-                                                                    className="text-gray-300 text-base"
-                                                                    title="Sent"
+                                                                // Double tick - Gray (Delivered but not read)
+                                                                <IoCheckmarkDone
+                                                                    className="text-gray-400 text-base"
+                                                                    title="Delivered"
                                                                 />
                                                             )}
                                                         </div>
@@ -2657,8 +2841,16 @@ export default function ChatDetailScreen() {
                                         </button>
                                         <button
                                             onClick={() => {
-                                                photoInputRef.current?.click();
+                                                console.log('Photos button clicked');
                                                 setShowAttachMenu(false);
+                                                setTimeout(() => {
+                                                    console.log('Triggering photo input click');
+                                                    if (photoInputRef.current) {
+                                                        photoInputRef.current.click();
+                                                    } else {
+                                                        console.error('Photo input ref not found');
+                                                    }
+                                                }, 100);
                                             }}
                                             className="w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3"
                                         >
@@ -2667,8 +2859,16 @@ export default function ChatDetailScreen() {
                                         </button>
                                         <button
                                             onClick={() => {
-                                                fileInputRef.current?.click();
+                                                console.log('Files button clicked');
                                                 setShowAttachMenu(false);
+                                                setTimeout(() => {
+                                                    console.log('Triggering file input click');
+                                                    if (fileInputRef.current) {
+                                                        fileInputRef.current.click();
+                                                    } else {
+                                                        console.error('File input ref not found');
+                                                    }
+                                                }, 100);
                                             }}
                                             className="w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3"
                                         >
@@ -2697,6 +2897,7 @@ export default function ChatDetailScreen() {
                                 onChange={(e) => handleFileSelect(e, "file")}
                                 className="hidden"
                                 accept="*/*"
+                                style={{ display: 'none' }}
                             />
                             <input
                                 ref={photoInputRef}
@@ -2705,6 +2906,7 @@ export default function ChatDetailScreen() {
                                 onChange={(e) => handleFileSelect(e, "photo")}
                                 className="hidden"
                                 accept="image/*,video/*"
+                                style={{ display: 'none' }}
                             />
                         </>
                     )}
@@ -2737,18 +2939,22 @@ export default function ChatDetailScreen() {
             {/* File Preview Modal */}
             {showFilePreview && (
                 <div className="fixed inset-0 bg-black bg-opacity-95 z-50 flex flex-col">
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-4 py-3 bg-[#1a1a1a] border-b border-gray-700">
+                    {/* Header with safe area */}
+                    <div className="flex items-center justify-between px-4 py-3 bg-[#1a1a1a] border-b border-gray-700 safe-area-top">
                         <h3 className="text-white text-lg font-semibold">
                             {selectedFiles.length}{" "}
                             {selectedFiles.length === 1 ? "File" : "Files"} Selected
                         </h3>
                         <button
-                            onClick={() => {
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log('Close button clicked - closing file preview');
                                 setShowFilePreview(false);
                                 setSelectedFiles([]);
                             }}
-                            className="w-8 h-8 flex items-center justify-center hover:bg-gray-700 rounded-full"
+                            className="w-10 h-10 flex items-center justify-center hover:bg-gray-700 rounded-full transition-colors z-10"
+                            type="button"
                         >
                             <IoClose className="text-white text-2xl" />
                         </button>
@@ -2824,9 +3030,9 @@ export default function ChatDetailScreen() {
                             <button
                                 onClick={sendMessageWithAttachments}
                                 disabled={uploadingFiles}
-                                className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors ${uploadingFiles
+                                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${uploadingFiles
                                     ? "bg-gray-600 cursor-not-allowed"
-                                    : "bg-green-500 hover:bg-red-600"
+                                    : "bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 hover:from-[#2a2a2a] hover:to-[#151515]"
                                     }`}
                             >
                                 {uploadingFiles ? (
@@ -2840,47 +3046,17 @@ export default function ChatDetailScreen() {
                 </div>
             )}
 
-            {/* Audio Recording UI */}
-            {isRecording && (
-                <div className="fixed bottom-20 left-0 right-0 z-50 flex justify-center px-4">
-                    {/* <div className="bg-[#2d2d2d] border border-gray-700 rounded-full px-6 py-4 shadow-2xl flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                            <span className="text-white font-mono text-lg">{formatRecordingTime(recordingTime)}</span>
-                        </div>
-
-                        <button
-                            onClick={pauseRecording}
-                            className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center hover:bg-yellow-600 transition-colors"
-                        >
-                            {isPaused ? <IoPlay className="text-white text-xl" /> : <IoPause className="text-white text-xl" />}
-                        </button>
-
-                        <button
-                            onClick={stopRecording}
-                            className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center hover:bg-green-600 transition-colors"
-                        >
-                            <IoStop className="text-white text-xl" />
-                        </button>
-
-                        <button
-                            onClick={cancelRecording}
-                            className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
-                        >
-                            <IoClose className="text-white text-xl" />
-                        </button>
-                    </div> */}
-                </div>
-            )}
-
             {/* Recording UI */}
             {isRecording && (
                 <div className="fixed bottom-0 left-0 right-0 bg-[#1a1a1a] border-t border-gray-700 p-4 z-50 shadow-2xl">
                     <div className="flex items-center justify-between max-w-2xl mx-auto">
                         <div className="flex items-center gap-4">
                             <div className="relative">
-                                <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
-                                    <IoMic className="text-white text-2xl" />
+                                {/* Recording indicator - neumorphic style with pulsing animation */}
+                                <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 animate-pulse">
+                                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                                        <IoMic className="text-white text-xl" />
+                                    </div>
                                 </div>
                                 {isPaused && (
                                     <div className="absolute inset-0 bg-gray-900 bg-opacity-50 rounded-full flex items-center justify-center">
@@ -2890,39 +3066,50 @@ export default function ChatDetailScreen() {
                             </div>
                             <div>
                                 <p className="text-white font-semibold">
-                                    {isPaused ? "Recording Paused" : "Recording..."}
+                                    {isPaused ? "Paused" : "Recording..."}
                                 </p>
-                                <p className="text-red-400 text-lg font-mono">
+                                <p className="text-gray-300 text-lg font-mono">
                                     {formatRecordingTime(recordingTime)}
                                 </p>
                             </div>
                         </div>
 
                         <div className="flex items-center gap-2">
+                            {/* Pause/Resume button */}
                             <button
                                 onClick={pauseRecording}
-                                className="w-10 h-10 bg-[#2d2d2d] rounded-full flex items-center justify-center hover:bg-gray-700 transition-colors"
+                                className="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 hover:from-[#2a2a2a] hover:to-[#151515] transition-all"
                                 title={isPaused ? "Resume" : "Pause"}
                             >
-                                {isPaused ? (
-                                    <IoPlay className="text-white text-lg" />
-                                ) : (
-                                    <IoPause className="text-white text-lg" />
-                                )}
+                                <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                                    {isPaused ? (
+                                        <IoPlay className="text-white text-base" />
+                                    ) : (
+                                        <IoPause className="text-white text-base" />
+                                    )}
+                                </div>
                             </button>
+
+                            {/* Cancel button */}
                             <button
                                 onClick={cancelRecording}
-                                className="w-10 h-10 bg-[#2d2d2d] rounded-full flex items-center justify-center hover:bg-gray-700 transition-colors"
+                                className="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 hover:from-[#2a2a2a] hover:to-[#151515] transition-all"
                                 title="Cancel"
                             >
-                                <IoClose className="text-white text-xl" />
+                                <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                                    <IoClose className="text-white text-lg" />
+                                </div>
                             </button>
+
+                            {/* Stop & Send button */}
                             <button
                                 onClick={stopRecording}
-                                className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                                className="w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 hover:from-[#2a2a2a] hover:to-[#151515] transition-all"
                                 title="Stop & Send"
                             >
-                                <IoStop className="text-white text-xl" />
+                                <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
+                                    <IoStop className="text-white text-lg" />
+                                </div>
                             </button>
                         </div>
                     </div>
@@ -2932,8 +3119,8 @@ export default function ChatDetailScreen() {
             {/* Audio Preview Modal */}
             {showAudioPreview && audioURL && (
                 <div className="fixed inset-0 bg-black bg-opacity-95 z-50 flex flex-col">
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-4 py-3 bg-[#1a1a1a] border-b border-gray-700">
+                    {/* Header with safe area */}
+                    <div className="flex items-center justify-between px-4 py-3 bg-[#1a1a1a] border-b border-gray-700 safe-area-top">
                         <h3 className="text-white text-lg font-semibold">
                             Audio Recording
                         </h3>
@@ -2954,8 +3141,8 @@ export default function ChatDetailScreen() {
                     <div className="flex-1 flex items-center justify-center p-8">
                         <div className="bg-[#2d2d2d] rounded-2xl p-8 border border-gray-700 shadow-2xl max-w-md w-full">
                             <div className="flex flex-col items-center gap-6">
-                                <div className="w-24 h-24 bg-purple-500 bg-opacity-20 rounded-full flex items-center justify-center">
-                                    <IoMusicalNote className="text-purple-400 text-5xl" />
+                                <div className="w-24 h-24 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70">
+                                    <IoMusicalNote className="text-white text-5xl" />
                                 </div>
 
                                 <div className="text-center">
@@ -2990,9 +3177,9 @@ export default function ChatDetailScreen() {
                             <button
                                 onClick={sendAudioMessage}
                                 disabled={uploadingFiles}
-                                className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors ${uploadingFiles
+                                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${uploadingFiles
                                     ? "bg-gray-600 cursor-not-allowed"
-                                    : "bg-red-500 hover:bg-red-600"
+                                    : "bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 hover:from-[#2a2a2a] hover:to-[#151515]"
                                     }`}
                             >
                                 {uploadingFiles ? (
@@ -3058,12 +3245,101 @@ export default function ChatDetailScreen() {
                     </div>
 
                     {/* Media Display */}
-                    <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+                    <div
+                        className="flex-1 relative flex items-center justify-center overflow-hidden"
+                        onDoubleClick={() => {
+                            if (viewerMediaList[currentMediaIndex]?.type.startsWith("image/")) {
+                                if (imageZoom === 1) {
+                                    setImageZoom(2);
+                                } else {
+                                    setImageZoom(1);
+                                    setImagePosition({ x: 0, y: 0 });
+                                }
+                            }
+                        }}
+                        onWheel={(e) => {
+                            if (viewerMediaList[currentMediaIndex]?.type.startsWith("image/")) {
+                                e.preventDefault();
+                                const delta = e.deltaY > 0 ? -0.1 : 0.1;
+                                setImageZoom(prev => Math.min(Math.max(1, prev + delta), 4));
+                            }
+                        }}
+                    >
                         {viewerMediaList[currentMediaIndex]?.type.startsWith("image/") ? (
                             <img
+                                ref={imageRef}
                                 src={viewerMediaList[currentMediaIndex]?.url}
                                 alt="media"
-                                className="max-w-full max-h-full object-contain"
+                                className="max-w-full max-h-full object-contain transition-transform duration-200 cursor-move"
+                                style={{
+                                    transform: `scale(${imageZoom}) translate(${imagePosition.x}px, ${imagePosition.y}px)`,
+                                }}
+                                draggable={false}
+                                onMouseDown={(e) => {
+                                    if (imageZoom > 1) {
+                                        e.preventDefault();
+                                        const startX = e.clientX - imagePosition.x;
+                                        const startY = e.clientY - imagePosition.y;
+
+                                        const handleMouseMove = (moveEvent) => {
+                                            setImagePosition({
+                                                x: moveEvent.clientX - startX,
+                                                y: moveEvent.clientY - startY
+                                            });
+                                        };
+
+                                        const handleMouseUp = () => {
+                                            document.removeEventListener('mousemove', handleMouseMove);
+                                            document.removeEventListener('mouseup', handleMouseUp);
+                                        };
+
+                                        document.addEventListener('mousemove', handleMouseMove);
+                                        document.addEventListener('mouseup', handleMouseUp);
+                                    }
+                                }}
+                                onTouchStart={(e) => {
+                                    if (e.touches.length === 2) {
+                                        // Pinch zoom
+                                        const touch1 = e.touches[0];
+                                        const touch2 = e.touches[1];
+                                        const distance = Math.hypot(
+                                            touch2.clientX - touch1.clientX,
+                                            touch2.clientY - touch1.clientY
+                                        );
+                                        imageRef.current.dataset.initialDistance = distance;
+                                        imageRef.current.dataset.initialZoom = imageZoom;
+                                    } else if (imageZoom > 1) {
+                                        // Pan
+                                        const touch = e.touches[0];
+                                        imageRef.current.dataset.startX = touch.clientX - imagePosition.x;
+                                        imageRef.current.dataset.startY = touch.clientY - imagePosition.y;
+                                    }
+                                }}
+                                onTouchMove={(e) => {
+                                    if (e.touches.length === 2) {
+                                        // Pinch zoom
+                                        e.preventDefault();
+                                        const touch1 = e.touches[0];
+                                        const touch2 = e.touches[1];
+                                        const distance = Math.hypot(
+                                            touch2.clientX - touch1.clientX,
+                                            touch2.clientY - touch1.clientY
+                                        );
+                                        const initialDistance = parseFloat(imageRef.current.dataset.initialDistance);
+                                        const initialZoom = parseFloat(imageRef.current.dataset.initialZoom);
+                                        const scale = distance / initialDistance;
+                                        setImageZoom(Math.min(Math.max(1, initialZoom * scale), 4));
+                                    } else if (imageZoom > 1 && e.touches.length === 1) {
+                                        // Pan
+                                        const touch = e.touches[0];
+                                        const startX = parseFloat(imageRef.current.dataset.startX);
+                                        const startY = parseFloat(imageRef.current.dataset.startY);
+                                        setImagePosition({
+                                            x: touch.clientX - startX,
+                                            y: touch.clientY - startY
+                                        });
+                                    }
+                                }}
                             />
                         ) : (
                             <video

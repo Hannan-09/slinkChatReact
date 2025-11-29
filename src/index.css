@@ -32,6 +32,12 @@
   padding-top: max(env(safe-area-inset-top), 0.75rem);
 }
 
+/* Padding top with safe area for toasts and notifications */
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+  padding-top: max(env(safe-area-inset-top), 0.75rem);
+}
+
 /* ChatDetailScreen animated background */
 .chat-detail-bg {
   position: relative;

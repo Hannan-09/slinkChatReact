@@ -409,13 +409,13 @@ export default function SignupScreen() {
                         )}
                     </div>
 
-                    {/* Signup Button */}
+                    {/* Signup Button - Neumorphic 3D */}
                     <button
                         onClick={handleSignup}
                         disabled={loading}
-                        className={`w-full rounded-full py-4 font-bold text-lg shadow-lg transition-all ${loading
-                            ? 'bg-gray-600 cursor-not-allowed'
-                            : 'bg-orange-500 hover:bg-orange-600 text-white'
+                        className={`w-full rounded-full py-4 font-bold text-lg transition-all ${loading
+                            ? 'bg-gray-700 cursor-not-allowed text-gray-400'
+                            : 'bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 text-white hover:scale-[1.02]'
                             }`}
                     >
                         {loading ? (
@@ -433,7 +433,7 @@ export default function SignupScreen() {
                     <span className="text-gray-400">Already have an account? </span>
                     <button
                         onClick={handleLogin}
-                        className="text-orange-500 font-bold hover:text-orange-400 transition-colors"
+                        className="text-white font-bold hover:text-gray-300 transition-colors"
                     >
                         Login
                     </button>
@@ -468,8 +468,10 @@ export default function SignupScreen() {
                     <div className="w-full max-w-md bg-[#1a1a1a] rounded-2xl p-6 border border-gray-800 shadow-2xl">
                         {/* Key Icon */}
                         <div className="flex justify-center mb-6">
-                            <div className="w-24 h-24 bg-[#1a1a1a] rounded-full flex items-center justify-center shadow-inner border border-gray-800">
-                                <IoKey className="text-orange-500 text-6xl" />
+                            <div className="w-24 h-24 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_14px_22px_rgba(0,0,0,0.96),0_0_0_1px_rgba(255,255,255,0.14),inset_0_3px_4px_rgba(255,255,255,0.22),inset_0_-4px_7px_rgba(0,0,0,0.95)] border border-black/70">
+                                <div className="w-20 h-20 rounded-full flex items-center justify-center bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)]">
+                                    <IoKey className="text-white text-5xl" />
+                                </div>
                             </div>
                         </div>
 
@@ -520,13 +522,13 @@ export default function SignupScreen() {
                             )}
                         </div>
 
-                        {/* Create Key Button */}
+                        {/* Create Key Button - Neumorphic 3D */}
                         <button
                             onClick={handlePrivateKeySubmit}
                             disabled={creatingKey}
-                            className={`w-full rounded-2xl py-4 font-bold shadow-lg transition-all mb-5 ${creatingKey
-                                ? 'bg-gray-600 cursor-not-allowed'
-                                : 'bg-orange-500 hover:bg-orange-600 text-white'
+                            className={`w-full rounded-2xl py-4 font-bold transition-all mb-5 ${creatingKey
+                                ? 'bg-gray-700 cursor-not-allowed text-gray-400'
+                                : 'bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 text-white hover:scale-[1.02]'
                                 }`}
                         >
                             {creatingKey ? (

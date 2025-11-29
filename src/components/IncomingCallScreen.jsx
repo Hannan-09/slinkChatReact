@@ -14,6 +14,24 @@ export default function IncomingCallScreen() {
 
     const SLIDE_THRESHOLD = 0.75; // % of track needed to trigger
 
+    // Build initials from caller name
+    const buildInitials = (name) => {
+        if (!name || name === 'Unknown') return 'U';
+        const parts = name.trim().split(' ').filter(Boolean);
+        if (parts.length === 0) return 'U';
+        if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+        return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+    };
+
+    const callerInitials = callerInfo ? buildInitials(callerInfo.name) : 'U';
+
+    // Check if avatar is valid
+    const isValidAvatar = callerInfo?.avatar &&
+        callerInfo.avatar.trim() !== '' &&
+        callerInfo.avatar !== 'null' &&
+        callerInfo.avatar !== 'undefined' &&
+        (callerInfo.avatar.startsWith('http://') || callerInfo.avatar.startsWith('https://'));
+
     const handleSliderPointerDown = (type) => (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -76,17 +94,35 @@ export default function IncomingCallScreen() {
     return (
         <div className="fixed inset-0 bg-[#1a1a1a] z-50 flex flex-col items-center justify-center p-6">
             {/* Caller Info */}
-                <div className="flex flex-col items-center mb-12">
+            <div className="flex flex-col items-center mb-12">
                 <div className="relative mb-6">
-                <div className="w-32 h-32 rounded-full bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_18px_32px_rgba(0,0,0,0.98),0_0_0_1px_rgba(255,255,255,0.16),inset_0_3px_5px_rgba(255,255,255,0.24),inset_0_-5px_10px_rgba(0,0,0,0.95),inset_4px_0_5px_rgba(255,255,255,0.16),inset_-4px_0_5px_rgba(0,0,0,0.8)] border border-black/70 flex items-center justify-center">
-                    <div className="w-28 h-28 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_3px_4px_rgba(255,255,255,0.5),inset_0_-4px_7px_rgba(0,0,0,0.98)] flex items-center justify-center">
-                        <img
-                            src={callerInfo.avatar || 'https://via.placeholder.com/150'}
-                            alt={callerInfo.name}
-                            className="w-24 h-24 rounded-full object-cover"
-                        />
+                    <div className="w-32 h-32 rounded-full bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_18px_32px_rgba(0,0,0,0.98),0_0_0_1px_rgba(255,255,255,0.16),inset_0_3px_5px_rgba(255,255,255,0.24),inset_0_-5px_10px_rgba(0,0,0,0.95),inset_4px_0_5px_rgba(255,255,255,0.16),inset_-4px_0_5px_rgba(0,0,0,0.8)] border border-black/70 flex items-center justify-center">
+                        <div className="w-28 h-28 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_3px_4px_rgba(255,255,255,0.5),inset_0_-4px_7px_rgba(0,0,0,0.98)] flex items-center justify-center overflow-hidden">
+                            {isValidAvatar ? (
+                                <img
+                                    src={callerInfo.avatar}
+                                    alt={callerInfo.name}
+                                    className="w-24 h-24 rounded-full object-cover"
+                                    onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        e.target.nextElementSibling.style.display = 'flex';
+                                    }}
+                                />
+                            ) : null}
+                            {/* Initials fallback */}
+                            <div
+                                className="w-24 h-24 rounded-full flex items-center justify-center"
+                                style={{
+                                    background: 'linear-gradient(to bottom, #3a3a3a, #2a2a2a)',
+                                    display: !isValidAvatar ? 'flex' : 'none'
+                                }}
+                            >
+                                <span className="text-white text-4xl font-bold" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+                                    {callerInitials}
+                                </span>
+                            </div>
+                        </div>
                     </div>
-                </div>
                     <div className="absolute inset-0 rounded-full border-4 border-green-500 animate-ping"></div>
                 </div>
 

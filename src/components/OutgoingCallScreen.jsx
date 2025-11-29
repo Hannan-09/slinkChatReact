@@ -4,19 +4,55 @@ import { useCall } from '../contexts/CallContext';
 export default function OutgoingCallScreen() {
     const { receiverInfo, isVideoCall, endCall } = useCall();
 
+    // Build initials from receiver name
+    const buildInitials = (name) => {
+        if (!name || name === 'Unknown') return 'U';
+        const parts = name.trim().split(' ').filter(Boolean);
+        if (parts.length === 0) return 'U';
+        if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+        return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+    };
+
+    const receiverInitials = receiverInfo ? buildInitials(receiverInfo.name) : 'U';
+
+    // Check if avatar is valid
+    const isValidAvatar = receiverInfo?.avatar &&
+        receiverInfo.avatar.trim() !== '' &&
+        receiverInfo.avatar !== 'null' &&
+        receiverInfo.avatar !== 'undefined' &&
+        (receiverInfo.avatar.startsWith('http://') || receiverInfo.avatar.startsWith('https://'));
+
     if (!receiverInfo) return null;
 
     return (
         <div className="fixed inset-0 bg-[#1a1a1a] z-50 flex flex-col items-center justify-center p-6">
             {/* Receiver Info */}
-                <div className="flex flex-col items-center mb-12">
+            <div className="flex flex-col items-center mb-12">
                 <div className="relative mb-6">
-                    <div className="w-32 h-32 rounded-full bg-gradient-to-b from-[#2e2e2e] via-[#151515] to-[#050505] shadow-[0_18px_32px_rgba(0,0,0,0.9),inset_0_2px_3px_rgba(255,255,255,0.18),inset_0_-3px_6px_rgba(0,0,0,0.9)] border border-white/25 flex items-center justify-center">
-                        <img
-                            src={receiverInfo.avatar || 'https://via.placeholder.com/150'}
-                            alt={receiverInfo.name}
-                            className="w-28 h-28 rounded-full object-cover"
-                        />
+                    <div className="w-32 h-32 rounded-full bg-gradient-to-b from-[#2e2e2e] via-[#151515] to-[#050505] shadow-[0_18px_32px_rgba(0,0,0,0.9),inset_0_2px_3px_rgba(255,255,255,0.18),inset_0_-3px_6px_rgba(0,0,0,0.9)] border border-white/25 flex items-center justify-center overflow-hidden">
+                        {isValidAvatar ? (
+                            <img
+                                src={receiverInfo.avatar}
+                                alt={receiverInfo.name}
+                                className="w-28 h-28 rounded-full object-cover"
+                                onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    e.target.nextElementSibling.style.display = 'flex';
+                                }}
+                            />
+                        ) : null}
+                        {/* Initials fallback */}
+                        <div
+                            className="w-28 h-28 rounded-full flex items-center justify-center"
+                            style={{
+                                background: 'linear-gradient(to bottom, #3a3a3a, #2a2a2a)',
+                                display: !isValidAvatar ? 'flex' : 'none'
+                            }}
+                        >
+                            <span className="text-white text-4xl font-bold" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+                                {receiverInitials}
+                            </span>
+                        </div>
                     </div>
                 </div>
 

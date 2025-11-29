@@ -27,6 +27,24 @@ export default function ActiveCallScreen() {
 
     const otherUser = callerInfo || receiverInfo;
 
+    // Build initials from other user name
+    const buildInitials = (name) => {
+        if (!name || name === 'Unknown') return 'U';
+        const parts = name.trim().split(' ').filter(Boolean);
+        if (parts.length === 0) return 'U';
+        if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+        return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+    };
+
+    const otherUserInitials = otherUser ? buildInitials(otherUser.name) : 'U';
+
+    // Check if avatar is valid
+    const isValidAvatar = otherUser?.avatar &&
+        otherUser.avatar.trim() !== '' &&
+        otherUser.avatar !== 'null' &&
+        otherUser.avatar !== 'undefined' &&
+        (otherUser.avatar.startsWith('http://') || otherUser.avatar.startsWith('https://'));
+
     // Setup video streams
     useEffect(() => {
         if (localVideoRef.current && localStream) {
@@ -104,12 +122,30 @@ export default function ActiveCallScreen() {
                     </div>
                 ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center bg-[#1a1a1a]">
-                        <div className="w-32 h-32 rounded-full bg-gradient-to-b from-[#2e2e2e] via-[#151515] to-[#050505] shadow-[0_18px_32px_rgba(0,0,0,0.9),inset_0_2px_3px_rgba(255,255,255,0.18),inset_0_-3px_6px_rgba(0,0,0,0.9)] border border-white/25 flex items-center justify-center mb-4">
-                            <img
-                                src={otherUser?.avatar || 'https://via.placeholder.com/150'}
-                                alt={otherUser?.name}
-                                className="w-28 h-28 rounded-full object-cover"
-                            />
+                        <div className="w-32 h-32 rounded-full bg-gradient-to-b from-[#2e2e2e] via-[#151515] to-[#050505] shadow-[0_18px_32px_rgba(0,0,0,0.9),inset_0_2px_3px_rgba(255,255,255,0.18),inset_0_-3px_6px_rgba(0,0,0,0.9)] border border-white/25 flex items-center justify-center mb-4 overflow-hidden">
+                            {isValidAvatar ? (
+                                <img
+                                    src={otherUser.avatar}
+                                    alt={otherUser.name}
+                                    className="w-28 h-28 rounded-full object-cover"
+                                    onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        e.target.nextElementSibling.style.display = 'flex';
+                                    }}
+                                />
+                            ) : null}
+                            {/* Initials fallback */}
+                            <div
+                                className="w-28 h-28 rounded-full flex items-center justify-center"
+                                style={{
+                                    background: 'linear-gradient(to bottom, #3a3a3a, #2a2a2a)',
+                                    display: !isValidAvatar ? 'flex' : 'none'
+                                }}
+                            >
+                                <span className="text-white text-4xl font-bold" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+                                    {otherUserInitials}
+                                </span>
+                            </div>
                         </div>
                         <h2 className="text-white text-2xl font-bold">{otherUser?.name}</h2>
                     </div>

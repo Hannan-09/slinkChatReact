@@ -37,28 +37,40 @@ function BackButtonHandler() {
   const location = useLocation();
 
   useEffect(() => {
-    const handleBackButton = CapacitorApp.addListener('backButton', ({ canGoBack }) => {
-      console.log('📱 Android back button pressed');
-      console.log('📍 Current path:', location.pathname);
-      console.log('🔙 Can go back:', canGoBack);
+    let backButtonListener;
 
-      // Define routes where back button should exit the app
-      const exitRoutes = ['/chats', '/login', '/splash'];
+    const setupBackButton = async () => {
+      backButtonListener = await CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+        console.log('📱 Android back button pressed');
+        console.log('📍 Current path:', location.pathname);
+        console.log('🔙 Can go back:', canGoBack);
 
-      if (exitRoutes.includes(location.pathname)) {
-        console.log('🚪 On exit route, closing app');
-        CapacitorApp.exitApp();
-      } else if (canGoBack) {
-        console.log('⬅️ Navigating back');
-        navigate(-1);
-      } else {
-        console.log('🚪 Cannot go back, closing app');
-        CapacitorApp.exitApp();
-      }
-    });
+        // Define routes where back button should exit the app
+        const exitRoutes = ['/chats', '/login', '/splash'];
+
+        if (exitRoutes.includes(location.pathname)) {
+          console.log('🚪 On exit route, closing app');
+          CapacitorApp.exitApp();
+        } else if (location.pathname.startsWith('/chat/')) {
+          // ChatDetailScreen always goes to /chats
+          console.log('💬 In chat detail, navigating to /chats');
+          navigate('/chats');
+        } else if (canGoBack) {
+          console.log('⬅️ Navigating back');
+          navigate(-1);
+        } else {
+          console.log('🚪 Cannot go back, closing app');
+          CapacitorApp.exitApp();
+        }
+      });
+    };
+
+    setupBackButton();
 
     return () => {
-      handleBackButton.remove();
+      if (backButtonListener) {
+        backButtonListener.remove();
+      }
     };
   }, [navigate, location]);
 

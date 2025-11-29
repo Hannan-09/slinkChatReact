@@ -239,17 +239,30 @@ class ChatApiService {
       }
 
       const result = await response.json();
-      console.log("Upload API response:", result);
+      console.log("📤 Upload API response:", JSON.stringify(result, null, 2));
 
       // Handle different response structures
+      let attachments = [];
       if (result.data && Array.isArray(result.data)) {
-        return result.data;
+        attachments = result.data;
       } else if (Array.isArray(result)) {
-        return result;
+        attachments = result;
       } else {
-        console.error("Unexpected response structure:", result);
+        console.error("❌ Unexpected response structure:", result);
         return [];
       }
+
+      // Log each attachment for debugging
+      console.log("📎 Parsed attachments from API:");
+      attachments.forEach((att, idx) => {
+        console.log(`  [${idx}]:`, {
+          fileURL: att.fileURL,
+          fileType: att.fileType,
+          fullObject: att,
+        });
+      });
+
+      return attachments;
     } catch (error) {
       console.error("Error uploading files:", error);
       throw error;
