@@ -23,7 +23,7 @@ export default function ActiveCallScreen() {
     const remoteAudioRef = useRef(null);
     const localAudioRef = useRef(null);
 
-    const [isSpeakerOn, setIsSpeakerOn] = useState(false);
+    const [isSpeakerOn, setIsSpeakerOn] = useState(false); // false = earpiece, true = speaker
 
     const otherUser = callerInfo || receiverInfo;
 
@@ -46,15 +46,15 @@ export default function ActiveCallScreen() {
             console.log('🔊 Connecting remote audio stream', remoteStream);
             console.log('   Remote stream tracks:', remoteStream.getTracks().map(t => `${t.kind} (${t.id})`));
             remoteAudioRef.current.srcObject = remoteStream;
-            // When speaker is ON -> full volume, when OFF -> mute
-            remoteAudioRef.current.volume = isSpeakerOn ? 1.0 : 0.0;
+            // Audio should ALWAYS play at full volume
+            remoteAudioRef.current.volume = 1.0;
             remoteAudioRef.current.play().then(() => {
                 console.log('✅ Remote audio playing successfully');
             }).catch(err => {
                 console.error('❌ Error playing remote audio:', err);
             });
         }
-    }, [remoteStream, isSpeakerOn]);
+    }, [remoteStream]);
 
     useEffect(() => {
         if (localAudioRef.current && localStream) {
@@ -64,14 +64,25 @@ export default function ActiveCallScreen() {
     }, [localStream]);
 
     // Handle toggle speaker
-    const handleToggleSpeaker = () => {
+    const handleToggleSpeaker = async () => {
         const newSpeakerState = !isSpeakerOn;
         setIsSpeakerOn(newSpeakerState);
 
+        console.log('🔊 Speaker toggle:', newSpeakerState ? 'ON (speakerphone)' : 'OFF (earpiece)');
+
+        // For web browsers, we can't control earpiece vs speaker directly
+        // Audio always plays through default output
+        // For native mobile apps, this would use native audio routing API
+
+        // Ensure audio is always playing at full volume
         if (remoteAudioRef.current) {
-            remoteAudioRef.current.volume = newSpeakerState ? 1.0 : 0.0;
-            console.log('🔊 Speaker', newSpeakerState ? 'ON (speakerphone)' : 'OFF (earpiece/muted)');
+            remoteAudioRef.current.volume = 1.0;
         }
+
+        // TODO: For Capacitor mobile app, add native speaker control:
+        // if (Capacitor.isNativePlatform()) {
+        //     await NativeAudio.setSpeakerphoneOn(newSpeakerState);
+        // }
     };
 
     return (
