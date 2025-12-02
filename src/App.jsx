@@ -106,14 +106,23 @@ function AppContent({ currentUserId }) {
           });
 
           if (response.ok) {
-            const data = await response.json();
-            console.log('✅ FCM token sent to backend successfully:', data);
+            try {
+              const data = await response.json();
+              console.log('✅ FCM token sent to backend successfully:', data);
+            } catch (jsonError) {
+              console.warn('⚠️ Failed to parse FCM token response:', jsonError);
+            }
           } else {
-            const errorText = await response.text();
-            console.error('❌ Failed to send FCM token to backend:', response.status, errorText);
+            try {
+              const errorText = await response.text();
+              console.error('❌ Failed to send FCM token to backend:', response.status, errorText);
+            } catch (textError) {
+              console.error('❌ Failed to send FCM token to backend:', response.status);
+            }
           }
         } catch (error) {
           console.error('❌ Error sending FCM token to backend:', error);
+          // Don't crash app if FCM token sending fails
         }
       }
     };

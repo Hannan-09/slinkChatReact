@@ -41,10 +41,15 @@ export function WebSocketProvider({ children }) {
     // Check if user is logged in
     useEffect(() => {
         const checkLoginStatus = () => {
-            const userId = localStorage.getItem('userId');
-            const isLoggedInFlag = localStorage.getItem('isLoggedIn');
-            const loggedIn = !!(userId && isLoggedInFlag === 'true');
-            setIsLoggedIn(loggedIn);
+            try {
+                const userId = localStorage.getItem('userId');
+                const isLoggedInFlag = localStorage.getItem('isLoggedIn');
+                const loggedIn = !!(userId && isLoggedInFlag === 'true');
+                setIsLoggedIn(loggedIn);
+            } catch (error) {
+                console.warn('Error checking login status:', error);
+                setIsLoggedIn(false);
+            }
         };
 
         checkLoginStatus();
@@ -91,19 +96,25 @@ export function WebSocketProvider({ children }) {
 
         // Subscribe to presence topic globally - only one subscription for entire app
         const presenceSubscription = socket.subscribe('/topic/presence', (presenceMsg) => {
-            // Parse the message: "userId is ONLINE" or "userId is OFFLINE"
-            const messageStr = typeof presenceMsg === 'string' ? presenceMsg : String(presenceMsg);
-            const parts = messageStr.split(' is ');
+            try {
+                // Parse the message: "userId is ONLINE" or "userId is OFFLINE"
+                const messageStr = typeof presenceMsg === 'string' ? presenceMsg : String(presenceMsg);
+                const parts = messageStr.split(' is ');
 
-            if (parts.length === 2) {
-                const userId = parseInt(parts[0]);
-                const status = parts[1];
+                if (parts.length === 2) {
+                    const userId = parseInt(parts[0]);
+                    const status = parts[1];
 
-                if (status === 'ONLINE') {
-                    onlineUsersState.setOnline(userId);
-                } else if (status === 'OFFLINE') {
-                    onlineUsersState.setOffline(userId);
+                    if (!isNaN(userId)) {
+                        if (status === 'ONLINE') {
+                            onlineUsersState.setOnline(userId);
+                        } else if (status === 'OFFLINE') {
+                            onlineUsersState.setOffline(userId);
+                        }
+                    }
                 }
+            } catch (error) {
+                console.warn('Error processing presence message:', error);
             }
         });
 

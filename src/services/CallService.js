@@ -33,10 +33,25 @@ const CallService = {
       // Stop existing ringtone if already playing
       this.stopRingtone();
 
-      // Create audio element for ringtone
-      ringtoneAudio = new Audio("/sounds/iphone.mp3");
+      // Create audio element for ringtone with error handling
+      ringtoneAudio = new Audio();
       ringtoneAudio.loop = true;
       ringtoneAudio.volume = 1.0;
+      ringtoneAudio.preload = "auto";
+
+      // Add error event listener before setting src
+      ringtoneAudio.addEventListener("error", (e) => {
+        console.warn("Ringtone audio error:", e);
+      });
+
+      // Set source and load
+      try {
+        ringtoneAudio.src = "/sounds/iphone.mp3";
+        ringtoneAudio.load();
+      } catch (srcError) {
+        console.warn("Failed to load ringtone source:", srcError);
+        return;
+      }
 
       // Play ringtone
       const playPromise = ringtoneAudio.play();
@@ -44,6 +59,7 @@ const CallService = {
       if (playPromise !== undefined) {
         playPromise
           .then(() => {
+            console.log("Ringtone playing");
           })
           .catch((err) => {
             console.warn("⚠️ Ringtone playback failed:", err);
@@ -76,17 +92,31 @@ const CallService = {
    */
   playEndTone() {
     try {
-      // Create audio element for end tone
-      endToneAudio = new Audio("/sounds/call_end.mp3");
+      // Create audio element for end tone with error handling
+      endToneAudio = new Audio();
       endToneAudio.volume = 1.0;
+      endToneAudio.preload = "auto";
+
+      // Add error event listener before setting src
+      endToneAudio.addEventListener("error", (e) => {
+        console.warn("End tone audio error:", e);
+      });
+
+      // Set source and load
+      try {
+        endToneAudio.src = "/sounds/call_end.mp3";
+        endToneAudio.load();
+      } catch (srcError) {
+        console.warn("Failed to load end tone source:", srcError);
+        return;
+      }
 
       // Play end tone once
       const playPromise = endToneAudio.play();
 
       if (playPromise !== undefined) {
         playPromise
-          .then(() => {
-          })
+          .then(() => {})
           .catch((err) => {
             console.warn("⚠️ End tone failed:", err);
           });

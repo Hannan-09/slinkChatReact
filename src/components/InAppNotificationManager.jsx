@@ -137,11 +137,25 @@ export default function InAppNotificationManager({ currentUserId }) {
 
             // Play notification sound
             try {
-                const audio = new Audio('/notification.mp3');
+                const audio = new Audio();
                 audio.volume = 0.5;
-                audio.play().catch(() => {
-                    // Ignore if sound fails to play
+                audio.preload = 'auto';
+
+                // Add error listener
+                audio.addEventListener('error', () => {
+                    // Silently ignore audio errors
                 });
+
+                // Set source safely
+                try {
+                    audio.src = '/notification.mp3';
+                    audio.load();
+                    audio.play().catch(() => {
+                        // Ignore if sound fails to play
+                    });
+                } catch (srcError) {
+                    // Ignore source loading errors
+                }
             } catch (error) {
                 // Ignore sound errors
             }

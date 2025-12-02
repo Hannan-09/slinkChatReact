@@ -68,16 +68,75 @@ export const CallProvider = ({ children, currentUserId }) => {
     const localVideoRef = useRef(null);
     const remoteVideoRef = useRef(null);
 
-    // Initialize sounds
+    // Initialize sounds with error handling
     useEffect(() => {
-        ringtoneRef.current = new Audio(ringtoneSound);
-        ringtoneRef.current.loop = true;
-        callStartSoundRef.current = new Audio(callStartSound);
-        callEndSoundRef.current = new Audio(callEndSound);
+        try {
+            // Create audio elements with error handling
+            ringtoneRef.current = new Audio();
+            ringtoneRef.current.loop = true;
+            ringtoneRef.current.preload = 'auto';
 
-        ringtoneRef.current.load();
-        callStartSoundRef.current.load();
-        callEndSoundRef.current.load();
+            callStartSoundRef.current = new Audio();
+            callStartSoundRef.current.preload = 'auto';
+
+            callEndSoundRef.current = new Audio();
+            callEndSoundRef.current.preload = 'auto';
+
+            // Set sources with error handling
+            try {
+                ringtoneRef.current.src = ringtoneSound;
+                ringtoneRef.current.load();
+            } catch (e) {
+                console.warn('Failed to load ringtone:', e);
+            }
+
+            try {
+                callStartSoundRef.current.src = callStartSound;
+                callStartSoundRef.current.load();
+            } catch (e) {
+                console.warn('Failed to load call start sound:', e);
+            }
+
+            try {
+                callEndSoundRef.current.src = callEndSound;
+                callEndSoundRef.current.load();
+            } catch (e) {
+                console.warn('Failed to load call end sound:', e);
+            }
+
+            // Add error event listeners to prevent crashes
+            ringtoneRef.current.addEventListener('error', (e) => {
+                console.warn('Ringtone error:', e);
+            });
+            callStartSoundRef.current.addEventListener('error', (e) => {
+                console.warn('Call start sound error:', e);
+            });
+            callEndSoundRef.current.addEventListener('error', (e) => {
+                console.warn('Call end sound error:', e);
+            });
+        } catch (error) {
+            console.error('Error initializing audio:', error);
+        }
+
+        // Cleanup
+        return () => {
+            try {
+                if (ringtoneRef.current) {
+                    ringtoneRef.current.pause();
+                    ringtoneRef.current.src = '';
+                }
+                if (callStartSoundRef.current) {
+                    callStartSoundRef.current.pause();
+                    callStartSoundRef.current.src = '';
+                }
+                if (callEndSoundRef.current) {
+                    callEndSoundRef.current.pause();
+                    callEndSoundRef.current.src = '';
+                }
+            } catch (e) {
+                console.warn('Error cleaning up audio:', e);
+            }
+        };
     }, []);
 
     // Fetch current user profile
@@ -88,11 +147,19 @@ export const CallProvider = ({ children, currentUserId }) => {
             try {
                 const storedUser = localStorage.getItem('user');
                 if (storedUser) {
-                    const userData = JSON.parse(storedUser);
-                    setCurrentUserProfile({
-                        name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.username || 'User',
-                        avatar: userData.profilePicture || userData.profileURL || ''
-                    });
+                    try {
+                        const userData = JSON.parse(storedUser);
+                        setCurrentUserProfile({
+                            name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.username || 'User',
+                            avatar: userData.profilePicture || userData.profileURL || ''
+                        });
+                    } catch (parseError) {
+                        console.warn('Failed to parse user data:', parseError);
+                        setCurrentUserProfile({
+                            name: 'User',
+                            avatar: ''
+                        });
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching user profile:', error);
@@ -163,44 +230,60 @@ export const CallProvider = ({ children, currentUserId }) => {
 
     // Sound functions
     const playRingtone = () => {
-        if (ringtoneRef.current) {
-            ringtoneRef.current.play().catch(err => {
-                // Silently handle autoplay policy errors (expected for incoming calls)
-                if (err.name !== 'NotAllowedError') {
-                    console.error('Ringtone error:', err);
-                }
-            });
+        try {
+            if (ringtoneRef.current && ringtoneRef.current.src) {
+                ringtoneRef.current.play().catch(err => {
+                    // Silently handle autoplay policy errors (expected for incoming calls)
+                    if (err.name !== 'NotAllowedError') {
+                        console.warn('Ringtone play error:', err.message);
+                    }
+                });
+            }
+        } catch (error) {
+            console.warn('Ringtone error:', error.message);
         }
     };
 
     const stopRingtone = () => {
-        if (ringtoneRef.current) {
-            ringtoneRef.current.pause();
-            ringtoneRef.current.currentTime = 0;
+        try {
+            if (ringtoneRef.current) {
+                ringtoneRef.current.pause();
+                ringtoneRef.current.currentTime = 0;
+            }
+        } catch (error) {
+            console.warn('Stop ringtone error:', error.message);
         }
     };
 
     const playCallStartSound = () => {
-        if (callStartSoundRef.current) {
-            callStartSoundRef.current.currentTime = 0;
-            callStartSoundRef.current.play().catch(err => {
-                // Silently handle autoplay policy errors
-                if (err.name !== 'NotAllowedError') {
-                    console.error('Call start sound error:', err);
-                }
-            });
+        try {
+            if (callStartSoundRef.current && callStartSoundRef.current.src) {
+                callStartSoundRef.current.currentTime = 0;
+                callStartSoundRef.current.play().catch(err => {
+                    // Silently handle autoplay policy errors
+                    if (err.name !== 'NotAllowedError') {
+                        console.warn('Call start sound play error:', err.message);
+                    }
+                });
+            }
+        } catch (error) {
+            console.warn('Call start sound error:', error.message);
         }
     };
 
     const playCallEndSound = () => {
-        if (callEndSoundRef.current) {
-            callEndSoundRef.current.currentTime = 0;
-            callEndSoundRef.current.play().catch(err => {
-                // Silently handle autoplay policy errors
-                if (err.name !== 'NotAllowedError') {
-                    console.error('Call end sound error:', err);
-                }
-            });
+        try {
+            if (callEndSoundRef.current && callEndSoundRef.current.src) {
+                callEndSoundRef.current.currentTime = 0;
+                callEndSoundRef.current.play().catch(err => {
+                    // Silently handle autoplay policy errors
+                    if (err.name !== 'NotAllowedError') {
+                        console.warn('Call end sound play error:', err.message);
+                    }
+                });
+            }
+        } catch (error) {
+            console.warn('Call end sound error:', error.message);
         }
     };
 

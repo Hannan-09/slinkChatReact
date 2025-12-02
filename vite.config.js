@@ -72,5 +72,14 @@ export default defineConfig({
     terserOptions: {
       safari10: true, // iOS Safari compatibility
     },
+    outDir: "dist",
+    assetsDir: "assets",
+    // Prevent chunk loading issues in Capacitor
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      },
+    },
   },
+  base: "./", // Important for Capacitor - use relative paths
 });

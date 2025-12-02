@@ -124,24 +124,48 @@ export const AuthAPI = {
         try {
           // Store JWT token (store as both authToken and accessToken for compatibility)
           if (userData.token) {
-            localStorage.setItem("authToken", userData.token);
-            localStorage.setItem("accessToken", userData.token);
-            authToken = userData.token;
+            try {
+              localStorage.setItem("authToken", userData.token);
+              localStorage.setItem("accessToken", userData.token);
+              authToken = userData.token;
+            } catch (tokenError) {
+              console.error("Failed to store auth token:", tokenError);
+              // Continue even if token storage fails
+            }
           }
 
-          // Store user data in localStorage
-          localStorage.setItem("user", JSON.stringify(userData));
-          localStorage.setItem("userId", userData.userId.toString());
-          localStorage.setItem("username", userData.username);
-          localStorage.setItem("firstName", userData.firstName || "");
-          localStorage.setItem("lastName", userData.lastName || "");
-          localStorage.setItem("isLoggedIn", "true");
+          // Store user data in localStorage with individual try-catch
+          try {
+            localStorage.setItem("user", JSON.stringify(userData));
+          } catch (e) {
+            console.warn("Failed to store user data:", e);
+          }
+
+          try {
+            localStorage.setItem("userId", userData.userId.toString());
+          } catch (e) {
+            console.warn("Failed to store userId:", e);
+          }
+
+          try {
+            localStorage.setItem("username", userData.username);
+            localStorage.setItem("firstName", userData.firstName || "");
+            localStorage.setItem("lastName", userData.lastName || "");
+            localStorage.setItem("isLoggedIn", "true");
+          } catch (e) {
+            console.warn("Failed to store user details:", e);
+          }
 
           // Verify storage
-          const storedUserId = localStorage.getItem("userId");
-          const storedUser = localStorage.getItem("user");
+          try {
+            const storedUserId = localStorage.getItem("userId");
+            const storedUser = localStorage.getItem("user");
+          } catch (e) {
+            console.warn("Failed to verify storage:", e);
+          }
         } catch (storageError) {
           console.error("Storage error:", storageError);
+          // Don't crash - continue with login even if storage fails
         }
       }
 
@@ -172,11 +196,20 @@ export const AuthAPI = {
       // Update localStorage with new data
       if (response.data && response.data.statusCode === 200) {
         const userData = response.data.data;
-        localStorage.setItem("user", JSON.stringify(userData));
-        if (userData.firstName)
-          localStorage.setItem("firstName", userData.firstName);
-        if (userData.lastName)
-          localStorage.setItem("lastName", userData.lastName);
+        try {
+          localStorage.setItem("user", JSON.stringify(userData));
+        } catch (e) {
+          console.warn("Failed to update user in storage:", e);
+        }
+
+        try {
+          if (userData.firstName)
+            localStorage.setItem("firstName", userData.firstName);
+          if (userData.lastName)
+            localStorage.setItem("lastName", userData.lastName);
+        } catch (e) {
+          console.warn("Failed to update user details in storage:", e);
+        }
       }
 
       return { success: true, data: response.data };
@@ -294,8 +327,13 @@ export const AuthAPI = {
       });
 
       const { token } = response.data;
-      localStorage.setItem("authToken", token);
-      authToken = token;
+      try {
+        localStorage.setItem("authToken", token);
+        authToken = token;
+      } catch (e) {
+        console.warn("Failed to store refreshed token:", e);
+        authToken = token; // Still set in memory
+      }
 
       return { success: true, token };
     } catch (error) {
@@ -649,7 +687,16 @@ export const ApiUtils = {
   getStoredUser: async () => {
     try {
       const userStr = localStorage.getItem("user");
-      return userStr ? JSON.parse(userStr) : null;
+      if (!userStr) return null;
+
+      try {
+        return JSON.parse(userStr);
+      } catch (parseError) {
+        console.error("Error parsing stored user:", parseError);
+        // Clear corrupted data
+        localStorage.removeItem("user");
+        return null;
+      }
     } catch (error) {
       console.error("Error getting stored user:", error);
       return null;

@@ -178,8 +178,17 @@ export default function useStompSocket(options = {}) {
                 return;
               }
 
-              // Try to parse as JSON
-              parsedMessage = JSON.parse(message.body);
+              // Try to parse as JSON with error handling
+              try {
+                parsedMessage = JSON.parse(message.body);
+              } catch (jsonError) {
+                log(
+                  `JSON parse failed for ${destination}: ${jsonError.message}`,
+                  "error"
+                );
+                // If parsing fails, use raw body
+                parsedMessage = message.body;
+              }
 
               // For notification topics, pass the raw parsed message
               if (destination.includes("/topic/notification/")) {

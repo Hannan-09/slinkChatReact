@@ -2065,9 +2065,9 @@ export default function ChatDetailScreen() {
     };
 
     return (
-        <div className="h-screen bg-[#1a1a1a] flex flex-col safe-area-top">
+        <div className="fixed inset-0 bg-[#1a1a1a] flex flex-col safe-area-top">
             {/* Header - Fixed Top */}
-            <div className="flex-shrink-0 z-10 flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 bg-[#1a1a1a] border-b border-gray-800 shadow-lg">
+            <div className="fixed top-0 left-0 right-0 z-20 flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 bg-[#1a1a1a] border-b border-gray-800 shadow-lg safe-area-top">
                 <div className="flex items-center flex-1 min-w-0">
                     {/* Back button - 3D ring matching add-friend button */}
                     <button
@@ -2180,8 +2180,12 @@ export default function ChatDetailScreen() {
             <div
                 ref={messagesContainerRef}
                 onScroll={handleScroll}
-                className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-5 pb-3 sm:pb-5 scrollbar-hide"
-                style={{ minHeight: 0 }}
+                className="fixed inset-0 overflow-y-auto overflow-x-hidden px-3 sm:px-5 scrollbar-hide"
+                style={{
+                    top: '64px', /* Header height */
+                    bottom: '80px', /* Input area height */
+                    paddingBottom: '1rem'
+                }}
             >
                 {loading ? (
                     <div className="flex items-center justify-center py-12">
@@ -2721,7 +2725,7 @@ export default function ChatDetailScreen() {
             {isUserScrolledUp && (
                 <button
                     onClick={() => scrollToBottom(false)}
-                    className="absolute bottom-24 sm:bottom-28 right-4 sm:right-6 w-12 h-12 sm:w-13 sm:h-13 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 z-50 transition-transform hover:scale-105"
+                    className="fixed bottom-24 sm:bottom-28 right-4 sm:right-6 w-12 h-12 sm:w-13 sm:h-13 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 z-50 transition-transform hover:scale-105"
                 >
                     <div
                         className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)] ${newMessageCount > 0
@@ -2735,7 +2739,7 @@ export default function ChatDetailScreen() {
             )}
 
             {/* Message Input - Fixed Bottom */}
-            <div className="flex-shrink-0 z-10 bg-[#1a1a1a] px-3 sm:px-5 py-3 sm:py-4 border-t border-gray-800 shadow-lg">
+            <div className="fixed bottom-0 left-0 right-0 z-20 bg-[#1a1a1a] px-3 sm:px-5 py-3 sm:py-4 border-t border-gray-800 shadow-lg">
                 {/* Edit Mode Indicator */}
                 {editingMessageId && (
                     <div className="mb-2 flex items-center justify-between bg-[#2d2d2d] px-3 py-2 rounded-lg border border-gray-700">
@@ -2890,6 +2894,7 @@ export default function ChatDetailScreen() {
                             </div>
 
                             {/* Hidden file inputs */}
+                            {/* File input - for documents and all files */}
                             <input
                                 ref={fileInputRef}
                                 type="file"
@@ -2898,7 +2903,12 @@ export default function ChatDetailScreen() {
                                 className="hidden"
                                 accept="*/*"
                                 style={{ display: 'none' }}
+                                onClick={(e) => {
+                                    // Reset value to allow selecting same file again
+                                    e.target.value = null;
+                                }}
                             />
+                            {/* Photo/Video input - optimized for mobile camera/gallery */}
                             <input
                                 ref={photoInputRef}
                                 type="file"
@@ -2906,7 +2916,12 @@ export default function ChatDetailScreen() {
                                 onChange={(e) => handleFileSelect(e, "photo")}
                                 className="hidden"
                                 accept="image/*,video/*"
+                                capture="environment"
                                 style={{ display: 'none' }}
+                                onClick={(e) => {
+                                    // Reset value to allow selecting same file again
+                                    e.target.value = null;
+                                }}
                             />
                         </>
                     )}

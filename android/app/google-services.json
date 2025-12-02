@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "18734173510",
+    "project_id": "slinkchat-ea24d",
+    "storage_bucket": "slinkchat-ea24d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:18734173510:android:bfe4b63dd53e8d1695a947",
+        "android_client_info": {
+          "package_name": "com.slink.chat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBFduG84HXoyOjpyxHJ3mx-caL1cl7ggp4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

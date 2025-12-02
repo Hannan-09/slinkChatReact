@@ -56,11 +56,13 @@ if (isFCMSupported()) {
     console.log("✅ Firebase Cloud Messaging initialized");
   } catch (error) {
     console.warn("⚠️ Firebase Messaging init error:", error.message);
+    messaging = null; // Ensure it's null on error
   }
 } else {
   console.warn(
     "⚠️ Firebase Cloud Messaging not supported on this browser (iOS Safari)"
   );
+  messaging = null;
 }
 
 // ----------------------------
@@ -73,6 +75,12 @@ export const requestNotificationPermission = async () => {
   }
 
   try {
+    // Check if Notification API is available
+    if (typeof Notification === "undefined") {
+      console.warn("Notification API not available");
+      return null;
+    }
+
     const permission = await Notification.requestPermission();
 
     if (permission !== "granted") {
@@ -84,38 +92,48 @@ export const requestNotificationPermission = async () => {
 
     // Wait for service worker to be ready
     if ("serviceWorker" in navigator) {
-      const registration = await navigator.serviceWorker.ready;
-      console.log(
-        "✅ Service Worker is ready for FCM:",
-        registration.active?.state
-      );
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        console.log(
+          "✅ Service Worker is ready for FCM:",
+          registration.active?.state
+        );
+      } catch (swError) {
+        console.error("❌ Service Worker not ready:", swError);
+        return null;
+      }
     }
 
     // Small delay to ensure service worker is fully active
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Get FCM token with VAPID key
-    const token = await getToken(messaging, {
-      vapidKey:
-        "BJksXRI_KpsnAN8FUV9kmaEbI2MEhlvFYG4diMmSn1GU7F46bUXtsqbH5pqjnlXSLpMZbmEUz7_0TYYLeJb-6fg",
-      serviceWorkerRegistration: await navigator.serviceWorker.ready,
-    });
+    try {
+      const token = await getToken(messaging, {
+        vapidKey:
+          "BJksXRI_KpsnAN8FUV9kmaEbI2MEhlvFYG4diMmSn1GU7F46bUXtsqbH5pqjnlXSLpMZbmEUz7_0TYYLeJb-6fg",
+        serviceWorkerRegistration: await navigator.serviceWorker.ready,
+      });
 
-    console.log("✅ FCM Token generated:", token);
-    return token;
+      console.log("✅ FCM Token generated:", token);
+      return token;
+    } catch (tokenError) {
+      console.error("❌ Error getting FCM token:", tokenError);
+
+      // More detailed error logging
+      if (tokenError.code === "messaging/token-subscribe-failed") {
+        console.error("❌ Push subscription failed. Possible causes:");
+        console.error("   1. Invalid VAPID key");
+        console.error("   2. Service worker not properly registered");
+        console.error("   3. Browser doesn't support push notifications");
+      } else if (tokenError.code === "messaging/permission-blocked") {
+        console.error("❌ Notification permission blocked by user.");
+      }
+
+      return null;
+    }
   } catch (error) {
     console.error("❌ Error retrieving FCM token:", error);
-
-    // More detailed error logging
-    if (error.code === "messaging/token-subscribe-failed") {
-      console.error("❌ Push subscription failed. Possible causes:");
-      console.error("   1. Invalid VAPID key");
-      console.error("   2. Service worker not properly registered");
-      console.error("   3. Browser doesn't support push notifications");
-    } else if (error.code === "messaging/permission-blocked") {
-      console.error("❌ Notification permission blocked by user.");
-    }
-
     return null;
   }
 };
@@ -124,16 +142,27 @@ export const requestNotificationPermission = async () => {
 // FOREGROUND MESSAGE LISTENER
 // ----------------------------
 export const onMessageListener = () =>
-  new Promise((resolve) => {
+  new Promise((resolve, reject) => {
     if (!messaging) {
       console.warn("Messaging not available.");
+      reject(new Error("Messaging not available"));
       return;
     }
 
-    onMessage(messaging, (payload) => {
-      console.log("Foreground message received:", payload);
-      resolve(payload);
-    });
+    try {
+      onMessage(messaging, (payload) => {
+        try {
+          console.log("Foreground message received:", payload);
+          resolve(payload);
+        } catch (error) {
+          console.error("❌ Error processing foreground message:", error);
+          reject(error);
+        }
+      });
+    } catch (error) {
+      console.error("❌ Error setting up message listener:", error);
+      reject(error);
+    }
   });
 
 // ----------------------------

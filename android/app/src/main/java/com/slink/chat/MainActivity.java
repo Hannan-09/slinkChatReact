@@ -22,48 +22,78 @@ public class MainActivity extends BridgeActivity {
         
         // Request runtime permissions for Android 6.0+
         requestRuntimePermissions();
+    }
+    
+    @Override
+    public void onStart() {
+        super.onStart();
         
-        // Enable WebRTC in WebView
-        WebView webView = getBridge().getWebView();
-        WebSettings settings = webView.getSettings();
-        
-        // Enable necessary WebView features for WebRTC
-        settings.setJavaScriptEnabled(true);
-        settings.setMediaPlaybackRequiresUserGesture(false);
-        settings.setDomStorageEnabled(true);
-        settings.setDatabaseEnabled(true);
-        settings.setAllowFileAccess(true);
-        settings.setAllowContentAccess(true);
-        
-        // Set WebChromeClient to handle permission requests
-        webView.setWebChromeClient(new WebChromeClient() {
-            @Override
-            public void onPermissionRequest(final PermissionRequest request) {
-                // Auto-grant camera and microphone permissions for WebRTC
-                runOnUiThread(() -> request.grant(request.getResources()));
+        // Configure WebView after it's fully initialized
+        try {
+            WebView webView = getBridge().getWebView();
+            if (webView != null) {
+                WebSettings settings = webView.getSettings();
+                
+                // Enable necessary WebView features for WebRTC
+                settings.setJavaScriptEnabled(true);
+                settings.setMediaPlaybackRequiresUserGesture(false);
+                settings.setDomStorageEnabled(true);
+                settings.setDatabaseEnabled(true);
+                settings.setAllowFileAccess(true);
+                settings.setAllowContentAccess(true);
+                
+                // Set WebChromeClient to handle permission requests
+                webView.setWebChromeClient(new WebChromeClient() {
+                    @Override
+                    public void onPermissionRequest(final PermissionRequest request) {
+                        // Auto-grant camera and microphone permissions for WebRTC
+                        runOnUiThread(() -> {
+                            if (request != null && request.getResources() != null) {
+                                request.grant(request.getResources());
+                            }
+                        });
+                    }
+                });
             }
-        });
+        } catch (Exception e) {
+            android.util.Log.e("MainActivity", "Error configuring WebView: " + e.getMessage());
+        }
     }
     
     private void requestRuntimePermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            String[] permissions = {
-                Manifest.permission.CAMERA,
-                Manifest.permission.RECORD_AUDIO,
-                Manifest.permission.MODIFY_AUDIO_SETTINGS
-            };
+            java.util.ArrayList<String> permissionsList = new java.util.ArrayList<>();
             
-            boolean needsPermission = false;
-            for (String permission : permissions) {
+            // Camera and Audio permissions
+            permissionsList.add(Manifest.permission.CAMERA);
+            permissionsList.add(Manifest.permission.RECORD_AUDIO);
+            permissionsList.add(Manifest.permission.MODIFY_AUDIO_SETTINGS);
+            
+            // Storage permissions based on Android version
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // Android 13+ (API 33+)
+                permissionsList.add(Manifest.permission.READ_MEDIA_IMAGES);
+                permissionsList.add(Manifest.permission.READ_MEDIA_VIDEO);
+                permissionsList.add(Manifest.permission.READ_MEDIA_AUDIO);
+            } else {
+                // Android 6-12 (API 23-32)
+                permissionsList.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+                permissionsList.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            }
+            
+            // Check which permissions are needed
+            java.util.ArrayList<String> permissionsNeeded = new java.util.ArrayList<>();
+            for (String permission : permissionsList) {
                 if (ContextCompat.checkSelfPermission(this, permission) 
                         != PackageManager.PERMISSION_GRANTED) {
-                    needsPermission = true;
-                    break;
+                    permissionsNeeded.add(permission);
                 }
             }
             
-            if (needsPermission) {
-                ActivityCompat.requestPermissions(this, permissions, PERMISSION_REQUEST_CODE);
+            // Request permissions if needed
+            if (!permissionsNeeded.isEmpty()) {
+                String[] permissionsArray = permissionsNeeded.toArray(new String[0]);
+                ActivityCompat.requestPermissions(this, permissionsArray, PERMISSION_REQUEST_CODE);
             }
         }
     }
