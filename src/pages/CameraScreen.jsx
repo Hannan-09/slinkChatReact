@@ -135,10 +135,18 @@ export default function CameraScreen() {
         if (!videoRef.current) return;
 
         const canvas = document.createElement('canvas');
-        canvas.width = videoRef.current.videoWidth;
-        canvas.height = videoRef.current.videoHeight;
+        const video = videoRef.current;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(videoRef.current, 0, 0);
+
+        // If front camera, flip the image horizontally for natural look
+        if (facingMode === 'user') {
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+        }
+
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         canvas.toBlob((blob) => {
             const url = URL.createObjectURL(blob);
@@ -371,6 +379,9 @@ export default function CameraScreen() {
                         playsInline
                         muted
                         className="w-full h-full object-cover"
+                        style={{
+                            transform: facingMode === 'user' ? 'scaleX(-1)' : 'none'
+                        }}
                     />
 
                     {/* Top Controls */}

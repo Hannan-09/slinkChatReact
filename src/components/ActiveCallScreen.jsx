@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { IoCall, IoMic, IoMicOff, IoVideocam, IoVideocamOff, IoVolumeHigh, IoVolumeMedium, IoSyncOutline } from 'react-icons/io5';
 import { useCall } from '../contexts/CallContext';
+import { Capacitor } from '@capacitor/core';
 
 export default function ActiveCallScreen() {
     const {
@@ -24,6 +25,7 @@ export default function ActiveCallScreen() {
     const localAudioRef = useRef(null);
 
     const [isSpeakerOn, setIsSpeakerOn] = useState(false); // false = earpiece, true = speaker
+    const isNative = Capacitor.isNativePlatform();
 
     const otherUser = callerInfo || receiverInfo;
 
@@ -58,7 +60,7 @@ export default function ActiveCallScreen() {
         }
     }, [remoteStream]);
 
-    // Setup audio streams
+    // Setup audio streams and default to earpiece on mobile
     useEffect(() => {
         if (remoteAudioRef.current && remoteStream) {
             console.log('🔊 Connecting remote audio stream', remoteStream);
@@ -68,11 +70,16 @@ export default function ActiveCallScreen() {
             remoteAudioRef.current.volume = 1.0;
             remoteAudioRef.current.play().then(() => {
                 console.log('✅ Remote audio playing successfully');
+
+                // Set default audio output to earpiece on mobile
+                if (isNative) {
+                    setAudioOutputToEarpiece();
+                }
             }).catch(err => {
                 console.error('❌ Error playing remote audio:', err);
             });
         }
-    }, [remoteStream]);
+    }, [remoteStream, isNative]);
 
     useEffect(() => {
         if (localAudioRef.current && localStream) {
@@ -81,6 +88,78 @@ export default function ActiveCallScreen() {
         }
     }, [localStream]);
 
+    // Set audio output to earpiece (default for calls)
+    const setAudioOutputToEarpiece = () => {
+        try {
+            console.log('🔊 Setting audio output to EARPIECE');
+
+            if (isNative) {
+                // For Cordova/Capacitor plugins
+                if (window.cordova && window.cordova.plugins && window.cordova.plugins.iosrtc) {
+                    window.cordova.plugins.iosrtc.selectAudioOutput('earpiece');
+                }
+
+                // For Android - use native audio manager
+                if (Capacitor.getPlatform() === 'android') {
+                    // Call native Android method to route audio to earpiece
+                    if (window.AndroidAudioManager) {
+                        window.AndroidAudioManager.setEarpiece();
+                    } else {
+                        // Fallback: Set audio element properties for earpiece
+                        if (remoteAudioRef.current) {
+                            remoteAudioRef.current.volume = 1.0;
+                            // Remove any speaker-specific attributes
+                            remoteAudioRef.current.removeAttribute('x-webkit-airplay');
+                        }
+                    }
+                }
+            } else if (remoteAudioRef.current && remoteAudioRef.current.setSinkId) {
+                // For web browsers that support setSinkId
+                remoteAudioRef.current.setSinkId('default').catch(err => {
+                    console.warn('setSinkId not supported:', err);
+                });
+            }
+        } catch (error) {
+            console.error('Error setting earpiece:', error);
+        }
+    };
+
+    // Set audio output to speaker
+    const setAudioOutputToSpeaker = () => {
+        try {
+            console.log('🔊 Setting audio output to SPEAKER');
+
+            if (isNative) {
+                // For Cordova/Capacitor plugins
+                if (window.cordova && window.cordova.plugins && window.cordova.plugins.iosrtc) {
+                    window.cordova.plugins.iosrtc.selectAudioOutput('speaker');
+                }
+
+                // For Android - use native audio manager
+                if (Capacitor.getPlatform() === 'android') {
+                    // Call native Android method to route audio to speaker
+                    if (window.AndroidAudioManager) {
+                        window.AndroidAudioManager.setSpeaker();
+                    } else {
+                        // Fallback: Set audio element properties for speaker
+                        if (remoteAudioRef.current) {
+                            remoteAudioRef.current.volume = 1.0;
+                            // Add speaker-specific attributes
+                            remoteAudioRef.current.setAttribute('x-webkit-airplay', 'allow');
+                        }
+                    }
+                }
+            } else if (remoteAudioRef.current && remoteAudioRef.current.setSinkId) {
+                // For web browsers that support setSinkId
+                remoteAudioRef.current.setSinkId('communications').catch(err => {
+                    console.warn('setSinkId not supported:', err);
+                });
+            }
+        } catch (error) {
+            console.error('Error setting speaker:', error);
+        }
+    };
+
     // Handle toggle speaker
     const handleToggleSpeaker = async () => {
         const newSpeakerState = !isSpeakerOn;
@@ -88,19 +167,17 @@ export default function ActiveCallScreen() {
 
         console.log('🔊 Speaker toggle:', newSpeakerState ? 'ON (speakerphone)' : 'OFF (earpiece)');
 
-        // For web browsers, we can't control earpiece vs speaker directly
-        // Audio always plays through default output
-        // For native mobile apps, this would use native audio routing API
-
         // Ensure audio is always playing at full volume
         if (remoteAudioRef.current) {
             remoteAudioRef.current.volume = 1.0;
         }
 
-        // TODO: For Capacitor mobile app, add native speaker control:
-        // if (Capacitor.isNativePlatform()) {
-        //     await NativeAudio.setSpeakerphoneOn(newSpeakerState);
-        // }
+        // Route audio to speaker or earpiece
+        if (newSpeakerState) {
+            setAudioOutputToSpeaker();
+        } else {
+            setAudioOutputToEarpiece();
+        }
     };
 
     return (

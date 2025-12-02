@@ -211,6 +211,7 @@ export default function ChatDetailScreen() {
     // Camera states
     const [showCamera, setShowCamera] = useState(false);
     const [cameraStream, setCameraStream] = useState(null);
+    const [cameraFacingMode, setCameraFacingMode] = useState('user'); // 'user' = front, 'environment' = back
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
 
@@ -1388,6 +1389,12 @@ export default function ChatDetailScreen() {
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
 
+            // If front camera, flip the image horizontally for natural look
+            if (cameraFacingMode === 'user') {
+                context.translate(canvas.width, 0);
+                context.scale(-1, 1);
+            }
+
             // Draw video frame to canvas
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
@@ -2065,9 +2072,9 @@ export default function ChatDetailScreen() {
     };
 
     return (
-        <div className="fixed inset-0 bg-[#1a1a1a] flex flex-col safe-area-top">
-            {/* Header - Fixed Top */}
-            <div className="fixed top-0 left-0 right-0 z-20 flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 bg-[#1a1a1a] border-b border-gray-800 shadow-lg safe-area-top">
+        <div className="fixed inset-0 bg-[#1a1a1a] flex flex-col safe-area-top overflow-hidden">
+            {/* Header - Sticky Top (not fixed) */}
+            <div className="flex-shrink-0 z-20 flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 bg-[#1a1a1a] border-b border-gray-800 shadow-lg safe-area-top">
                 <div className="flex items-center flex-1 min-w-0">
                     {/* Back button - 3D ring matching add-friend button */}
                     <button
@@ -2180,10 +2187,8 @@ export default function ChatDetailScreen() {
             <div
                 ref={messagesContainerRef}
                 onScroll={handleScroll}
-                className="fixed inset-0 overflow-y-auto overflow-x-hidden px-3 sm:px-5 scrollbar-hide"
+                className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-5 scrollbar-hide"
                 style={{
-                    top: '64px', /* Header height */
-                    bottom: '80px', /* Input area height */
                     paddingBottom: '1rem'
                 }}
             >
@@ -2725,7 +2730,7 @@ export default function ChatDetailScreen() {
             {isUserScrolledUp && (
                 <button
                     onClick={() => scrollToBottom(false)}
-                    className="fixed bottom-24 sm:bottom-28 right-4 sm:right-6 w-12 h-12 sm:w-13 sm:h-13 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 z-50 transition-transform hover:scale-105"
+                    className="absolute bottom-24 sm:bottom-28 right-4 sm:right-6 w-12 h-12 sm:w-13 sm:h-13 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 z-50 transition-transform hover:scale-105"
                 >
                     <div
                         className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)] ${newMessageCount > 0
@@ -2738,8 +2743,8 @@ export default function ChatDetailScreen() {
                 </button>
             )}
 
-            {/* Message Input - Fixed Bottom */}
-            <div className="fixed bottom-0 left-0 right-0 z-20 bg-[#1a1a1a] px-3 sm:px-5 py-3 sm:py-4 border-t border-gray-800 shadow-lg">
+            {/* Message Input - Flex Bottom (not fixed) */}
+            <div className="flex-shrink-0 z-20 bg-[#1a1a1a] px-3 sm:px-5 py-3 sm:py-4 border-t border-gray-800 shadow-lg">
                 {/* Edit Mode Indicator */}
                 {editingMessageId && (
                     <div className="mb-2 flex items-center justify-between bg-[#2d2d2d] px-3 py-2 rounded-lg border border-gray-700">
@@ -2845,16 +2850,20 @@ export default function ChatDetailScreen() {
                                         </button>
                                         <button
                                             onClick={() => {
-                                                console.log('Photos button clicked');
+                                                console.log('📷 Photos button clicked');
                                                 setShowAttachMenu(false);
                                                 setTimeout(() => {
-                                                    console.log('Triggering photo input click');
+                                                    console.log('📷 Triggering photo input click');
                                                     if (photoInputRef.current) {
+                                                        // Reset value first
+                                                        photoInputRef.current.value = '';
+                                                        // Trigger click
                                                         photoInputRef.current.click();
+                                                        console.log('📷 Photo input clicked');
                                                     } else {
-                                                        console.error('Photo input ref not found');
+                                                        console.error('❌ Photo input ref not found');
                                                     }
-                                                }, 100);
+                                                }, 150);
                                             }}
                                             className="w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3"
                                         >
@@ -2863,16 +2872,20 @@ export default function ChatDetailScreen() {
                                         </button>
                                         <button
                                             onClick={() => {
-                                                console.log('Files button clicked');
+                                                console.log('📁 Files button clicked');
                                                 setShowAttachMenu(false);
                                                 setTimeout(() => {
-                                                    console.log('Triggering file input click');
+                                                    console.log('📁 Triggering file input click');
                                                     if (fileInputRef.current) {
+                                                        // Reset value first
+                                                        fileInputRef.current.value = '';
+                                                        // Trigger click
                                                         fileInputRef.current.click();
+                                                        console.log('📁 File input clicked');
                                                     } else {
-                                                        console.error('File input ref not found');
+                                                        console.error('❌ File input ref not found');
                                                     }
-                                                }, 100);
+                                                }, 150);
                                             }}
                                             className="w-full px-4 py-3 text-left text-white/90 hover:bg-white/10 flex items-center gap-3"
                                         >
@@ -2902,10 +2915,11 @@ export default function ChatDetailScreen() {
                                 onChange={(e) => handleFileSelect(e, "file")}
                                 className="hidden"
                                 accept="*/*"
-                                style={{ display: 'none' }}
+                                style={{ display: 'none', position: 'absolute', left: '-9999px' }}
                                 onClick={(e) => {
                                     // Reset value to allow selecting same file again
                                     e.target.value = null;
+                                    console.log('📁 File input clicked');
                                 }}
                             />
                             {/* Photo/Video input - optimized for mobile camera/gallery */}
@@ -2916,11 +2930,11 @@ export default function ChatDetailScreen() {
                                 onChange={(e) => handleFileSelect(e, "photo")}
                                 className="hidden"
                                 accept="image/*,video/*"
-                                capture="environment"
-                                style={{ display: 'none' }}
+                                style={{ display: 'none', position: 'absolute', left: '-9999px' }}
                                 onClick={(e) => {
                                     // Reset value to allow selecting same file again
                                     e.target.value = null;
+                                    console.log('📷 Photo input clicked');
                                 }}
                             />
                         </>
@@ -3226,6 +3240,9 @@ export default function ChatDetailScreen() {
                             autoPlay
                             playsInline
                             className="w-full h-auto max-h-[70vh] rounded-lg shadow-2xl"
+                            style={{
+                                transform: cameraFacingMode === 'user' ? 'scaleX(-1)' : 'none'
+                            }}
                         />
 
                         {/* Capture button */}

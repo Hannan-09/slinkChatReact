@@ -35,11 +35,22 @@ subprojects {
                 }
             }
         }
-    }
-    
-    tasks.withType(JavaCompile).configureEach {
-        sourceCompatibility = '17'
-        targetCompatibility = '17'
+        
+        // Force Java compilation to use version 17
+        project.tasks.withType(JavaCompile).configureEach {
+            sourceCompatibility = '17'
+            targetCompatibility = '17'
+        }
+        
+        // Force Kotlin to use JVM target 17 (fixes Capacitor Filesystem plugin)
+        // Check if Kotlin tasks exist before configuring
+        project.tasks.configureEach { task ->
+            if (task.class.name.contains('KotlinCompile')) {
+                task.kotlinOptions {
+                    jvmTarget = '17'
+                }
+            }
+        }
     }
 }
 

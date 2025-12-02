@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IoClose, IoChatbubbleEllipses, IoPersonAdd, IoCheckmarkCircle, IoCallOutline } from 'react-icons/io5';
 
@@ -6,24 +6,52 @@ export default function InAppNotification({ notification, onClose }) {
     const navigate = useNavigate();
     const [isVisible, setIsVisible] = useState(false);
     const [isExiting, setIsExiting] = useState(false);
+    const autoDismissTimerRef = useRef(null);
+    const closeTimeoutRef = useRef(null);
 
     useEffect(() => {
         // Slide in animation
         setTimeout(() => setIsVisible(true), 10);
 
         // Auto-dismiss after 5 seconds
-        const timer = setTimeout(() => {
+        autoDismissTimerRef.current = setTimeout(() => {
             handleClose();
         }, 5000);
 
-        return () => clearTimeout(timer);
+        return () => {
+            // Clear all timers on unmount
+            if (autoDismissTimerRef.current) {
+                clearTimeout(autoDismissTimerRef.current);
+            }
+            if (closeTimeoutRef.current) {
+                clearTimeout(closeTimeoutRef.current);
+            }
+        };
     }, []);
 
-    const handleClose = () => {
-        setIsExiting(true);
-        setTimeout(() => {
+    const handleClose = (immediate = false) => {
+        // Clear auto-dismiss timer if it exists
+        if (autoDismissTimerRef.current) {
+            clearTimeout(autoDismissTimerRef.current);
+            autoDismissTimerRef.current = null;
+        }
+
+        // Clear any existing close timeout
+        if (closeTimeoutRef.current) {
+            clearTimeout(closeTimeoutRef.current);
+            closeTimeoutRef.current = null;
+        }
+
+        if (immediate) {
+            // Immediate close without animation
             onClose();
-        }, 300);
+        } else {
+            // Close with animation
+            setIsExiting(true);
+            closeTimeoutRef.current = setTimeout(() => {
+                onClose();
+            }, 300);
+        }
     };
 
     const handleClick = () => {
@@ -118,9 +146,9 @@ export default function InAppNotification({ notification, onClose }) {
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    handleClose();
+                                    handleClose(true); // Immediate close on manual dismiss
                                 }}
-                                className="text-gray-400 hover:text-white transition-colors ml-2"
+                                className="text-gray-400 hover:text-white transition-colors ml-2 hover:scale-110 active:scale-95 transition-transform"
                             >
                                 <IoClose className="text-xl" />
                             </button>

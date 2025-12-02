@@ -193,7 +193,16 @@ export default function SettingsScreen() {
     };
 
     const handleAvatarChange = () => {
-        fileInputRef.current?.click();
+        console.log('📷 Avatar change button clicked');
+        if (fileInputRef.current) {
+            // Reset value first
+            fileInputRef.current.value = '';
+            // Trigger click
+            fileInputRef.current.click();
+            console.log('📷 Avatar input clicked');
+        } else {
+            console.error('❌ Avatar input ref not found');
+        }
     };
 
     const handleFileSelect = (event) => {
@@ -283,6 +292,12 @@ export default function SettingsScreen() {
                                 accept="image/*"
                                 onChange={handleFileSelect}
                                 className="hidden"
+                                style={{ display: 'none' }}
+                                capture="environment"
+                                onClick={(e) => {
+                                    // Reset value to allow selecting same file again
+                                    e.target.value = null;
+                                }}
                             />
                         </div>
                         <h2 className="text-white text-xl font-bold mt-4">

@@ -6,6 +6,9 @@ import EncryptionService from '../services/EncryptionService';
 import { decryptEnvelope } from '../scripts/decryptEnvelope';
 import { decryptMessage } from '../scripts/decryptMessage';
 
+// Import notification sound
+import notificationSound from '../assets/notification/notification.mp3';
+
 export default function InAppNotificationManager({ currentUserId }) {
     const [notifications, setNotifications] = useState([]);
     const location = useLocation();
@@ -142,22 +145,25 @@ export default function InAppNotificationManager({ currentUserId }) {
                 audio.preload = 'auto';
 
                 // Add error listener
-                audio.addEventListener('error', () => {
-                    // Silently ignore audio errors
+                audio.addEventListener('error', (e) => {
+                    console.warn('Notification sound error:', e);
                 });
 
-                // Set source safely
+                // Set source safely from imported asset
                 try {
-                    audio.src = '/notification.mp3';
+                    audio.src = notificationSound;
                     audio.load();
-                    audio.play().catch(() => {
-                        // Ignore if sound fails to play
+                    audio.play().catch((err) => {
+                        // Silently handle autoplay policy errors
+                        if (err.name !== 'NotAllowedError') {
+                            console.warn('Notification sound play error:', err.message);
+                        }
                     });
                 } catch (srcError) {
-                    // Ignore source loading errors
+                    console.warn('Failed to load notification sound:', srcError);
                 }
             } catch (error) {
-                // Ignore sound errors
+                console.warn('Notification sound initialization error:', error);
             }
 
         } catch (error) {
