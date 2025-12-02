@@ -31,6 +31,7 @@ import {
     IoPause,
     IoPlay,
     IoMusicalNote,
+    IoDownload,
 } from "react-icons/io5";
 import EmojiPicker from "emoji-picker-react";
 import { useCall } from "../contexts/CallContext";
@@ -2072,9 +2073,9 @@ export default function ChatDetailScreen() {
     };
 
     return (
-        <div className="fixed inset-0 bg-[#1a1a1a] flex flex-col safe-area-top overflow-hidden">
-            {/* Header - Sticky Top (not fixed) */}
-            <div className="flex-shrink-0 z-20 flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 bg-[#1a1a1a] border-b border-gray-800 shadow-lg safe-area-top">
+        <div className="fixed inset-0 bg-[#1a1a1a] flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+            {/* Header - Fixed at top with safe area */}
+            <div className="flex-shrink-0 z-20 flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 bg-[#1a1a1a] border-b border-gray-800 shadow-lg" style={{ position: 'sticky', top: 0 }}>
                 <div className="flex items-center flex-1 min-w-0">
                     {/* Back button - 3D ring matching add-friend button */}
                     <button
@@ -3261,9 +3262,9 @@ export default function ChatDetailScreen() {
 
             {/* Media Viewer Modal */}
             {showMediaViewer && viewerMediaList.length > 0 && (
-                <div className="fixed inset-0 bg-black z-[60] flex flex-col">
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-4 py-3 bg-black bg-opacity-50">
+                <div className="fixed inset-0 bg-black z-[60] flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+                    {/* Header with safe area */}
+                    <div className="flex items-center justify-between px-4 py-3 bg-black bg-opacity-50" style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}>
                         <button
                             onClick={closeMediaViewer}
                             className="w-10 h-10 flex items-center justify-center hover:bg-white hover:bg-opacity-10 rounded-full transition-colors"
@@ -3273,7 +3274,34 @@ export default function ChatDetailScreen() {
                         <span className="text-white text-sm">
                             {currentMediaIndex + 1} / {viewerMediaList.length}
                         </span>
-                        <div className="w-10"></div>
+                        <button
+                            onClick={async () => {
+                                const currentMedia = viewerMediaList[currentMediaIndex];
+                                if (currentMedia?.url) {
+                                    try {
+                                        // For mobile, fetch and download
+                                        const response = await fetch(currentMedia.url);
+                                        const blob = await response.blob();
+                                        const url = window.URL.createObjectURL(blob);
+                                        const link = document.createElement('a');
+                                        link.href = url;
+                                        link.download = `slink_${Date.now()}.${currentMedia.type.split('/')[1] || 'jpg'}`;
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                        window.URL.revokeObjectURL(url);
+                                        toast.success('Image downloaded!');
+                                    } catch (error) {
+                                        console.error('Download error:', error);
+                                        toast.error('Failed to download image');
+                                    }
+                                }
+                            }}
+                            className="w-10 h-10 flex items-center justify-center hover:bg-white hover:bg-opacity-10 rounded-full transition-colors"
+                            title="Download"
+                        >
+                            <IoDownload className="text-white text-2xl" />
+                        </button>
                     </div>
 
                     {/* Media Display */}

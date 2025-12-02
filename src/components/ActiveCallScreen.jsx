@@ -24,7 +24,8 @@ export default function ActiveCallScreen() {
     const remoteAudioRef = useRef(null);
     const localAudioRef = useRef(null);
 
-    const [isSpeakerOn, setIsSpeakerOn] = useState(false); // false = earpiece, true = speaker
+    const [isSpeakerOn, setIsSpeakerOn] = useState(true); // Start with speaker ON for audio calls (will be set to earpiece after audio starts)
+    const [audioInitialized, setAudioInitialized] = useState(false);
     const isNative = Capacitor.isNativePlatform();
 
     const otherUser = callerInfo || receiverInfo;
@@ -62,7 +63,7 @@ export default function ActiveCallScreen() {
 
     // Setup audio streams and default to earpiece on mobile
     useEffect(() => {
-        if (remoteAudioRef.current && remoteStream) {
+        if (remoteAudioRef.current && remoteStream && !audioInitialized) {
             console.log('🔊 Connecting remote audio stream', remoteStream);
             console.log('   Remote stream tracks:', remoteStream.getTracks().map(t => `${t.kind} (${t.id})`));
             remoteAudioRef.current.srcObject = remoteStream;
@@ -70,16 +71,24 @@ export default function ActiveCallScreen() {
             remoteAudioRef.current.volume = 1.0;
             remoteAudioRef.current.play().then(() => {
                 console.log('✅ Remote audio playing successfully');
+                setAudioInitialized(true);
 
-                // Set default audio output to earpiece on mobile
-                if (isNative) {
-                    setAudioOutputToEarpiece();
+                // IMPORTANT: Set default audio output to EARPIECE on mobile (not speaker)
+                if (isNative && !isVideoCall) {
+                    console.log('📞 Audio call detected - routing to EARPIECE by default');
+                    setIsSpeakerOn(false); // Set state to earpiece
+                    setTimeout(() => {
+                        setAudioOutputToEarpiece();
+                    }, 500); // Small delay to ensure audio is playing
+                } else if (isVideoCall) {
+                    console.log('📹 Video call detected - keeping SPEAKER on');
+                    setIsSpeakerOn(true);
                 }
             }).catch(err => {
                 console.error('❌ Error playing remote audio:', err);
             });
         }
-    }, [remoteStream, isNative]);
+    }, [remoteStream, isNative, audioInitialized, isVideoCall]);
 
     useEffect(() => {
         if (localAudioRef.current && localStream) {
@@ -91,72 +100,82 @@ export default function ActiveCallScreen() {
     // Set audio output to earpiece (default for calls)
     const setAudioOutputToEarpiece = () => {
         try {
+            console.log('🔊 ========================================');
             console.log('🔊 Setting audio output to EARPIECE');
+            console.log('🔊 ========================================');
 
             if (isNative) {
-                // For Cordova/Capacitor plugins
-                if (window.cordova && window.cordova.plugins && window.cordova.plugins.iosrtc) {
-                    window.cordova.plugins.iosrtc.selectAudioOutput('earpiece');
-                }
-
                 // For Android - use native audio manager
                 if (Capacitor.getPlatform() === 'android') {
+                    console.log('📱 Android platform detected');
                     // Call native Android method to route audio to earpiece
                     if (window.AndroidAudioManager) {
+                        console.log('✅ AndroidAudioManager found - calling setEarpiece()');
                         window.AndroidAudioManager.setEarpiece();
+                        console.log('✅ setEarpiece() called successfully');
                     } else {
-                        // Fallback: Set audio element properties for earpiece
-                        if (remoteAudioRef.current) {
-                            remoteAudioRef.current.volume = 1.0;
-                            // Remove any speaker-specific attributes
-                            remoteAudioRef.current.removeAttribute('x-webkit-airplay');
-                        }
+                        console.warn('⚠️ AndroidAudioManager not found!');
+                        console.log('   Make sure MainActivity.java has the AudioManagerInterface');
                     }
+                }
+
+                // For Cordova/Capacitor plugins (iOS)
+                if (window.cordova && window.cordova.plugins && window.cordova.plugins.iosrtc) {
+                    console.log('📱 iOS platform detected - using iosrtc');
+                    window.cordova.plugins.iosrtc.selectAudioOutput('earpiece');
                 }
             } else if (remoteAudioRef.current && remoteAudioRef.current.setSinkId) {
                 // For web browsers that support setSinkId
+                console.log('🌐 Web platform - using setSinkId');
                 remoteAudioRef.current.setSinkId('default').catch(err => {
                     console.warn('setSinkId not supported:', err);
                 });
             }
+
+            console.log('🔊 ========================================');
         } catch (error) {
-            console.error('Error setting earpiece:', error);
+            console.error('❌ Error setting earpiece:', error);
         }
     };
 
     // Set audio output to speaker
     const setAudioOutputToSpeaker = () => {
         try {
+            console.log('🔊 ========================================');
             console.log('🔊 Setting audio output to SPEAKER');
+            console.log('🔊 ========================================');
 
             if (isNative) {
-                // For Cordova/Capacitor plugins
-                if (window.cordova && window.cordova.plugins && window.cordova.plugins.iosrtc) {
-                    window.cordova.plugins.iosrtc.selectAudioOutput('speaker');
-                }
-
                 // For Android - use native audio manager
                 if (Capacitor.getPlatform() === 'android') {
+                    console.log('📱 Android platform detected');
                     // Call native Android method to route audio to speaker
                     if (window.AndroidAudioManager) {
+                        console.log('✅ AndroidAudioManager found - calling setSpeaker()');
                         window.AndroidAudioManager.setSpeaker();
+                        console.log('✅ setSpeaker() called successfully');
                     } else {
-                        // Fallback: Set audio element properties for speaker
-                        if (remoteAudioRef.current) {
-                            remoteAudioRef.current.volume = 1.0;
-                            // Add speaker-specific attributes
-                            remoteAudioRef.current.setAttribute('x-webkit-airplay', 'allow');
-                        }
+                        console.warn('⚠️ AndroidAudioManager not found!');
+                        console.log('   Make sure MainActivity.java has the AudioManagerInterface');
                     }
+                }
+
+                // For Cordova/Capacitor plugins (iOS)
+                if (window.cordova && window.cordova.plugins && window.cordova.plugins.iosrtc) {
+                    console.log('📱 iOS platform detected - using iosrtc');
+                    window.cordova.plugins.iosrtc.selectAudioOutput('speaker');
                 }
             } else if (remoteAudioRef.current && remoteAudioRef.current.setSinkId) {
                 // For web browsers that support setSinkId
+                console.log('🌐 Web platform - using setSinkId');
                 remoteAudioRef.current.setSinkId('communications').catch(err => {
                     console.warn('setSinkId not supported:', err);
                 });
             }
+
+            console.log('🔊 ========================================');
         } catch (error) {
-            console.error('Error setting speaker:', error);
+            console.error('❌ Error setting speaker:', error);
         }
     };
 
