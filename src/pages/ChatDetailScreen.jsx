@@ -2112,12 +2112,20 @@ export default function ChatDetailScreen() {
     return (
         <div
             className="fixed inset-0 bg-[#1a1a1a] flex flex-col overflow-hidden"
-            style={{ paddingTop: "env(safe-area-inset-top)" }}
+            style={{
+                height: "100vh",
+                height: "100dvh",
+                maxHeight: "100dvh",
+                paddingTop: "env(safe-area-inset-top)",
+            }}
         >
             {/* Header - Fixed at top with safe area */}
             <div
-                className="flex-shrink-0 z-20 flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 bg-[#1a1a1a] border-b border-gray-800 shadow-lg"
-                style={{ position: "sticky", top: 0 }}
+                className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 bg-[#1a1a1a] border-b border-gray-800 shadow-lg"
+                style={{
+                    paddingTop: "max(0.75rem, env(safe-area-inset-top))",
+                    height: "calc(3.5rem + env(safe-area-inset-top, 0px))",
+                }}
             >
                 <div className="flex items-center flex-1 min-w-0">
                     {/* Back button - 3D ring matching add-friend button */}
@@ -2233,7 +2241,8 @@ export default function ChatDetailScreen() {
                 onScroll={handleScroll}
                 className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-5 scrollbar-hide"
                 style={{
-                    paddingBottom: "1rem",
+                    marginTop: "calc(3.5rem + env(safe-area-inset-top, 0px))",
+                    paddingBottom: "calc(5rem + env(safe-area-inset-bottom, 0px))",
                 }}
             >
                 {loading ? (
@@ -2823,8 +2832,13 @@ export default function ChatDetailScreen() {
                 </button>
             )}
 
-            {/* Message Input - Flex Bottom (not fixed) */}
-            <div className="flex-shrink-0 z-20 bg-[#1a1a1a] px-3 sm:px-5 py-3 sm:py-4 border-t border-gray-800 shadow-lg">
+            {/* Message Input - Fixed at bottom with safe area */}
+            <div
+                className="fixed bottom-0 left-0 right-0 z-50 bg-[#1a1a1a] px-3 sm:px-5 py-3 sm:py-4 border-t border-gray-800 shadow-lg"
+                style={{
+                    paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))",
+                }}
+            >
                 {/* Edit Mode Indicator */}
                 {editingMessageId && (
                     <div className="mb-2 flex items-center justify-between bg-[#2d2d2d] px-3 py-2 rounded-lg border border-gray-700">
