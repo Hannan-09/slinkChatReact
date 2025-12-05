@@ -212,7 +212,7 @@ export default function ChatDetailScreen() {
     // Camera states
     const [showCamera, setShowCamera] = useState(false);
     const [cameraStream, setCameraStream] = useState(null);
-    const [cameraFacingMode, setCameraFacingMode] = useState('user'); // 'user' = front, 'environment' = back
+    const [cameraFacingMode, setCameraFacingMode] = useState("user"); // 'user' = front, 'environment' = back
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
 
@@ -489,12 +489,12 @@ export default function ChatDetailScreen() {
                 })),
             };
 
-            console.log('📨 WebSocket message received:', {
+            console.log("📨 WebSocket message received:", {
                 id: newMsg.id,
                 text: newMsg.text.substring(0, 30),
                 isMe: newMsg.isMe,
                 attachmentsCount: newMsg.attachments?.length || 0,
-                attachments: newMsg.attachments
+                attachments: newMsg.attachments,
             });
 
             // Check if message is from another user
@@ -526,7 +526,8 @@ export default function ChatDetailScreen() {
                         const textMatches = m.text === newMsg.text;
 
                         // Match by attachments (if both have attachments, compare count and types)
-                        const bothHaveAttachments = m.attachments?.length > 0 && newMsg.attachments?.length > 0;
+                        const bothHaveAttachments =
+                            m.attachments?.length > 0 && newMsg.attachments?.length > 0;
                         const attachmentsMatch = bothHaveAttachments
                             ? m.attachments.length === newMsg.attachments.length
                             : true;
@@ -544,13 +545,17 @@ export default function ChatDetailScreen() {
                             replyTo: newMsg.replyTo || tempMessage.replyTo,
                             attachments: newMsg.attachments || tempMessage.attachments || [],
                         };
-                        console.log('✅ Replaced temp message with real message:', updated[tempIndex]);
+                        console.log(
+                            "✅ Replaced temp message with real message:",
+                            updated[tempIndex]
+                        );
                         return updated;
                     } else {
                         console.log(
                             "⚠️ No matching temp message found for:",
                             newMsg.text.substring(0, 20),
-                            "Attachments:", newMsg.attachments?.length || 0
+                            "Attachments:",
+                            newMsg.attachments?.length || 0
                         );
                     }
                 }
@@ -1146,6 +1151,13 @@ export default function ChatDetailScreen() {
             setMessage("");
             setReplyingToMessage(null); // Clear reply state
 
+            // Keep keyboard open by refocusing input
+            setTimeout(() => {
+                if (textInputRef.current) {
+                    textInputRef.current.focus();
+                }
+            }, 50);
+
             // Send via WebSocket
             if (connected && sendSocketMessage) {
                 // Build the payload matching ChatMessageRequest DTO
@@ -1191,6 +1203,13 @@ export default function ChatDetailScreen() {
         } catch (error) {
             console.error("❌ Error sending message:", error);
             toast.error("Failed to send message");
+
+            // Keep keyboard open even on error
+            setTimeout(() => {
+                if (textInputRef.current) {
+                    textInputRef.current.focus();
+                }
+            }, 50);
         }
     };
 
@@ -1365,9 +1384,17 @@ export default function ChatDetailScreen() {
     // Open camera - Navigate to full camera screen
     const openCamera = () => {
         // Build the full return URL with all query parameters
-        const returnUrl = `/chat/${id}?name=${encodeURIComponent(name)}&avatar=${encodeURIComponent(avatar || '')}&receiverId=${receiverId}`;
+        const returnUrl = `/chat/${id}?name=${encodeURIComponent(
+            name
+        )}&avatar=${encodeURIComponent(avatar || "")}&receiverId=${receiverId}`;
         // Navigate to camera screen with chat context
-        navigate(`/camera?returnTo=${encodeURIComponent(returnUrl)}&name=${encodeURIComponent(name)}&avatar=${encodeURIComponent(avatar || '')}&receiverId=${receiverId}&chatRoomId=${chatRoomId}`);
+        navigate(
+            `/camera?returnTo=${encodeURIComponent(
+                returnUrl
+            )}&name=${encodeURIComponent(name)}&avatar=${encodeURIComponent(
+                avatar || ""
+            )}&receiverId=${receiverId}&chatRoomId=${chatRoomId}`
+        );
     };
 
     // Close camera
@@ -1391,7 +1418,7 @@ export default function ChatDetailScreen() {
             canvas.height = video.videoHeight;
 
             // If front camera, flip the image horizontally for natural look
-            if (cameraFacingMode === 'user') {
+            if (cameraFacingMode === "user") {
                 context.translate(canvas.width, 0);
                 context.scale(-1, 1);
             }
@@ -1439,12 +1466,15 @@ export default function ChatDetailScreen() {
 
     // File upload functions
     const handleFileSelect = (event, type = "file") => {
-        console.log('File select triggered, type:', type);
-        console.log('Files selected:', event.target.files.length);
+        console.log("File select triggered, type:", type);
+        console.log("Files selected:", event.target.files.length);
 
         const files = Array.from(event.target.files);
         if (files.length > 0) {
-            console.log('Processing files:', files.map(f => f.name));
+            console.log(
+                "Processing files:",
+                files.map((f) => f.name)
+            );
             const filesWithPreview = files.map((file) => ({
                 file,
                 preview: URL.createObjectURL(file),
@@ -1456,10 +1486,10 @@ export default function ChatDetailScreen() {
             setShowFilePreview(true);
             setShowAttachMenu(false);
         } else {
-            console.log('No files selected');
+            console.log("No files selected");
         }
         // Reset input value to allow selecting the same file again
-        event.target.value = '';
+        event.target.value = "";
     };
 
     const removeSelectedFile = (index) => {
@@ -1506,7 +1536,7 @@ export default function ChatDetailScreen() {
                     console.log(`📎 Attachment ${idx}:`, {
                         fileURL: att.fileURL,
                         fileType: att.fileType,
-                        fullObject: att
+                        fullObject: att,
                     });
 
                     if (!att.fileURL || att.fileURL.length < 10) {
@@ -1559,7 +1589,10 @@ export default function ChatDetailScreen() {
             // Add to UI immediately
             setMessages((prev) => {
                 const updated = [...prev, newMessage];
-                console.log("✅ Added temp message to UI, total messages:", updated.length);
+                console.log(
+                    "✅ Added temp message to UI, total messages:",
+                    updated.length
+                );
                 console.log("📎 Temp message attachments:", newMessage.attachments);
                 return updated;
             });
@@ -1956,30 +1989,34 @@ export default function ChatDetailScreen() {
 
             // Find all unread messages that were sent by the other user (not by me)
             const unreadMessages = messages.filter(
-                msg => !msg.isMe && !msg.isRead && !msg.isSeen && msg.chatMessageId
+                (msg) => !msg.isMe && !msg.isRead && !msg.isSeen && msg.chatMessageId
             );
 
             if (unreadMessages.length === 0) return;
 
-            const messageIds = unreadMessages.map(msg => msg.chatMessageId);
+            const messageIds = unreadMessages.map((msg) => msg.chatMessageId);
 
-            console.log('📖 Marking messages as read:', messageIds);
+            console.log("📖 Marking messages as read:", messageIds);
 
             try {
-                await chatApiService.markMessagesAsRead(chatRoomId, currentUserId, messageIds);
+                await chatApiService.markMessagesAsRead(
+                    chatRoomId,
+                    currentUserId,
+                    messageIds
+                );
 
                 // Update local state to mark these messages as read
-                setMessages(prevMessages =>
-                    prevMessages.map(msg =>
+                setMessages((prevMessages) =>
+                    prevMessages.map((msg) =>
                         messageIds.includes(msg.chatMessageId)
                             ? { ...msg, isRead: true, isSeen: true }
                             : msg
                     )
                 );
 
-                console.log('✅ Messages marked as read successfully');
+                console.log("✅ Messages marked as read successfully");
             } catch (error) {
-                console.error('❌ Error marking messages as read:', error);
+                console.error("❌ Error marking messages as read:", error);
             }
         };
 
@@ -2073,13 +2110,19 @@ export default function ChatDetailScreen() {
     };
 
     return (
-        <div className="fixed inset-0 bg-[#1a1a1a] flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div
+            className="fixed inset-0 bg-[#1a1a1a] flex flex-col overflow-hidden"
+            style={{ paddingTop: "env(safe-area-inset-top)" }}
+        >
             {/* Header - Fixed at top with safe area */}
-            <div className="flex-shrink-0 z-20 flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 bg-[#1a1a1a] border-b border-gray-800 shadow-lg" style={{ position: 'sticky', top: 0 }}>
+            <div
+                className="flex-shrink-0 z-20 flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 bg-[#1a1a1a] border-b border-gray-800 shadow-lg"
+                style={{ position: "sticky", top: 0 }}
+            >
                 <div className="flex items-center flex-1 min-w-0">
                     {/* Back button - 3D ring matching add-friend button */}
                     <button
-                        onClick={() => navigate('/chats')}
+                        onClick={() => navigate("/chats")}
                         className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 mr-2 sm:mr-4 flex-shrink-0"
                     >
                         <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
@@ -2190,7 +2233,7 @@ export default function ChatDetailScreen() {
                 onScroll={handleScroll}
                 className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-5 scrollbar-hide"
                 style={{
-                    paddingBottom: '1rem'
+                    paddingBottom: "1rem",
                 }}
             >
                 {loading ? (
@@ -2371,26 +2414,37 @@ export default function ChatDetailScreen() {
 
                                                                                                 // Debug logging
                                                                                                 if (!fileUrl) {
-                                                                                                    console.error('❌ Missing fileUrl for attachment:', {
-                                                                                                        idx,
-                                                                                                        fileType,
-                                                                                                        att,
-                                                                                                        messageId: item.id,
-                                                                                                        messageStatus: item.status
-                                                                                                    });
+                                                                                                    console.error(
+                                                                                                        "❌ Missing fileUrl for attachment:",
+                                                                                                        {
+                                                                                                            idx,
+                                                                                                            fileType,
+                                                                                                            att,
+                                                                                                            messageId: item.id,
+                                                                                                            messageStatus:
+                                                                                                                item.status,
+                                                                                                        }
+                                                                                                    );
                                                                                                 } else {
-                                                                                                    console.log('🖼️ Rendering attachment:', {
-                                                                                                        idx,
-                                                                                                        fileUrl: fileUrl.substring(0, 50) + '...',
-                                                                                                        fileType
-                                                                                                    });
+                                                                                                    console.log(
+                                                                                                        "🖼️ Rendering attachment:",
+                                                                                                        {
+                                                                                                            idx,
+                                                                                                            fileUrl:
+                                                                                                                fileUrl.substring(
+                                                                                                                    0,
+                                                                                                                    50
+                                                                                                                ) + "...",
+                                                                                                            fileType,
+                                                                                                        }
+                                                                                                    );
                                                                                                 }
 
                                                                                                 // Prepare media list for viewer
                                                                                                 const mediaList =
                                                                                                     mediaAttachments.map((a) => ({
-                                                                                                        url: a.fileURL || a.fileUrl,
-                                                                                                        type: a.fileType,
+                                                                                                        url: a?.fileURL,
+                                                                                                        type: a?.fileType,
                                                                                                     }));
 
                                                                                                 return (
@@ -2424,7 +2478,9 @@ export default function ChatDetailScreen() {
                                                                                                     >
                                                                                                         {!fileUrl ? (
                                                                                                             <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-                                                                                                                <span className="text-gray-400 text-xs">Loading...</span>
+                                                                                                                <span className="text-gray-400 text-xs">
+                                                                                                                    Loading...
+                                                                                                                </span>
                                                                                                             </div>
                                                                                                         ) : fileType.startsWith(
                                                                                                             "image/"
@@ -2433,6 +2489,8 @@ export default function ChatDetailScreen() {
                                                                                                                 src={fileUrl}
                                                                                                                 alt="attachment"
                                                                                                                 className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                                                                                                crossOrigin="anonymous"
+                                                                                                                loading="lazy"
                                                                                                                 onClick={() =>
                                                                                                                     openMediaViewer(
                                                                                                                         mediaList,
@@ -2444,8 +2502,27 @@ export default function ChatDetailScreen() {
                                                                                                                         "❌ Image load error:",
                                                                                                                         fileUrl
                                                                                                                     );
-                                                                                                                    e.target.style.display =
-                                                                                                                        "none";
+
+                                                                                                                    // Retry loading the image after a delay
+                                                                                                                    const retryCount = parseInt(e.target.dataset.retryCount || '0');
+                                                                                                                    if (retryCount < 3) {
+                                                                                                                        console.log(`🔄 Retrying image load (attempt ${retryCount + 1}/3)...`);
+                                                                                                                        e.target.dataset.retryCount = (retryCount + 1).toString();
+
+                                                                                                                        // Retry after delay (1s, 2s, 3s)
+                                                                                                                        setTimeout(() => {
+                                                                                                                            e.target.src = fileUrl + '?t=' + Date.now(); // Add cache buster
+                                                                                                                        }, (retryCount + 1) * 1000);
+                                                                                                                    } else {
+                                                                                                                        // After 3 retries, show error placeholder
+                                                                                                                        console.error('❌ Image failed to load after 3 retries');
+                                                                                                                        e.target.style.display = "none";
+                                                                                                                        // Show error message in parent
+                                                                                                                        const parent = e.target.parentElement;
+                                                                                                                        if (parent) {
+                                                                                                                            parent.innerHTML = '<div class="w-full h-full bg-gray-800 flex items-center justify-center"><span class="text-gray-400 text-xs">Failed to load image</span></div>';
+                                                                                                                        }
+                                                                                                                    }
                                                                                                                 }}
                                                                                                                 onLoad={() => {
                                                                                                                     console.log(
@@ -2693,7 +2770,9 @@ export default function ChatDetailScreen() {
                                                     {/* Read receipts for sent messages */}
                                                     {item.isMe && !item.isDeleted && (
                                                         <div className="ml-2 flex items-center">
-                                                            {item.isRead || item.status === "read" || item.isSeen ? (
+                                                            {item.isRead ||
+                                                                item.status === "read" ||
+                                                                item.isSeen ? (
                                                                 // Double tick - BLUE (Read/Seen by receiver)
                                                                 <IoCheckmarkDone
                                                                     className="text-[#4FC3F7] text-base"
@@ -2851,18 +2930,18 @@ export default function ChatDetailScreen() {
                                         </button>
                                         <button
                                             onClick={() => {
-                                                console.log('📷 Photos button clicked');
+                                                console.log("📷 Photos button clicked");
                                                 setShowAttachMenu(false);
                                                 setTimeout(() => {
-                                                    console.log('📷 Triggering photo input click');
+                                                    console.log("📷 Triggering photo input click");
                                                     if (photoInputRef.current) {
                                                         // Reset value first
-                                                        photoInputRef.current.value = '';
+                                                        photoInputRef.current.value = "";
                                                         // Trigger click
                                                         photoInputRef.current.click();
-                                                        console.log('📷 Photo input clicked');
+                                                        console.log("📷 Photo input clicked");
                                                     } else {
-                                                        console.error('❌ Photo input ref not found');
+                                                        console.error("❌ Photo input ref not found");
                                                     }
                                                 }, 150);
                                             }}
@@ -2873,18 +2952,18 @@ export default function ChatDetailScreen() {
                                         </button>
                                         <button
                                             onClick={() => {
-                                                console.log('📁 Files button clicked');
+                                                console.log("📁 Files button clicked");
                                                 setShowAttachMenu(false);
                                                 setTimeout(() => {
-                                                    console.log('📁 Triggering file input click');
+                                                    console.log("📁 Triggering file input click");
                                                     if (fileInputRef.current) {
                                                         // Reset value first
-                                                        fileInputRef.current.value = '';
+                                                        fileInputRef.current.value = "";
                                                         // Trigger click
                                                         fileInputRef.current.click();
-                                                        console.log('📁 File input clicked');
+                                                        console.log("📁 File input clicked");
                                                     } else {
-                                                        console.error('❌ File input ref not found');
+                                                        console.error("❌ File input ref not found");
                                                     }
                                                 }, 150);
                                             }}
@@ -2916,11 +2995,15 @@ export default function ChatDetailScreen() {
                                 onChange={(e) => handleFileSelect(e, "file")}
                                 className="hidden"
                                 accept="*/*"
-                                style={{ display: 'none', position: 'absolute', left: '-9999px' }}
+                                style={{
+                                    display: "none",
+                                    position: "absolute",
+                                    left: "-9999px",
+                                }}
                                 onClick={(e) => {
                                     // Reset value to allow selecting same file again
                                     e.target.value = null;
-                                    console.log('📁 File input clicked');
+                                    console.log("📁 File input clicked");
                                 }}
                             />
                             {/* Photo/Video input - optimized for mobile camera/gallery */}
@@ -2931,11 +3014,15 @@ export default function ChatDetailScreen() {
                                 onChange={(e) => handleFileSelect(e, "photo")}
                                 className="hidden"
                                 accept="image/*,video/*"
-                                style={{ display: 'none', position: 'absolute', left: '-9999px' }}
+                                style={{
+                                    display: "none",
+                                    position: "absolute",
+                                    left: "-9999px",
+                                }}
                                 onClick={(e) => {
                                     // Reset value to allow selecting same file again
                                     e.target.value = null;
-                                    console.log('📷 Photo input clicked');
+                                    console.log("📷 Photo input clicked");
                                 }}
                             />
                         </>
@@ -2979,7 +3066,7 @@ export default function ChatDetailScreen() {
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                console.log('Close button clicked - closing file preview');
+                                console.log("Close button clicked - closing file preview");
                                 setShowFilePreview(false);
                                 setSelectedFiles([]);
                             }}
@@ -3242,7 +3329,7 @@ export default function ChatDetailScreen() {
                             playsInline
                             className="w-full h-auto max-h-[70vh] rounded-lg shadow-2xl"
                             style={{
-                                transform: cameraFacingMode === 'user' ? 'scaleX(-1)' : 'none'
+                                transform: cameraFacingMode === "user" ? "scaleX(-1)" : "none",
                             }}
                         />
 
@@ -3262,9 +3349,15 @@ export default function ChatDetailScreen() {
 
             {/* Media Viewer Modal */}
             {showMediaViewer && viewerMediaList.length > 0 && (
-                <div className="fixed inset-0 bg-black z-[60] flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+                <div
+                    className="fixed inset-0 bg-black z-[60] flex flex-col"
+                    style={{ paddingTop: "env(safe-area-inset-top)" }}
+                >
                     {/* Header with safe area */}
-                    <div className="flex items-center justify-between px-4 py-3 bg-black bg-opacity-50" style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}>
+                    <div
+                        className="flex items-center justify-between px-4 py-3 bg-black bg-opacity-50"
+                        style={{ marginTop: "env(safe-area-inset-top, 0px)" }}
+                    >
                         <button
                             onClick={closeMediaViewer}
                             className="w-10 h-10 flex items-center justify-center hover:bg-white hover:bg-opacity-10 rounded-full transition-colors"
@@ -3283,17 +3376,18 @@ export default function ChatDetailScreen() {
                                         const response = await fetch(currentMedia.url);
                                         const blob = await response.blob();
                                         const url = window.URL.createObjectURL(blob);
-                                        const link = document.createElement('a');
+                                        const link = document.createElement("a");
                                         link.href = url;
-                                        link.download = `slink_${Date.now()}.${currentMedia.type.split('/')[1] || 'jpg'}`;
+                                        link.download = `slink_${Date.now()}.${currentMedia.type.split("/")[1] || "jpg"
+                                            }`;
                                         document.body.appendChild(link);
                                         link.click();
                                         document.body.removeChild(link);
                                         window.URL.revokeObjectURL(url);
-                                        toast.success('Image downloaded!');
+                                        toast.success("Image downloaded!");
                                     } catch (error) {
-                                        console.error('Download error:', error);
-                                        toast.error('Failed to download image');
+                                        console.error("Download error:", error);
+                                        toast.error("Failed to download image");
                                     }
                                 }
                             }}
@@ -3308,7 +3402,9 @@ export default function ChatDetailScreen() {
                     <div
                         className="flex-1 relative flex items-center justify-center overflow-hidden"
                         onDoubleClick={() => {
-                            if (viewerMediaList[currentMediaIndex]?.type.startsWith("image/")) {
+                            if (
+                                viewerMediaList[currentMediaIndex]?.type.startsWith("image/")
+                            ) {
                                 if (imageZoom === 1) {
                                     setImageZoom(2);
                                 } else {
@@ -3318,10 +3414,12 @@ export default function ChatDetailScreen() {
                             }
                         }}
                         onWheel={(e) => {
-                            if (viewerMediaList[currentMediaIndex]?.type.startsWith("image/")) {
+                            if (
+                                viewerMediaList[currentMediaIndex]?.type.startsWith("image/")
+                            ) {
                                 e.preventDefault();
                                 const delta = e.deltaY > 0 ? -0.1 : 0.1;
-                                setImageZoom(prev => Math.min(Math.max(1, prev + delta), 4));
+                                setImageZoom((prev) => Math.min(Math.max(1, prev + delta), 4));
                             }
                         }}
                     >
@@ -3344,17 +3442,20 @@ export default function ChatDetailScreen() {
                                         const handleMouseMove = (moveEvent) => {
                                             setImagePosition({
                                                 x: moveEvent.clientX - startX,
-                                                y: moveEvent.clientY - startY
+                                                y: moveEvent.clientY - startY,
                                             });
                                         };
 
                                         const handleMouseUp = () => {
-                                            document.removeEventListener('mousemove', handleMouseMove);
-                                            document.removeEventListener('mouseup', handleMouseUp);
+                                            document.removeEventListener(
+                                                "mousemove",
+                                                handleMouseMove
+                                            );
+                                            document.removeEventListener("mouseup", handleMouseUp);
                                         };
 
-                                        document.addEventListener('mousemove', handleMouseMove);
-                                        document.addEventListener('mouseup', handleMouseUp);
+                                        document.addEventListener("mousemove", handleMouseMove);
+                                        document.addEventListener("mouseup", handleMouseUp);
                                     }
                                 }}
                                 onTouchStart={(e) => {
@@ -3371,8 +3472,10 @@ export default function ChatDetailScreen() {
                                     } else if (imageZoom > 1) {
                                         // Pan
                                         const touch = e.touches[0];
-                                        imageRef.current.dataset.startX = touch.clientX - imagePosition.x;
-                                        imageRef.current.dataset.startY = touch.clientY - imagePosition.y;
+                                        imageRef.current.dataset.startX =
+                                            touch.clientX - imagePosition.x;
+                                        imageRef.current.dataset.startY =
+                                            touch.clientY - imagePosition.y;
                                     }
                                 }}
                                 onTouchMove={(e) => {
@@ -3385,8 +3488,12 @@ export default function ChatDetailScreen() {
                                             touch2.clientX - touch1.clientX,
                                             touch2.clientY - touch1.clientY
                                         );
-                                        const initialDistance = parseFloat(imageRef.current.dataset.initialDistance);
-                                        const initialZoom = parseFloat(imageRef.current.dataset.initialZoom);
+                                        const initialDistance = parseFloat(
+                                            imageRef.current.dataset.initialDistance
+                                        );
+                                        const initialZoom = parseFloat(
+                                            imageRef.current.dataset.initialZoom
+                                        );
                                         const scale = distance / initialDistance;
                                         setImageZoom(Math.min(Math.max(1, initialZoom * scale), 4));
                                     } else if (imageZoom > 1 && e.touches.length === 1) {
@@ -3396,7 +3503,7 @@ export default function ChatDetailScreen() {
                                         const startY = parseFloat(imageRef.current.dataset.startY);
                                         setImagePosition({
                                             x: touch.clientX - startX,
-                                            y: touch.clientY - startY
+                                            y: touch.clientY - startY,
                                         });
                                     }
                                 }}

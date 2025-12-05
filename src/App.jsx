@@ -82,12 +82,16 @@ function AppContent({ currentUserId }) {
   // Initialize Push notifications (works for both web and mobile)
   const { fcmToken, isNative } = usePushNotifications();
 
-  // Send FCM token to backend when user is logged in
+  // Send FCM token to backend when user is logged in (with retry logic)
   useEffect(() => {
+    let retryCount = 0;
+    const maxRetries = 3;
+
     const sendTokenToBackend = async () => {
       if (fcmToken && currentUserId) {
         console.log('📤 Sending FCM token to backend:', fcmToken);
         console.log('📤 User ID:', currentUserId);
+        console.log('📤 Attempt:', retryCount + 1);
 
         try {
           const accessToken = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
@@ -100,34 +104,66 @@ function AppContent({ currentUserId }) {
               'Authorization': `Bearer ${accessToken}`
             },
             body: JSON.stringify({
-              // userId: parseInt(currentUserId),
               token: fcmToken
-            })
+            }),
+            timeout: 10000 // 10 second timeout
           });
 
           if (response.ok) {
             try {
               const data = await response.json();
               console.log('✅ FCM token sent to backend successfully:', data);
+              // Store success flag to prevent duplicate sends
+              localStorage.setItem('fcmTokenSent', 'true');
+              localStorage.setItem('lastFcmToken', fcmToken);
             } catch (jsonError) {
               console.warn('⚠️ Failed to parse FCM token response:', jsonError);
+              // Still consider it success if response was OK
+              localStorage.setItem('fcmTokenSent', 'true');
+              localStorage.setItem('lastFcmToken', fcmToken);
             }
           } else {
             try {
               const errorText = await response.text();
               console.error('❌ Failed to send FCM token to backend:', response.status, errorText);
+
+              // Retry if not max retries
+              if (retryCount < maxRetries) {
+                retryCount++;
+                console.log(`🔄 Retrying FCM token send (${retryCount}/${maxRetries})...`);
+                setTimeout(sendTokenToBackend, retryCount * 2000); // Progressive delay: 2s, 4s, 6s
+              }
             } catch (textError) {
               console.error('❌ Failed to send FCM token to backend:', response.status);
             }
           }
         } catch (error) {
           console.error('❌ Error sending FCM token to backend:', error);
-          // Don't crash app if FCM token sending fails
+
+          // Retry if not max retries
+          if (retryCount < maxRetries) {
+            retryCount++;
+            console.log(`🔄 Retrying FCM token send (${retryCount}/${maxRetries})...`);
+            setTimeout(sendTokenToBackend, retryCount * 2000); // Progressive delay: 2s, 4s, 6s
+          } else {
+            console.error('❌ Failed to send FCM token after', maxRetries, 'attempts');
+          }
         }
       }
     };
 
-    sendTokenToBackend();
+    // Check if token was already sent
+    const lastSentToken = localStorage.getItem('lastFcmToken');
+    const tokenSent = localStorage.getItem('fcmTokenSent');
+
+    if (fcmToken && currentUserId) {
+      // Only send if token is different or wasn't sent before
+      if (lastSentToken !== fcmToken || tokenSent !== 'true') {
+        sendTokenToBackend();
+      } else {
+        console.log('✅ FCM token already sent to backend');
+      }
+    }
   }, [fcmToken, currentUserId]);
 
   return (

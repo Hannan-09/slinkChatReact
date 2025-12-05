@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { IoMic, IoCamera, IoFolder, IoCheckmarkCircle, IoCloseCircle } from 'react-icons/io5';
+import { Capacitor } from '@capacitor/core';
+import { PushNotifications } from '@capacitor/push-notifications';
+import { IoMic, IoCamera, IoFolder, IoNotifications, IoCheckmarkCircle, IoCloseCircle } from 'react-icons/io5';
 
 export default function PermissionsScreen() {
     const navigate = useNavigate();
@@ -8,6 +10,7 @@ export default function PermissionsScreen() {
         microphone: null, // null = not requested, true = granted, false = denied
         camera: null,
         storage: null,
+        notifications: null, // Add notifications permission
     });
     const [isRequesting, setIsRequesting] = useState(false);
 
@@ -28,7 +31,7 @@ export default function PermissionsScreen() {
 
     // Auto-navigate when all permissions are granted
     useEffect(() => {
-        const allGranted = permissions.microphone && permissions.camera && permissions.storage;
+        const allGranted = permissions.microphone && permissions.camera && permissions.storage && permissions.notifications;
         if (allGranted) {
             // Wait 1 second to show success state, then navigate
             const timer = setTimeout(() => {
@@ -54,6 +57,27 @@ export default function PermissionsScreen() {
             } else if (type === 'storage') {
                 // For web, storage is always available
                 granted = true;
+            } else if (type === 'notifications') {
+                // Request notification permission
+                if (Capacitor.isNativePlatform()) {
+                    // Native platform (Android/iOS)
+                    try {
+                        const permStatus = await PushNotifications.requestPermissions();
+                        granted = permStatus.receive === 'granted';
+                        console.log('📱 Notification permission:', granted);
+                    } catch (error) {
+                        console.error('❌ Error requesting notification permission:', error);
+                        granted = false;
+                    }
+                } else if ('Notification' in window) {
+                    // Web platform
+                    const permission = await Notification.requestPermission();
+                    granted = permission === 'granted';
+                    console.log('🌐 Notification permission:', granted);
+                } else {
+                    // Not supported
+                    granted = true; // Don't block user
+                }
             }
 
             setPermissions(prev => ({ ...prev, [type]: granted }));
@@ -69,9 +93,10 @@ export default function PermissionsScreen() {
         await requestPermission('microphone');
         await requestPermission('camera');
         await requestPermission('storage');
+        await requestPermission('notifications');
     };
 
-    const allPermissionsGranted = permissions.microphone && permissions.camera && permissions.storage;
+    const allPermissionsGranted = permissions.microphone && permissions.camera && permissions.storage && permissions.notifications;
 
     return (
         <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden safe-area-top">
@@ -146,6 +171,25 @@ export default function PermissionsScreen() {
                             <IoCheckmarkCircle className="text-green-400 text-2xl" />
                         )}
                         {permissions.storage === false && (
+                            <IoCloseCircle className="text-red-400 text-2xl" />
+                        )}
+                    </div>
+
+                    {/* Notifications */}
+                    <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-4 flex items-center justify-between border border-white/10 shadow-lg">
+                        <div className="flex items-center space-x-4">
+                            <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center shadow-inner">
+                                <IoNotifications className="text-white text-2xl" />
+                            </div>
+                            <div>
+                                <h3 className="text-white font-semibold">Notifications</h3>
+                                <p className="text-white text-opacity-70 text-sm">For message alerts</p>
+                            </div>
+                        </div>
+                        {permissions.notifications === true && (
+                            <IoCheckmarkCircle className="text-green-400 text-2xl" />
+                        )}
+                        {permissions.notifications === false && (
                             <IoCloseCircle className="text-red-400 text-2xl" />
                         )}
                     </div>

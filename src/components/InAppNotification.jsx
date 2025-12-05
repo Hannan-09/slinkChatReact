@@ -1,96 +1,59 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IoClose, IoChatbubbleEllipses, IoPersonAdd, IoCheckmarkCircle, IoCallOutline } from 'react-icons/io5';
 
 export default function InAppNotification({ notification, onClose }) {
     const navigate = useNavigate();
-    const [isVisible, setIsVisible] = useState(false);
-    const [isExiting, setIsExiting] = useState(false);
-    const autoDismissTimerRef = useRef(null);
-    const closeTimeoutRef = useRef(null);
+    const timerRef = useRef(null);
 
     useEffect(() => {
-        // Slide in animation
-        setTimeout(() => setIsVisible(true), 10);
-
-        // Auto-dismiss after 5 seconds
-        autoDismissTimerRef.current = setTimeout(() => {
-            handleClose();
-        }, 5000);
+        // Auto-dismiss after 4 seconds (like toast)
+        timerRef.current = setTimeout(() => {
+            onClose();
+        }, 4000);
 
         return () => {
-            // Clear all timers on unmount
-            if (autoDismissTimerRef.current) {
-                clearTimeout(autoDismissTimerRef.current);
-            }
-            if (closeTimeoutRef.current) {
-                clearTimeout(closeTimeoutRef.current);
+            // Clear timer on unmount
+            if (timerRef.current) {
+                clearTimeout(timerRef.current);
             }
         };
-    }, []);
+    }, [onClose]);
 
-    const handleClose = (immediate = false) => {
-        // Clear auto-dismiss timer if it exists
-        if (autoDismissTimerRef.current) {
-            clearTimeout(autoDismissTimerRef.current);
-            autoDismissTimerRef.current = null;
+    const handleClose = (e) => {
+        if (e) {
+            e.stopPropagation();
         }
-
-        // Clear any existing close timeout
-        if (closeTimeoutRef.current) {
-            clearTimeout(closeTimeoutRef.current);
-            closeTimeoutRef.current = null;
+        // Clear timer
+        if (timerRef.current) {
+            clearTimeout(timerRef.current);
         }
-
-        if (immediate) {
-            // Immediate close without animation
-            onClose();
-        } else {
-            // Close with animation
-            setIsExiting(true);
-            closeTimeoutRef.current = setTimeout(() => {
-                onClose();
-            }, 300);
-        }
+        // Close immediately
+        onClose();
     };
 
     const handleClick = () => {
-        // Close notification first
-        handleClose();
+        // Close notification immediately
+        if (timerRef.current) {
+            clearTimeout(timerRef.current);
+        }
+        onClose();
 
-        // Navigate after a small delay to ensure smooth transition
-        setTimeout(() => {
-            // Handle different notification types
-            if (notification.type === 'message' && notification.chatRoomId) {
-                // Navigate to chat room with query parameters
-                const senderName = notification.senderName || notification.title || 'User';
-                const senderId = notification.senderId || '';
-                const senderProfile = notification.senderProfile || '';
+        // Navigate immediately (no delay needed)
+        if (notification.type === 'message' && notification.chatRoomId) {
+            // Navigate to chat room with query parameters
+            const senderName = notification.senderName || notification.title || 'User';
+            const senderId = notification.senderId || '';
+            const senderProfile = notification.senderProfile || '';
 
-                console.log('🚀 Navigating to chat from notification:', {
-                    chatRoomId: notification.chatRoomId,
-                    senderName,
-                    senderId,
-                    senderProfile,
-                    fullNotification: notification
-                });
-
-                if (!senderId) {
-                    console.error('❌ Missing senderId in notification - navigation may fail!', notification);
-                }
-
-                navigate(`/chat/${notification.chatRoomId}?name=${encodeURIComponent(senderName)}&avatar=${encodeURIComponent(senderProfile)}&receiverId=${senderId}`);
-            } else if (notification.type === 'chat_request' || notification.type === 'request_accepted') {
-                // Navigate to requests screen
-                navigate('/requests');
-            } else if (notification.type === 'missed_call') {
-                // Navigate to call history
-                navigate('/call-history');
-            } else if (notification.onClick) {
-                // Custom onClick handler
-                notification.onClick();
-            }
-        }, 100);
+            navigate(`/chat/${notification.chatRoomId}?name=${encodeURIComponent(senderName)}&avatar=${encodeURIComponent(senderProfile)}&receiverId=${senderId}`);
+        } else if (notification.type === 'chat_request' || notification.type === 'request_accepted') {
+            navigate('/requests');
+        } else if (notification.type === 'missed_call') {
+            navigate('/call-history');
+        } else if (notification.onClick) {
+            notification.onClick();
+        }
     };
 
     const getIcon = () => {
@@ -110,15 +73,12 @@ export default function InAppNotification({ notification, onClose }) {
 
     return (
         <div
-            className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[9999] transition-all duration-300 ${isVisible && !isExiting
-                ? 'translate-y-0 opacity-100'
-                : '-translate-y-full opacity-0'
-                }`}
+            className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[9999] animate-slideDown"
             style={{ width: 'calc(100% - 32px)', maxWidth: '500px' }}
         >
             <div
                 onClick={handleClick}
-                className="bg-gradient-to-b from-[#2a2a2a] to-[#1a1a1a] rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.9)] border border-white/10 backdrop-blur-xl cursor-pointer hover:scale-[1.02] transition-transform"
+                className="bg-gradient-to-b from-[#2a2a2a] to-[#1a1a1a] rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.9)] border border-white/10 backdrop-blur-xl cursor-pointer active:scale-95 transition-transform"
             >
                 <div className="flex items-center p-4 gap-3">
                     {/* Avatar */}
@@ -144,11 +104,8 @@ export default function InAppNotification({ notification, onClose }) {
                                 {notification.title || 'Notification'}
                             </h4>
                             <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleClose(true); // Immediate close on manual dismiss
-                                }}
-                                className="text-gray-400 hover:text-white transition-colors ml-2 hover:scale-110 active:scale-95 transition-transform"
+                                onClick={handleClose}
+                                className="text-gray-400 hover:text-white transition-colors ml-2 active:scale-90 transition-transform"
                             >
                                 <IoClose className="text-xl" />
                             </button>
@@ -162,15 +119,25 @@ export default function InAppNotification({ notification, onClose }) {
                 {/* Progress bar */}
                 <div className="h-1 bg-white/5 rounded-b-2xl overflow-hidden">
                     <div
-                        className="h-full bg-gradient-to-r from-blue-500 to-purple-500 animate-progress"
+                        className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
                         style={{
-                            animation: 'progress 5s linear forwards',
+                            animation: 'progress 4s linear forwards',
                         }}
                     />
                 </div>
             </div>
 
             <style jsx>{`
+                @keyframes slideDown {
+                    from {
+                        transform: translate(-50%, -100%);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translate(-50%, 0);
+                        opacity: 1;
+                    }
+                }
                 @keyframes progress {
                     from {
                         width: 100%;
@@ -179,8 +146,8 @@ export default function InAppNotification({ notification, onClose }) {
                         width: 0%;
                     }
                 }
-                .animate-progress {
-                    animation: progress 5s linear forwards;
+                .animate-slideDown {
+                    animation: slideDown 0.3s ease-out forwards;
                 }
             `}</style>
         </div>
