@@ -174,3 +174,42 @@
 .animate-scale-in {
   animation: scale-in 0.3s ease-out;
 }
+
+/* In-app notification animations */
+@keyframes slideDown {
+  from {
+    transform: translate(-50%, -120%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+  to {
+    transform: translate(-50%, -120%);
+    opacity: 0;
+  }
+}
+
+/* Keyboard handling - Let JavaScript handle it dynamically */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}

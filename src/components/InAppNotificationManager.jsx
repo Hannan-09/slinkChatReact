@@ -246,19 +246,13 @@ export default function InAppNotificationManager({ currentUserId }) {
 
     return (
         <div className="fixed top-0 left-0 right-0 z-[9999] pointer-events-none">
-            <div className="pointer-events-auto">
-                {notifications.map((notification, index) => (
-                    <div
+            <div className="pointer-events-auto flex flex-col items-center gap-2 pt-2">
+                {notifications.map((notification) => (
+                    <InAppNotification
                         key={notification.id}
-                        style={{
-                            marginTop: index > 0 ? `${index * 80}px` : '0',
-                        }}
-                    >
-                        <InAppNotification
-                            notification={notification}
-                            onClose={() => removeNotification(notification.id)}
-                        />
-                    </div>
+                        notification={notification}
+                        onClose={() => removeNotification(notification.id)}
+                    />
                 ))}
             </div>
         </div>

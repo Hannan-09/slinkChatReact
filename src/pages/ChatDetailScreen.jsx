@@ -244,6 +244,10 @@ export default function ChatDetailScreen() {
     const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
     const imageRef = useRef(null);
 
+    // Keyboard visibility state
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
+    const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
     const receiverUserId = parseInt(receiverId);
 
     // Debug: Log component mount and params
@@ -291,6 +295,46 @@ export default function ChatDetailScreen() {
             setCurrentUserId(userId);
         };
         getUserId();
+    }, []);
+
+    // Keyboard detection for mobile devices
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.visualViewport) {
+                const viewportHeight = window.visualViewport.height;
+                const windowHeight = window.innerHeight;
+                const heightDiff = windowHeight - viewportHeight;
+
+                // If viewport is significantly smaller, keyboard is open
+                if (heightDiff > 150) {
+                    setIsKeyboardOpen(true);
+                    setKeyboardHeight(heightDiff);
+                } else {
+                    setIsKeyboardOpen(false);
+                    setKeyboardHeight(0);
+                }
+            }
+        };
+
+        // Listen to visual viewport resize (more reliable for keyboard detection)
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', handleResize);
+            window.visualViewport.addEventListener('scroll', handleResize);
+        }
+
+        // Fallback for older browsers
+        window.addEventListener('resize', handleResize);
+
+        // Initial check
+        handleResize();
+
+        return () => {
+            if (window.visualViewport) {
+                window.visualViewport.removeEventListener('resize', handleResize);
+                window.visualViewport.removeEventListener('scroll', handleResize);
+            }
+            window.removeEventListener('resize', handleResize);
+        };
     }, []);
 
     // Close message menu and emoji picker when clicking outside
@@ -2111,20 +2155,18 @@ export default function ChatDetailScreen() {
 
     return (
         <div
-            className="fixed inset-0 bg-[#1a1a1a] flex flex-col overflow-hidden"
+            className="fixed inset-0 bg-[#1a1a1a] flex flex-col"
             style={{
-                height: "100vh",
-                height: "100dvh",
-                maxHeight: "100dvh",
                 paddingTop: "env(safe-area-inset-top)",
+                height: isKeyboardOpen ? `${window.innerHeight}px` : '100vh',
+                overflow: 'hidden'
             }}
         >
-            {/* Header - Fixed at top with safe area */}
+            {/* Header - Absolute positioning to stay at top */}
             <div
-                className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 bg-[#1a1a1a] border-b border-gray-800 shadow-lg"
+                className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 bg-[#1a1a1a] border-b border-gray-800 shadow-lg"
                 style={{
-                    paddingTop: "max(0.75rem, env(safe-area-inset-top))",
-                    height: "calc(3.5rem + env(safe-area-inset-top, 0px))",
+                    paddingTop: "max(0.75rem, env(safe-area-inset-top))"
                 }}
             >
                 <div className="flex items-center flex-1 min-w-0">
@@ -2239,10 +2281,11 @@ export default function ChatDetailScreen() {
             <div
                 ref={messagesContainerRef}
                 onScroll={handleScroll}
-                className="flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-5 scrollbar-hide"
+                className="absolute inset-0 overflow-y-auto overflow-x-hidden px-3 sm:px-5 scrollbar-hide"
                 style={{
-                    marginTop: "calc(3.5rem + env(safe-area-inset-top, 0px))",
-                    paddingBottom: "calc(5rem + env(safe-area-inset-bottom, 0px))",
+                    top: "calc(3.5rem + env(safe-area-inset-top, 0px))",
+                    bottom: isKeyboardOpen ? `${keyboardHeight}px` : "5rem",
+                    paddingBottom: "1rem",
                 }}
             >
                 {loading ? (
@@ -2832,11 +2875,12 @@ export default function ChatDetailScreen() {
                 </button>
             )}
 
-            {/* Message Input - Fixed at bottom with safe area */}
+            {/* Message Input - Absolute at bottom */}
             <div
-                className="fixed bottom-0 left-0 right-0 z-50 bg-[#1a1a1a] px-3 sm:px-5 py-3 sm:py-4 border-t border-gray-800 shadow-lg"
+                className="absolute left-0 right-0 z-50 bg-[#1a1a1a] px-3 sm:px-5 py-3 sm:py-4 border-t border-gray-800 shadow-lg"
                 style={{
-                    paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))",
+                    bottom: isKeyboardOpen ? `${keyboardHeight}px` : 0,
+                    paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))"
                 }}
             >
                 {/* Edit Mode Indicator */}
