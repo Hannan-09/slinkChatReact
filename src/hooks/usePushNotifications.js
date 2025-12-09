@@ -263,12 +263,22 @@ export const usePushNotifications = () => {
   const handleNotificationTap = (data) => {
     try {
       console.log("👆 Handling notification tap:", data);
+      console.log("👆 Notification data:", JSON.stringify(data, null, 2));
 
-      // You can add navigation logic here based on notification type
-      // Example:
-      // if (data.type === 'chat_message') {
-      //   navigate(`/chat/${data.chatRoomId}`);
-      // }
+      // Store notification data in sessionStorage for App.jsx to handle
+      // This allows navigation after app is fully loaded
+      if (data) {
+        sessionStorage.setItem(
+          "pendingNotificationNavigation",
+          JSON.stringify(data)
+        );
+        console.log("✅ Stored notification data for navigation");
+
+        // Trigger a custom event to notify the app
+        window.dispatchEvent(
+          new CustomEvent("notificationTap", { detail: data })
+        );
+      }
     } catch (error) {
       console.error("❌ Error handling notification tap:", error);
     }

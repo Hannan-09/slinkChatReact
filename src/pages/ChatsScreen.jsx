@@ -984,6 +984,7 @@ export default function ChatsScreen() {
                         initials,
                         isEdited: lastMessage && lastMessage.isEdited ? true : false,
                         lastMessageId: lastMessage ? lastMessage.chatMessageId : null,
+                        encryptedForUsers: room.encryptedForUsers || [],
                     };
                 })
             );
@@ -1061,12 +1062,24 @@ export default function ChatsScreen() {
 
     const handleChatClick = (item) => {
         try {
+            // Check if current user has encryption enabled for this chat
+            const currentUserId = parseInt(localStorage.getItem('userId'));
+            const encryptedForUsers = item.encryptedForUsers || [];
+            const isEncrypted = encryptedForUsers.includes(currentUserId);
+
+            console.log('🔐 Chat click encryption check:', {
+                chatRoomId: item.chatRoomId,
+                currentUserId,
+                encryptedForUsers,
+                isEncrypted
+            });
+
             navigate(
                 `/chat/${item.chatRoomId || 0}?name=${encodeURIComponent(
                     item.name || 'Unknown'
                 )}&avatar=${encodeURIComponent(
                     item.avatar || ''
-                )}&receiverId=${item.receiverId || 0}`
+                )}&receiverId=${item.receiverId || 0}&encrypted=${isEncrypted}`
             );
         } catch (error) {
             console.error('Error navigating to chat:', error);
@@ -1222,17 +1235,6 @@ export default function ChatsScreen() {
                                                 </div>
                                             </div>
                                         </div>
-
-                                        {/* Delete button - neumorphic style */}
-                                        <button
-                                            onClick={(e) => handleDeleteChat(item, e)}
-                                            className="ml-3 w-11 h-11 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_6px_10px_rgba(0,0,0,0.9),inset_0_1px_1px_rgba(255,255,255,0.1),inset_0_-2px_3px_rgba(0,0,0,0.9)] border border-black/70 transition-transform hover:scale-105 flex-shrink-0"
-                                            title="Delete chat"
-                                        >
-                                            <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_1px_2px_rgba(255,255,255,0.5),inset_0_-2px_3px_rgba(0,0,0,0.7)]">
-                                                <IoTrashOutline className="text-[#ff3b30] text-lg" />
-                                            </div>
-                                        </button>
                                     </div>
                                 );
                             } catch (error) {

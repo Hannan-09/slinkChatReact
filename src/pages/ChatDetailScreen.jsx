@@ -179,6 +179,7 @@ export default function ChatDetailScreen() {
     const name = searchParams.get("name") || "Unknown";
     const avatar = searchParams.get("avatar") || "";
     const receiverId = searchParams.get("receiverId") || "";
+    const encryptedParam = searchParams.get("encrypted") === "true";
 
     const [message, setMessage] = useState("");
     const [messages, setMessages] = useState([]);
@@ -220,6 +221,22 @@ export default function ChatDetailScreen() {
     const [showAttachMenu, setShowAttachMenu] = useState(false);
     const [selectedFiles, setSelectedFiles] = useState([]);
     const [showFilePreview, setShowFilePreview] = useState(false);
+
+    // Three-dot menu state
+    const [showThreeDotMenu, setShowThreeDotMenu] = useState(false);
+
+    // Delete chat dialog state
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+
+    // Encryption state (initialize from URL parameter)
+    const [isEncryptedForCurrentUser, setIsEncryptedForCurrentUser] = useState(encryptedParam);
+    const [togglingEncryption, setTogglingEncryption] = useState(false);
+
+    // Private key unlock state
+    const [showUnlockDialog, setShowUnlockDialog] = useState(encryptedParam);
+    const [privateKeyInput, setPrivateKeyInput] = useState('');
+    const [unlocking, setUnlocking] = useState(false);
     const [uploadingFiles, setUploadingFiles] = useState(false);
     const fileInputRef = useRef(null);
     const photoInputRef = useRef(null);
@@ -349,11 +366,14 @@ export default function ChatDetailScreen() {
             if (showAttachMenu && !event.target.closest(".attach-menu-container")) {
                 setShowAttachMenu(false);
             }
+            if (showThreeDotMenu && !event.target.closest(".relative")) {
+                setShowThreeDotMenu(false);
+            }
         };
 
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [showMessageMenu, showEmojiPicker, showAttachMenu]);
+    }, [showMessageMenu, showEmojiPicker, showAttachMenu, showThreeDotMenu]);
 
     // Mark messages as read when they appear (only once per message)
     useEffect(() => {
@@ -896,58 +916,78 @@ export default function ChatDetailScreen() {
                     ? response
                     : [];
 
-            // Decrypt messages before mapping
-            const privateKey = EncryptionService.decrypt(
-                localStorage.getItem("decryptedBackendData")
-            );
+            // Check if current user has encryption enabled (skip decryption)
             const userId = localStorage.getItem("userId");
-            console.log("Decrypted private key:", privateKey);
+            const shouldSkipDecryption = isEncryptedForCurrentUser;
+
+            console.log("🔐 Encryption check:", {
+                userId,
+                isEncryptedForCurrentUser,
+                shouldSkipDecryption
+            });
+
+            // Decrypt messages before mapping (skip if user has encryption enabled)
+            const privateKey = !shouldSkipDecryption ? EncryptionService.decrypt(
+                localStorage.getItem("decryptedBackendData")
+            ) : null;
+
+            console.log("Decrypted private key:", privateKey ? "Available" : "Skipped");
 
             const pageMessages = await Promise.all(
                 responseData.map(async (msg, index) => {
-                    let envolop =
-                        msg.senderId.toString() === userId
-                            ? msg?.sender_envolop || null
-                            : msg?.receiver_envolop || null;
                     let decryptedText = msg?.content || null;
-                    let envolopDecryptKey = null;
-                    // // decryptEnvolop
-                    if (envolop && privateKey) {
-                        console.log("🔐 private Key:", privateKey);
-                        try {
-                            console.log("🔐 Decrypting envolop:", envolop);
-                            // if(msg.senderId.toString() === userId){
-                            envolopDecryptKey = await DecryptEnvolop.decryptEnvelope(
-                                envolop,
-                                privateKey
-                            );
-                            console.log("envolopDecryptKey", envolopDecryptKey);
-                        } catch (error) {
-                            console.error("❌ Failed to decrypt Envolope:", error);
+
+                    // Skip decryption if user has encryption enabled
+                    if (shouldSkipDecryption) {
+                        console.log("⏭️ Skipping decryption for user", userId);
+                        // Keep encrypted content as is
+                        decryptedText = msg?.content || null;
+                    } else {
+                        // Normal decryption flow
+                        let envolop =
+                            msg.senderId.toString() === userId
+                                ? msg?.sender_envolop || null
+                                : msg?.receiver_envolop || null;
+                        let envolopDecryptKey = null;
+
+                        // decryptEnvolop
+                        if (envolop && privateKey) {
+                            console.log("🔐 private Key:", privateKey);
+                            try {
+                                console.log("🔐 Decrypting envolop:", envolop);
+                                envolopDecryptKey = await DecryptEnvolop.decryptEnvelope(
+                                    envolop,
+                                    privateKey
+                                );
+                                console.log("envolopDecryptKey", envolopDecryptKey);
+                            } catch (error) {
+                                console.error("❌ Failed to decrypt Envolope:", error);
+                            }
                         }
-                    }
-                    // decryptMessage
-                    if (msg.content && privateKey) {
-                        try {
-                            console.log("🔐 Decrypting message:", msg.content);
-                            decryptedText = await DecryptMessage(
-                                msg.content,
-                                envolopDecryptKey
-                            );
-                            console.log("Decrypted message text:", decryptedText);
-                        } catch (error) {
-                            console.error(
-                                "❌ Failed to decrypt message:",
-                                msg.chatMessageId,
-                                error
-                            );
-                            // Keep encrypted content if decryption fails
+
+                        // decryptMessage
+                        if (msg.content && privateKey) {
+                            try {
+                                console.log("🔐 Decrypting message:", msg.content);
+                                decryptedText = await DecryptMessage(
+                                    msg.content,
+                                    envolopDecryptKey
+                                );
+                                console.log("Decrypted message text:", decryptedText);
+                            } catch (error) {
+                                console.error(
+                                    "❌ Failed to decrypt message:",
+                                    msg.chatMessageId,
+                                    error
+                                );
+                                // Keep encrypted content if decryption fails
+                            }
                         }
                     }
 
-                    // Decrypt replyTo message content if exists
+                    // Decrypt replyTo message content if exists (skip if user has encryption enabled)
                     let decryptedReplyTo = msg.replyTo;
-                    if (msg.replyTo && msg.replyTo.content && privateKey) {
+                    if (!shouldSkipDecryption && msg.replyTo && msg.replyTo.content && privateKey) {
                         try {
                             // Get envelope for reply message
                             const replyEnvolop =
@@ -2002,6 +2042,136 @@ export default function ChatDetailScreen() {
         console.log("✅ initiateCall function called");
     };
 
+    // Delete chat handler
+    const handleDeleteChat = async () => {
+        setDeleting(true);
+        try {
+            const result = await chatApiService.deleteChatRoom(chatRoomId);
+
+            if (result.success !== false) {
+                toast.success('Chat deleted successfully');
+                // Navigate back to chats screen
+                navigate('/chats');
+            } else {
+                toast.error(result.message || 'Failed to delete chat');
+            }
+        } catch (error) {
+            console.error('Error deleting chat:', error);
+            toast.error('Failed to delete chat');
+        } finally {
+            setDeleting(false);
+            setShowDeleteDialog(false);
+        }
+    };
+
+    // Handle private key unlock
+    const handleUnlockWithPrivateKey = async () => {
+        if (!privateKeyInput.trim()) {
+            toast.error('Please enter your private key');
+            return;
+        }
+
+        setUnlocking(true);
+        try {
+            // Get encrypted private key from localStorage
+            const encryptedPrivateKey = localStorage.getItem('userPrivateKey');
+
+            if (!encryptedPrivateKey) {
+                toast.error('No private key found in storage');
+                setUnlocking(false);
+                return;
+            }
+
+            // Decrypt the stored private key
+            const decryptedStoredKey = EncryptionService.decrypt(encryptedPrivateKey);
+
+            console.log('🔐 Comparing keys:', {
+                userInput: privateKeyInput.trim(),
+                storedKey: decryptedStoredKey,
+                match: privateKeyInput.trim() === decryptedStoredKey
+            });
+
+            // Compare with user input
+            if (privateKeyInput.trim() === decryptedStoredKey) {
+                // Keys match! Unlock the chat
+                toast.success('Private key verified! Unlocking chat...');
+
+                // Call unlock API
+                const result = await chatApiService.unlockChatRoom(chatRoomId);
+
+                if (result.status === 200 || result.message?.includes('Unlocked')) {
+                    setIsEncryptedForCurrentUser(false);
+                    setShowUnlockDialog(false);
+                    setPrivateKeyInput('');
+
+                    // Update URL parameter
+                    const newSearchParams = new URLSearchParams(searchParams);
+                    newSearchParams.set('encrypted', 'false');
+                    navigate(`/chat/${chatRoomId}?${newSearchParams.toString()}`, { replace: true });
+
+                    toast.success('Chat unlocked successfully');
+                    // Reload messages to show decrypted
+                    await loadChatMessages(1);
+                } else {
+                    toast.error('Failed to unlock chat');
+                }
+            } else {
+                toast.error('Invalid private key. Please try again.');
+            }
+        } catch (error) {
+            console.error('Error unlocking chat:', error);
+            toast.error('Failed to verify private key');
+        } finally {
+            setUnlocking(false);
+        }
+    };
+
+    // Toggle encryption handler
+    const handleToggleEncryption = async () => {
+        if (togglingEncryption) return;
+
+        setTogglingEncryption(true);
+        try {
+            let result;
+            if (isEncryptedForCurrentUser) {
+                // Unlock (disable encryption)
+                result = await chatApiService.unlockChatRoom(chatRoomId);
+                if (result.status === 200 || result.message?.includes('Unlocked')) {
+                    setIsEncryptedForCurrentUser(false);
+
+                    // Update URL parameter
+                    const newSearchParams = new URLSearchParams(searchParams);
+                    newSearchParams.set('encrypted', 'false');
+                    navigate(`/chat/${chatRoomId}?${newSearchParams.toString()}`, { replace: true });
+
+                    toast.success('Chat encryption disabled');
+                    // Reload messages to show decrypted
+                    await loadChatMessages(1);
+                }
+            } else {
+                // Lock (enable encryption)
+                result = await chatApiService.lockChatRoom(chatRoomId);
+                if (result.status === 200 || result.message?.includes('Locked')) {
+                    setIsEncryptedForCurrentUser(true);
+
+                    // Update URL parameter
+                    const newSearchParams = new URLSearchParams(searchParams);
+                    newSearchParams.set('encrypted', 'true');
+                    navigate(`/chat/${chatRoomId}?${newSearchParams.toString()}`, { replace: true });
+
+                    toast.success('Chat encryption enabled');
+                    // Reload messages to show encrypted
+                    await loadChatMessages(1);
+                }
+            }
+        } catch (error) {
+            console.error('Error toggling encryption:', error);
+            toast.error('Failed to toggle encryption');
+        } finally {
+            setTogglingEncryption(false);
+        }
+    };
+
     // Auto-initiate call if autoCall parameter is present
     useEffect(() => {
         const autoCallType = searchParams.get("autoCall");
@@ -2244,25 +2414,86 @@ export default function ChatDetailScreen() {
                     </button>
                 </div>
                 <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                    {/* Video call - 3D ring like add-friend button */}
+                    {/* Encrypt Button */}
                     <button
-                        onClick={() => handleCallPress(true)}
-                        className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70"
+                        onClick={handleToggleEncryption}
+                        disabled={togglingEncryption}
+                        className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 transition-opacity ${togglingEncryption ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        title={isEncryptedForCurrentUser ? 'Encryption Enabled' : 'Encryption Disabled'}
                     >
                         <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
-                            <IoVideocam className="text-white text-lg sm:text-xl" />
+                            {isEncryptedForCurrentUser ? (
+                                <IoLockClosed className="text-green-400 text-lg sm:text-xl" />
+                            ) : (
+                                <IoLockClosed className="text-gray-400 text-lg sm:text-xl" />
+                            )}
                         </div>
                     </button>
 
-                    {/* Audio call - 3D ring like add-friend button */}
-                    <button
-                        onClick={() => handleCallPress(false)}
-                        className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70"
-                    >
-                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
-                            <IoCall className="text-white text-lg sm:text-xl" />
-                        </div>
-                    </button>
+                    {/* Three Dot Menu */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowThreeDotMenu(!showThreeDotMenu)}
+                            className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70"
+                        >
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#111111] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
+                                <IoEllipsisVertical className="text-white text-lg sm:text-xl" />
+                            </div>
+                        </button>
+
+                        {/* Three Dot Dropdown Menu */}
+                        {showThreeDotMenu && (
+                            <div className="absolute right-0 top-full mt-2 w-52 bg-[#2a2a2a] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.9)] border border-white/10 backdrop-blur-xl overflow-hidden z-50">
+                                {/* Video Call Option */}
+                                <button
+                                    onClick={() => {
+                                        handleCallPress(true);
+                                        setShowThreeDotMenu(false);
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors"
+                                >
+                                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#1a1a1a] border border-white/10">
+                                        <IoVideocam className="text-blue-400 text-xl" />
+                                    </div>
+                                    <span className="text-white font-medium">Video Call</span>
+                                </button>
+
+                                {/* Divider */}
+                                <div className="h-px bg-white/10 mx-2"></div>
+
+                                {/* Audio Call Option */}
+                                <button
+                                    onClick={() => {
+                                        handleCallPress(false);
+                                        setShowThreeDotMenu(false);
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors"
+                                >
+                                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#1a1a1a] border border-white/10">
+                                        <IoCall className="text-green-400 text-xl" />
+                                    </div>
+                                    <span className="text-white font-medium">Audio Call</span>
+                                </button>
+
+                                {/* Divider */}
+                                <div className="h-px bg-white/10 mx-2"></div>
+
+                                {/* Delete Chat Option */}
+                                <button
+                                    onClick={() => {
+                                        setShowThreeDotMenu(false);
+                                        setShowDeleteDialog(true);
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors"
+                                >
+                                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#3a3a3a] to-[#1a1a1a] border border-white/10">
+                                        <IoTrashOutline className="text-red-400 text-xl" />
+                                    </div>
+                                    <span className="text-white font-medium">Delete Chat</span>
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -3637,6 +3868,97 @@ export default function ChatDetailScreen() {
                     onConfirm={confirmDeleteMessage}
                     onCancel={cancelDeleteMessage}
                 />
+            )}
+
+            {/* Delete Chat Confirmation Dialog */}
+            {showDeleteDialog && (
+                <ConfirmDialog
+                    title="Delete Chat"
+                    message={`Are you sure you want to delete this chat with ${name}? All messages will be permanently deleted.`}
+                    confirmText={deleting ? "Deleting..." : "Delete"}
+                    cancelText="Cancel"
+                    type="danger"
+                    onConfirm={handleDeleteChat}
+                    onCancel={() => setShowDeleteDialog(false)}
+                    disabled={deleting}
+                />
+            )}
+
+            {/* Private Key Unlock Dialog */}
+            {showUnlockDialog && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-80 backdrop-blur-md">
+                    <div className="bg-gradient-to-b from-[#2a2a2a] to-[#1a1a1a] rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.9)] border border-white/10 p-6 sm:p-8 w-[90%] max-w-md">
+                        {/* Lock Icon */}
+                        <div className="flex justify-center mb-6">
+                            <div className="w-20 h-20 rounded-full bg-gradient-to-b from-[#3a3a3a] to-[#1a1a1a] border border-white/20 flex items-center justify-center">
+                                <IoLockClosed className="text-yellow-400 text-4xl" />
+                            </div>
+                        </div>
+
+                        {/* Title */}
+                        <h2 className="text-2xl font-bold text-white text-center mb-3">
+                            Chat is Encrypted
+                        </h2>
+
+                        {/* Message */}
+                        <p className="text-gray-300 text-center mb-6">
+                            This chat is encrypted. Enter your private key to decrypt and view messages.
+                        </p>
+
+                        {/* Private Key Input */}
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-gray-400 mb-2">
+                                Private Key
+                            </label>
+                            <input
+                                type="password"
+                                value={privateKeyInput}
+                                onChange={(e) => setPrivateKeyInput(e.target.value)}
+                                onKeyPress={(e) => {
+                                    if (e.key === 'Enter' && !unlocking) {
+                                        handleUnlockWithPrivateKey();
+                                    }
+                                }}
+                                placeholder="Enter your private key"
+                                className="w-full px-4 py-3 bg-[#1a1a1a] text-white rounded-xl border border-white/10 focus:border-blue-500 focus:outline-none transition-colors"
+                                disabled={unlocking}
+                                autoFocus
+                            />
+                        </div>
+
+                        {/* Buttons */}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setShowUnlockDialog(false);
+                                    setPrivateKeyInput('');
+                                    navigate('/chats');
+                                }}
+                                disabled={unlocking}
+                                className="flex-1 px-4 py-3 bg-gradient-to-b from-[#2a2a2a] to-[#1a1a1a] text-white rounded-xl border border-white/10 hover:from-[#333] hover:to-[#222] transition-all disabled:opacity-50 font-medium"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleUnlockWithPrivateKey}
+                                disabled={unlocking || !privateKeyInput.trim()}
+                                className="flex-1 px-4 py-3 bg-gradient-to-b from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 flex items-center justify-center gap-2 font-medium shadow-[0_4px_12px_rgba(37,99,235,0.4)]"
+                            >
+                                {unlocking ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        Verifying...
+                                    </>
+                                ) : (
+                                    <>
+                                        <IoLockClosed className="text-lg" />
+                                        Unlock
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

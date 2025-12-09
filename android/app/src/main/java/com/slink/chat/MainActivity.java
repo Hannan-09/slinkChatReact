@@ -2,6 +2,8 @@ package com.slink.chat;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -34,8 +36,35 @@ public class MainActivity extends BridgeActivity {
         // Initialize AudioManager
         audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         
+        // Create notification channel for push notifications
+        createNotificationChannel();
+        
         // Request runtime permissions for Android 6.0+
         requestRuntimePermissions();
+    }
+    
+    private void createNotificationChannel() {
+        // Create the NotificationChannel, but only on API 26+ (Android 8.0+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            String channelId = "slink_chat_notifications";
+            CharSequence channelName = "SlinkChat Messages";
+            String channelDescription = "Notifications for new messages and chat requests";
+            int importance = NotificationManager.IMPORTANCE_HIGH;
+            
+            NotificationChannel channel = new NotificationChannel(channelId, channelName, importance);
+            channel.setDescription(channelDescription);
+            channel.enableLights(true);
+            channel.enableVibration(true);
+            channel.setVibrationPattern(new long[]{0, 500, 200, 500});
+            channel.setShowBadge(true);
+            
+            // Register the channel with the system
+            NotificationManager notificationManager = getSystemService(NotificationManager.class);
+            if (notificationManager != null) {
+                notificationManager.createNotificationChannel(channel);
+                android.util.Log.d("MainActivity", "Notification channel created successfully");
+            }
+        }
     }
     
     @Override

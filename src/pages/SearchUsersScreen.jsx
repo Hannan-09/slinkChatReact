@@ -227,7 +227,7 @@ export default function SearchUsersScreen() {
             </div>
 
             {/* Results / Empty states */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto px-[20px] py-[10px]">
                 {searchLoading ? (
                     <div className="flex flex-col items-center justify-center py-24">
                         <IoSearch className="text-gray-400 text-6xl mb-4" />

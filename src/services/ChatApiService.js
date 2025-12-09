@@ -187,6 +187,22 @@ class ChatApiService {
     });
   }
 
+  // Lock chat room (enable encryption)
+  async lockChatRoom(chatRoomId) {
+    const url = `${this.baseUrl}/chat/rooms/lock/${chatRoomId}`;
+    return this.fetchWithErrorHandling(url, {
+      method: "PUT",
+    });
+  }
+
+  // Unlock chat room (disable encryption)
+  async unlockChatRoom(chatRoomId) {
+    const url = `${this.baseUrl}/chat/rooms/unlock/${chatRoomId}`;
+    return this.fetchWithErrorHandling(url, {
+      method: "PUT",
+    });
+  }
+
   // Send message via API (fallback if WebSocket fails)
   async sendMessage(chatRoomId, senderId, receiverId, messageData) {
     const url = `${this.baseUrl}/chat/rooms/messages/send`;

@@ -368,7 +368,7 @@ export default function CameraScreen() {
     };
 
     return (
-        <div className="h-screen bg-[#1a1a1a] flex flex-col overflow-hidden safe-area-top">
+        <div className="h-screen bg-[#1a1a1a] flex flex-col overflow-hidden">
             {/* Camera View or Preview */}
             {!capturedMedia ? (
                 <>
@@ -385,7 +385,7 @@ export default function CameraScreen() {
                     />
 
                     {/* Top Controls */}
-                    <div className="absolute top-0 left-0 right-0 p-8 flex items-center justify-between z-10 safe-area-top">
+                    <div className="absolute top-[-10px] left-0 right-0 p-8 flex items-center justify-between z-10">
                         <button
                             onClick={() => returnTo ? navigate(returnTo) : navigate('/chats')}
                             className="w-12 h-12 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center"
@@ -482,7 +482,7 @@ export default function CameraScreen() {
                     </div>
 
                     {/* Preview Top Controls - Close Button */}
-                    <div className="absolute top-0 left-0 right-0 p-8 flex items-center justify-between z-10 safe-area-top">
+                    <div className="absolute top-0 left-0 right-0 p-8 flex items-center justify-between z-10">
                         <button
                             onClick={() => {
                                 // Clean up captured media
