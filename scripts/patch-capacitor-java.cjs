@@ -11,6 +11,7 @@ const path = require("path");
 const pluginsToPatch = [
   "node_modules/@capacitor/app/android/build.gradle",
   "node_modules/@capacitor/push-notifications/android/build.gradle",
+  "node_modules/@capacitor/filesystem/android/build.gradle",
 ];
 
 console.log("🔧 Patching Capacitor plugins to use Java 17...\n");
@@ -36,6 +37,7 @@ pluginsToPatch.forEach((filePath) => {
       /targetCompatibility JavaVersion\.VERSION_21/g,
       "targetCompatibility JavaVersion.VERSION_17"
     );
+    content = content.replace(/jvmToolchain\(21\)/g, "jvmToolchain(17)");
 
     if (content !== originalContent) {
       fs.writeFileSync(fullPath, content, "utf8");
