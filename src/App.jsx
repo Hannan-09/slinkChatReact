@@ -4,6 +4,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { WebSocketProvider } from './contexts/WebSocketContext';
 import { CallProvider } from './contexts/CallContext';
 import { ToastProvider } from './contexts/ToastContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import CallManager from './components/CallManager';
 import SplashScreen from './pages/SplashScreen';
 import PermissionsScreen from './pages/PermissionsScreen';
@@ -170,27 +171,29 @@ function AppContent({ currentUserId }) {
     <WebSocketProvider>
       <CallProvider currentUserId={currentUserId}>
         <Router>
-          <BackButtonHandler />
-          <InAppNotificationManager currentUserId={currentUserId} />
-          <CallManager />
-          <Routes>
-            <Route path="/" element={<SplashScreen />} />
-            <Route path="/permissions" element={<PermissionsScreen />} />
-            <Route path="/login" element={<LoginScreen />} />
-            <Route path="/signup" element={<SignupScreen />} />
-            <Route path="/home" element={<Navigate to="/chats" replace />} />
-            <Route path="/chats" element={<ChatsScreen />} />
-            <Route path="/search" element={<SearchUsersScreen />} />
-            <Route path="/friends" element={<FriendsScreen />} />
-            <Route path="/requests" element={<RequestsScreen />} />
-            <Route path="/chat/:id" element={<ChatDetailScreenWrapper />} />
-            <Route path="/call-history" element={<CallHistoryScreen />} />
-            <Route path="/settings" element={<SettingsScreen />} />
-            <Route path="/camera" element={<CameraScreen />} />
-            <Route path="/user-profile/:userId" element={<UserProfileScreen />} />
-            <Route path="/ios" element={<IosInstallGuide />} />
-            <Route path="/debug" element={<DebugScreen />} />
-          </Routes>
+          <NotificationProvider>
+            <BackButtonHandler />
+            <InAppNotificationManager currentUserId={currentUserId} />
+            <CallManager />
+            <Routes>
+              <Route path="/" element={<SplashScreen />} />
+              <Route path="/permissions" element={<PermissionsScreen />} />
+              <Route path="/login" element={<LoginScreen />} />
+              <Route path="/signup" element={<SignupScreen />} />
+              <Route path="/home" element={<Navigate to="/chats" replace />} />
+              <Route path="/chats" element={<ChatsScreen />} />
+              <Route path="/search" element={<SearchUsersScreen />} />
+              <Route path="/friends" element={<FriendsScreen />} />
+              <Route path="/requests" element={<RequestsScreen />} />
+              <Route path="/chat/:id" element={<ChatDetailScreenWrapper />} />
+              <Route path="/call-history" element={<CallHistoryScreen />} />
+              <Route path="/settings" element={<SettingsScreen />} />
+              <Route path="/camera" element={<CameraScreen />} />
+              <Route path="/user-profile/:userId" element={<UserProfileScreen />} />
+              <Route path="/ios" element={<IosInstallGuide />} />
+              <Route path="/debug" element={<DebugScreen />} />
+            </Routes>
+          </NotificationProvider>
         </Router>
       </CallProvider>
     </WebSocketProvider>

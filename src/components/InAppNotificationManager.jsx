@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useWebSocket } from '../contexts/WebSocketContext';
-import InAppNotification from './InAppNotification';
+import { useNotification } from '../contexts/NotificationContext';
 import EncryptionService from '../services/EncryptionService';
 import { decryptEnvelope } from '../scripts/decryptEnvelope';
 import { decryptMessage } from '../scripts/decryptMessage';
@@ -10,10 +10,10 @@ import { decryptMessage } from '../scripts/decryptMessage';
 import notificationSound from '../assets/notification/notification.mp3';
 
 export default function InAppNotificationManager({ currentUserId }) {
-    const [notifications, setNotifications] = useState([]);
     const location = useLocation();
     const socket = useWebSocket();
     const connected = socket?.connected || false;
+    const { showNotification } = useNotification();
 
     // Handle incoming notifications from backend (LiveMessage format)
     const handleNotification = useCallback(async (payload, rawMessage) => {
@@ -38,6 +38,16 @@ export default function InAppNotificationManager({ currentUserId }) {
             console.log('📝 Data string:', dataStr);
             console.log('📝 Envolops:', envolops);
             console.log('📝 Chat Room ID:', chatRoomId);
+
+            // Early check: Don't show notification if user is in the current chat
+            const currentPath = window.location.pathname;
+            const match = currentPath.match(/^\/chat\/(\d+)/);
+            const currentChatRoomId = match ? parseInt(match[1]) : null;
+
+            if (currentChatRoomId && chatRoomId && currentChatRoomId === chatRoomId) {
+                console.log('⏭️ User is in chat room', chatRoomId, '- skipping notification');
+                return; // Don't show notification if user is in the chat
+            }
 
             let title = senderName;
             let message = dataStr;
@@ -67,16 +77,6 @@ export default function InAppNotificationManager({ currentUserId }) {
                 notificationType = 'message';
                 title = senderName;
                 console.log('✅ Detected: Encrypted message from', senderName);
-
-                // Check if user is currently in this chat room by reading current location
-                const currentPath = window.location.pathname;
-                const match = currentPath.match(/^\/chat\/(\d+)/);
-                const currentChatRoomId = match ? parseInt(match[1]) : null;
-
-                if (currentChatRoomId && chatRoomId && currentChatRoomId === chatRoomId) {
-                    console.log('⏭️ User is in chat room', chatRoomId, '- skipping notification');
-                    return; // Don't show notification if user is in the chat
-                }
 
                 try {
                     const privateKey = EncryptionService.decrypt(localStorage.getItem("decryptedBackendData"));
@@ -119,8 +119,7 @@ export default function InAppNotificationManager({ currentUserId }) {
                 'extracted senderId': senderId
             });
 
-            const notification = {
-                id: Date.now() + Math.random(),
+            const notificationData = {
                 type: notificationType,
                 title,
                 message,
@@ -128,15 +127,10 @@ export default function InAppNotificationManager({ currentUserId }) {
                 senderName: senderName,
                 chatRoomId: chatRoomId,
                 senderId: senderId,
-                timestamp: new Date(),
             };
 
-            console.log('🔔 Creating notification:', notification);
-            setNotifications((prev) => {
-                console.log('📋 Current notifications:', prev.length);
-                console.log('📋 Adding notification, new total:', prev.length + 1);
-                return [...prev, notification];
-            });
+            console.log('🔔 Showing notification:', notificationData);
+            showNotification(notificationData);
 
             // Play notification sound
             try {
@@ -240,21 +234,6 @@ export default function InAppNotificationManager({ currentUserId }) {
         }
     }, [connected, currentUserId, socket]); // Removed handleNotification from dependencies
 
-    const removeNotification = (id) => {
-        setNotifications((prev) => prev.filter((n) => n.id !== id));
-    };
-
-    return (
-        <div className="fixed top-0 left-0 right-0 z-[9999] pointer-events-none">
-            <div className="pointer-events-auto flex flex-col items-center gap-2 pt-2">
-                {notifications.map((notification) => (
-                    <InAppNotification
-                        key={notification.id}
-                        notification={notification}
-                        onClose={() => removeNotification(notification.id)}
-                    />
-                ))}
-            </div>
-        </div>
-    );
+    // No need to render anything - NotificationContext handles rendering
+    return null;
 }
