@@ -32,6 +32,8 @@ import {
     IoPlay,
     IoMusicalNote,
     IoDownload,
+    IoEye,
+    IoEyeOff,
 } from "react-icons/io5";
 import EmojiPicker from "emoji-picker-react";
 import { useCall } from "../contexts/CallContext";
@@ -236,6 +238,7 @@ export default function ChatDetailScreen() {
     // Private key unlock state
     const [showUnlockDialog, setShowUnlockDialog] = useState(encryptedParam);
     const [privateKeyInput, setPrivateKeyInput] = useState('');
+    const [showPrivateKey, setShowPrivateKey] = useState(false);
     const [unlocking, setUnlocking] = useState(false);
     const [uploadingFiles, setUploadingFiles] = useState(false);
     const fileInputRef = useRef(null);
@@ -394,22 +397,55 @@ export default function ChatDetailScreen() {
         });
     }, [messages, connected, currentUserId]);
 
-    // Load encryption state
+    // Load encryption state from API
     useEffect(() => {
         const loadEncryptionState = async () => {
+            console.log('chatRoom:', chatRoomId);
+            console.log('currentUserId:', currentUserId);
             try {
-                const decryptedBackendData = localStorage.getItem(
-                    "decryptedBackendData"
-                );
-                if (decryptedBackendData) {
-                    setIsEncryptionEnabled(true);
+                if (!chatRoomId || !currentUserId) {
+                    console.log('⚠️ Missing chatRoomId or currentUserId:', { chatRoomId, currentUserId });
+                    return;
+                }
+
+                console.log('🔐 Fetching encryption status for chatRoom:', chatRoomId);
+
+                // Call API to get encrypted users for this chat room
+                const response = await chatApiService.getEncryptedForUsers(chatRoomId);
+
+                console.log('🔐 Encryption check API response:', JSON.stringify(response, null, 2));
+
+                if (response && response?.data) {
+                    const encryptedForUsers = response?.data;
+
+                    // Convert currentUserId to number for comparison
+                    const currentUserIdNum = parseInt(currentUserId);
+
+                    // Check if current user ID is in the encryptedForUsers array
+                    const isUserEncrypted = encryptedForUsers.includes(currentUserIdNum);
+
+                    console.log('🔐 Encryption status check:', {
+                        chatRoomId,
+                        currentUserId: currentUserIdNum,
+                        currentUserIdType: typeof currentUserIdNum,
+                        encryptedForUsers,
+                        encryptedForUsersTypes: encryptedForUsers.map(id => typeof id),
+                        isUserEncrypted
+                    });
+
+                    setIsEncryptionEnabled(isUserEncrypted);
+                } else {
+                    console.log('⚠️ Invalid response structure:', response);
+                    setIsEncryptionEnabled(false);
                 }
             } catch (error) {
-                console.error("Error loading encryption state:", error);
+                console.error("❌ Error loading encryption state:", error);
+                setIsEncryptionEnabled(false);
             }
         };
+
         loadEncryptionState();
-    }, [chatRoomId]);
+    }, [chatRoomId, currentUserId]);
 
     // Load chat messages
     useEffect(() => {
@@ -2094,7 +2130,7 @@ export default function ChatDetailScreen() {
             // Compare with user input
             if (privateKeyInput.trim() === decryptedStoredKey) {
                 // Keys match! Unlock the chat
-                toast.success('Private key verified! Unlocking chat...');
+                // toast.success('Private key verified! Unlocking chat...');
 
                 // Call unlock API
                 const result = await chatApiService.unlockChatRoom(chatRoomId);
@@ -3885,7 +3921,7 @@ export default function ChatDetailScreen() {
             )}
 
             {/* Private Key Unlock Dialog */}
-            {showUnlockDialog && (
+            {isEncryptionEnabled && (
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-80 backdrop-blur-md">
                     <div className="bg-gradient-to-b from-[#2a2a2a] to-[#1a1a1a] rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.9)] border border-white/10 p-6 sm:p-8 w-[90%] max-w-md">
                         {/* Lock Icon */}
@@ -3910,20 +3946,34 @@ export default function ChatDetailScreen() {
                             <label className="block text-sm font-medium text-gray-400 mb-2">
                                 Private Key
                             </label>
-                            <input
-                                type="password"
-                                value={privateKeyInput}
-                                onChange={(e) => setPrivateKeyInput(e.target.value)}
-                                onKeyPress={(e) => {
-                                    if (e.key === 'Enter' && !unlocking) {
-                                        handleUnlockWithPrivateKey();
-                                    }
-                                }}
-                                placeholder="Enter your private key"
-                                className="w-full px-4 py-3 bg-[#1a1a1a] text-white rounded-xl border border-white/10 focus:border-blue-500 focus:outline-none transition-colors"
-                                disabled={unlocking}
-                                autoFocus
-                            />
+                            <div className="relative">
+                                <input
+                                    type={showPrivateKey ? "text" : "password"}
+                                    value={privateKeyInput}
+                                    onChange={(e) => setPrivateKeyInput(e.target.value)}
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter' && !unlocking) {
+                                            handleUnlockWithPrivateKey();
+                                        }
+                                    }}
+                                    placeholder="Enter your private key"
+                                    className="w-full px-4 py-3 pr-12 bg-[#1a1a1a] text-white rounded-xl border border-white/10 focus:border-blue-500 focus:outline-none transition-colors"
+                                    disabled={unlocking}
+                                    autoFocus
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPrivateKey(!showPrivateKey)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors p-1"
+                                    disabled={unlocking}
+                                >
+                                    {showPrivateKey ? (
+                                        <IoEyeOff className="text-xl" />
+                                    ) : (
+                                        <IoEye className="text-xl" />
+                                    )}
+                                </button>
+                            </div>
                         </div>
 
                         {/* Buttons */}

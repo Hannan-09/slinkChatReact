@@ -1062,24 +1062,12 @@ export default function ChatsScreen() {
 
     const handleChatClick = (item) => {
         try {
-            // Check if current user has encryption enabled for this chat
-            const currentUserId = parseInt(localStorage.getItem('userId'));
-            const encryptedForUsers = item.encryptedForUsers || [];
-            const isEncrypted = encryptedForUsers.includes(currentUserId);
-
-            console.log('🔐 Chat click encryption check:', {
-                chatRoomId: item.chatRoomId,
-                currentUserId,
-                encryptedForUsers,
-                isEncrypted
-            });
-
             navigate(
                 `/chat/${item.chatRoomId || 0}?name=${encodeURIComponent(
                     item.name || 'Unknown'
                 )}&avatar=${encodeURIComponent(
                     item.avatar || ''
-                )}&receiverId=${item.receiverId || 0}&encrypted=${isEncrypted}`
+                )}&receiverId=${item.receiverId || 0}`
             );
         } catch (error) {
             console.error('Error navigating to chat:', error);

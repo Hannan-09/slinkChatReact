@@ -203,6 +203,14 @@ class ChatApiService {
     });
   }
 
+  // Get encrypted users for a chat room
+  async getEncryptedForUsers(chatRoomId) {
+    const url = `${this.baseUrl}/chat/rooms/getEncryptedForUsers/${chatRoomId}`;
+    return this.fetchWithErrorHandling(url, {
+      method: "GET",
+    });
+  }
+
   // Send message via API (fallback if WebSocket fails)
   async sendMessage(chatRoomId, senderId, receiverId, messageData) {
     const url = `${this.baseUrl}/chat/rooms/messages/send`;
