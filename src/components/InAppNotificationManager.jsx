@@ -2,6 +2,7 @@ import { useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import { useNotification } from '../contexts/NotificationContext';
+import StorageService from '../services/StorageService';
 import EncryptionService from '../services/EncryptionService';
 import { decryptEnvelope } from '../scripts/decryptEnvelope';
 import { decryptMessage } from '../scripts/decryptMessage';
@@ -79,7 +80,7 @@ export default function InAppNotificationManager({ currentUserId }) {
                 console.log('✅ Detected: Encrypted message from', senderName);
 
                 try {
-                    const privateKey = EncryptionService.decrypt(localStorage.getItem("decryptedBackendData"));
+                    const privateKey = EncryptionService.decrypt(StorageService.getUserField("decryptedBackendData"));
 
                     if (privateKey) {
                         // Use receiver_envolop since we're the receiver

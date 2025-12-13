@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { IoMic, IoCamera, IoFolder, IoNotifications, IoCheckmarkCircle, IoCloseCircle } from 'react-icons/io5';
+import StorageService from '../services/StorageService';
 
 export default function PermissionsScreen() {
     const navigate = useNavigate();
@@ -16,7 +17,7 @@ export default function PermissionsScreen() {
 
     // Check if user is already logged in
     useEffect(() => {
-        const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+        const isLoggedIn = StorageService.isLoggedIn();
         if (isLoggedIn) {
             // User is already logged in, skip to home
             navigate('/home');
@@ -25,6 +26,7 @@ export default function PermissionsScreen() {
 
     const handleContinue = () => {
         // Save that permissions have been requested
+        // Note: This is a global setting, not user-specific
         localStorage.setItem('permissionsGranted', 'true');
         navigate('/login');
     };

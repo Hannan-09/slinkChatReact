@@ -38,6 +38,7 @@ import {
 import EmojiPicker from "emoji-picker-react";
 import { useCall } from "../contexts/CallContext";
 import { ApiUtils } from "../services/AuthService";
+import StorageService from "../services/StorageService";
 import chatApiService from "../services/ChatApiService";
 import EncryptionService from "../services/EncryptionService";
 import DecryptEnvolop from "../scripts/decryptEnvelope";
@@ -487,9 +488,9 @@ export default function ChatDetailScreen() {
 
             // Decrypt message if encrypted
             const privateKey = EncryptionService.decrypt(
-                localStorage.getItem("decryptedBackendData")
+                StorageService.getUserField("decryptedBackendData")
             );
-            const userId = localStorage.getItem("userId");
+            const userId = StorageService.getCurrentUserId();
             let decryptedText = wsMessage.content || wsMessage.message || "";
 
             if (wsMessage.sender_envolop || wsMessage.receiver_envolop) {
@@ -745,9 +746,9 @@ export default function ChatDetailScreen() {
 
             // Decrypt edited message content
             const privateKey = EncryptionService.decrypt(
-                localStorage.getItem("decryptedBackendData")
+                StorageService.getUserField("decryptedBackendData")
             );
-            const userId = localStorage.getItem("userId");
+            const userId = StorageService.getCurrentUserId();
             let decryptedContent = messageData.content;
 
             if (messageData.sender_envolop || messageData.receiver_envolop) {
@@ -953,7 +954,7 @@ export default function ChatDetailScreen() {
                     : [];
 
             // Check if current user has encryption enabled (skip decryption)
-            const userId = localStorage.getItem("userId");
+            const userId = StorageService.getCurrentUserId();
             const shouldSkipDecryption = isEncryptedForCurrentUser;
 
             console.log("🔐 Encryption check:", {
@@ -964,7 +965,7 @@ export default function ChatDetailScreen() {
 
             // Decrypt messages before mapping (skip if user has encryption enabled)
             const privateKey = !shouldSkipDecryption ? EncryptionService.decrypt(
-                localStorage.getItem("decryptedBackendData")
+                StorageService.getUserField("decryptedBackendData")
             ) : null;
 
             console.log("Decrypted private key:", privateKey ? "Available" : "Skipped");
@@ -2109,8 +2110,8 @@ export default function ChatDetailScreen() {
 
         setUnlocking(true);
         try {
-            // Get encrypted private key from localStorage
-            const encryptedPrivateKey = localStorage.getItem('userPrivateKey');
+            // Get encrypted private key from storage
+            const encryptedPrivateKey = StorageService.getUserField('userPrivateKey');
 
             if (!encryptedPrivateKey) {
                 toast.error('No private key found in storage');

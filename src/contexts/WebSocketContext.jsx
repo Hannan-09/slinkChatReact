@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import useStompSocket from '../hooks/useStompSocket';
+import StorageService from '../services/StorageService';
 
 const WebSocketContext = createContext(null);
 
@@ -42,9 +43,7 @@ export function WebSocketProvider({ children }) {
     useEffect(() => {
         const checkLoginStatus = () => {
             try {
-                const userId = localStorage.getItem('userId');
-                const isLoggedInFlag = localStorage.getItem('isLoggedIn');
-                const loggedIn = !!(userId && isLoggedInFlag === 'true');
+                const loggedIn = StorageService.isLoggedIn();
                 setIsLoggedIn(loggedIn);
             } catch (error) {
                 console.warn('Error checking login status:', error);

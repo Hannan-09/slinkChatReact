@@ -19,6 +19,7 @@ import {
 } from 'react-icons/io5';
 import { Colors } from '../constants/Colors';
 import { ApiUtils, UserAPI, ChatRequestAPI } from '../services/AuthService';
+import StorageService from '../services/StorageService';
 import chatApiService from '../services/ChatApiService';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import { useToast } from '../contexts/ToastContext';
@@ -264,8 +265,8 @@ export default function ChatsScreen() {
             const { decryptEnvelope } = await import('../scripts/decryptEnvelope');
             const { decryptMessage } = await import('../scripts/decryptMessage');
 
-            const privateKey = EncryptionService.decrypt(localStorage.getItem("decryptedBackendData"));
-            const userIdString = localStorage.getItem("userId");
+            const privateKey = EncryptionService.decrypt(StorageService.getUserField("decryptedBackendData"));
+            const userIdString = StorageService.getCurrentUserId();
 
             let decryptedContent = message.content || '';
 
@@ -389,8 +390,8 @@ export default function ChatsScreen() {
             const { decryptEnvelope } = await import('../scripts/decryptEnvelope');
             const { decryptMessage } = await import('../scripts/decryptMessage');
 
-            const privateKey = EncryptionService.decrypt(localStorage.getItem("decryptedBackendData"));
-            const userIdString = localStorage.getItem("userId");
+            const privateKey = EncryptionService.decrypt(StorageService.getUserField("decryptedBackendData"));
+            const userIdString = StorageService.getCurrentUserId();
 
             let decryptedContent = messageData.content || '';
 
@@ -643,8 +644,8 @@ export default function ChatsScreen() {
             const { decryptEnvelope } = await import('../scripts/decryptEnvelope');
             const { decryptMessage } = await import('../scripts/decryptMessage');
 
-            const privateKey = EncryptionService.decrypt(localStorage.getItem("decryptedBackendData"));
-            const userIdString = localStorage.getItem("userId");
+            const privateKey = EncryptionService.decrypt(StorageService.getUserField("decryptedBackendData"));
+            const userIdString = StorageService.getCurrentUserId();
 
             const transformedRooms = await Promise.all(
                 roomsData.map(async (room) => {
@@ -801,10 +802,6 @@ export default function ChatsScreen() {
                 setIsLoadingMore(true);
             }
 
-            // Debug: Check all stored data
-            const rawUserId = localStorage.getItem('userId');
-            const rawUser = localStorage.getItem('user');
-            const isLoggedIn = localStorage.getItem('isLoggedIn');
             // Get stored userId from login
             const userId = await ApiUtils.getCurrentUserId();
             // Also check if user data exists as backup
@@ -847,8 +844,8 @@ export default function ChatsScreen() {
             const { decryptEnvelope } = await import('../scripts/decryptEnvelope');
             const { decryptMessage } = await import('../scripts/decryptMessage');
 
-            const privateKey = EncryptionService.decrypt(localStorage.getItem("decryptedBackendData"));
-            const userIdString = localStorage.getItem("userId");
+            const privateKey = EncryptionService.decrypt(StorageService.getUserField("decryptedBackendData"));
+            const userIdString = StorageService.getCurrentUserId();
 
             const transformedChatRooms = await Promise.all(
                 roomsData.map(async (room) => {

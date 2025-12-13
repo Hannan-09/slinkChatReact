@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { IoMail, IoLockClosed, IoEye, IoEyeOff, IoKey, IoShieldCheckmark } from 'react-icons/io5';
 import { Colors } from '../constants/Colors';
 import { AuthAPI } from '../services/AuthService';
+import StorageService from '../services/StorageService';
 import EncryptionService from '../services/EncryptionService';
 import { useToast } from '../contexts/ToastContext';
 
@@ -24,7 +25,8 @@ export default function LoginScreen() {
 
     // Clear login state when component mounts (user is on login page)
     useEffect(() => {
-        localStorage.removeItem('isLoggedIn');
+        // Logout current user (keeps data, just marks as logged out)
+        StorageService.logoutUser();
         // Dispatch logout event to disconnect WebSocket
         window.dispatchEvent(new Event('userLoggedOut'));
     }, []);
@@ -108,8 +110,8 @@ export default function LoginScreen() {
         setVerifyingKey(true);
 
         try {
-            // Get the stored encrypted private key
-            const storedEncryptedKey = localStorage.getItem("userPrivateKey");
+            // Get the stored encrypted private key from current user data
+            const storedEncryptedKey = StorageService.getUserField("userPrivateKey");
 
             if (!storedEncryptedKey) {
                 setPrivateKeyError("No private key found. Please contact support.");
@@ -121,7 +123,8 @@ export default function LoginScreen() {
             // Compare the entered key with the decrypted stored key
             if (privateKey === storedPlainKey) {
                 try {
-                    localStorage.setItem('isLoggedIn', 'true');
+                    // Mark user as logged in
+                    StorageService.updateUserData(null, { isLoggedIn: true });
                     // Dispatch custom event to trigger WebSocket connection
                     window.dispatchEvent(new Event('userLoggedIn'));
                 } catch (sessionError) {

@@ -1,13 +1,15 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import StorageService from '../services/StorageService';
 
 export default function SplashScreen() {
     const navigate = useNavigate();
 
     useEffect(() => {
         // Check if user is already logged in
-        const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-        const hasPermissions = localStorage.getItem('permissionsGranted') === 'true';
+        const isLoggedIn = StorageService.isLoggedIn();
+        const userData = StorageService.getUserData();
+        const hasPermissions = userData?.permissionsGranted === true;
 
         const timer = setTimeout(() => {
             if (isLoggedIn) {

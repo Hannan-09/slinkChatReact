@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useWebSocket } from './WebSocketContext';
 import webRTCCallService from '../services/WebRTCCallService';
+import StorageService from '../services/StorageService';
 
 // Import audio files
 import ringtoneSound from '../assets/ringtone/iphone.mp3';
@@ -145,21 +146,17 @@ export const CallProvider = ({ children, currentUserId }) => {
             if (!currentUserId) return;
 
             try {
-                const storedUser = localStorage.getItem('user');
-                if (storedUser) {
-                    try {
-                        const userData = JSON.parse(storedUser);
-                        setCurrentUserProfile({
-                            name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.username || 'User',
-                            avatar: userData.profilePicture || userData.profileURL || ''
-                        });
-                    } catch (parseError) {
-                        console.warn('Failed to parse user data:', parseError);
-                        setCurrentUserProfile({
-                            name: 'User',
-                            avatar: ''
-                        });
-                    }
+                const userData = StorageService.getUserData(currentUserId);
+                if (userData) {
+                    setCurrentUserProfile({
+                        name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.username || 'User',
+                        avatar: userData.profilePicture || userData.profileURL || ''
+                    });
+                } else {
+                    setCurrentUserProfile({
+                        name: 'User',
+                        avatar: ''
+                    });
                 }
             } catch (error) {
                 console.error('Error fetching user profile:', error);

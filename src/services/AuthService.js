@@ -1,5 +1,6 @@
 // AuthService.js - Complete API integration for Spring Boot backend
 import axios from "axios";
+import StorageService from "./StorageService";
 
 // API Configuration
 const API_CONFIG = {
@@ -40,11 +41,9 @@ apiClient.interceptors.request.use(
       config.url?.includes("/users/register");
 
     if (!isPublicEndpoint) {
-      // Try both authToken and accessToken for compatibility
+      // Get token from StorageService
       if (!authToken) {
-        authToken =
-          localStorage.getItem("authToken") ||
-          localStorage.getItem("accessToken");
+        authToken = StorageService.getAccessToken();
       }
 
       if (authToken) {
@@ -98,9 +97,7 @@ apiClient.interceptors.response.use(
 
     // Handle 401 Unauthorized - token expired
     if (error.response?.status === 401) {
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
+      StorageService.logoutUser();
       authToken = null;
       // You can add navigation to login screen here
     }
@@ -122,46 +119,13 @@ export const AuthAPI = {
         const userData = response.data.data;
 
         try {
-          // Store JWT token (store as both authToken and accessToken for compatibility)
-          if (userData.token) {
-            try {
-              localStorage.setItem("authToken", userData.token);
-              localStorage.setItem("accessToken", userData.token);
-              authToken = userData.token;
-            } catch (tokenError) {
-              console.error("Failed to store auth token:", tokenError);
-              // Continue even if token storage fails
-            }
-          }
-
-          // Store user data in localStorage with individual try-catch
-          try {
-            localStorage.setItem("user", JSON.stringify(userData));
-          } catch (e) {
-            console.warn("Failed to store user data:", e);
-          }
-
-          try {
-            localStorage.setItem("userId", userData.userId.toString());
-          } catch (e) {
-            console.warn("Failed to store userId:", e);
-          }
-
-          try {
-            localStorage.setItem("username", userData.username);
-            localStorage.setItem("firstName", userData.firstName || "");
-            localStorage.setItem("lastName", userData.lastName || "");
-            localStorage.setItem("isLoggedIn", "true");
-          } catch (e) {
-            console.warn("Failed to store user details:", e);
-          }
-
-          // Verify storage
-          try {
-            const storedUserId = localStorage.getItem("userId");
-            const storedUser = localStorage.getItem("user");
-          } catch (e) {
-            console.warn("Failed to verify storage:", e);
+          // Store user data using StorageService
+          const loginSuccess = StorageService.loginUser(userData);
+          if (loginSuccess) {
+            authToken = userData.token || userData.accessToken;
+            console.log("✅ User data stored successfully");
+          } else {
+            console.error("Failed to store user data");
           }
         } catch (storageError) {
           console.error("Storage error:", storageError);
@@ -193,22 +157,17 @@ export const AuthAPI = {
         },
       });
 
-      // Update localStorage with new data
+      // Update user data in storage
       if (response.data && response.data.statusCode === 200) {
         const userData = response.data.data;
         try {
-          localStorage.setItem("user", JSON.stringify(userData));
+          StorageService.updateUserData(userId, {
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            profileURL: userData.profileURL,
+          });
         } catch (e) {
           console.warn("Failed to update user in storage:", e);
-        }
-
-        try {
-          if (userData.firstName)
-            localStorage.setItem("firstName", userData.firstName);
-          if (userData.lastName)
-            localStorage.setItem("lastName", userData.lastName);
-        } catch (e) {
-          console.warn("Failed to update user details in storage:", e);
         }
       }
 
@@ -283,32 +242,18 @@ export const AuthAPI = {
     }
   },
 
-  // Logout user
+  // Logout user - keeps data, only marks as logged out
   logout: async () => {
     try {
       await apiClient.post("/auth/logout");
 
-      // Clear stored data
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("user");
-      localStorage.removeItem("userId");
-      localStorage.removeItem("username");
-      localStorage.removeItem("isLoggedIn");
-
+      // Logout using StorageService (preserves data)
+      StorageService.logoutUser();
       authToken = null;
       return { success: true };
     } catch (error) {
-      // Clear local data even if API call fails
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("user");
-      localStorage.removeItem("userId");
-      localStorage.removeItem("username");
-      localStorage.removeItem("isLoggedIn");
-
+      // Logout locally even if API call fails
+      StorageService.logoutUser();
       authToken = null;
       return { success: true };
     }
@@ -317,7 +262,7 @@ export const AuthAPI = {
   // Refresh token
   refreshToken: async () => {
     try {
-      const refreshToken = localStorage.getItem("refreshToken");
+      const refreshToken = StorageService.getUserField("refreshToken");
       if (!refreshToken) {
         throw new Error("No refresh token available");
       }
@@ -328,7 +273,7 @@ export const AuthAPI = {
 
       const { token } = response.data;
       try {
-        localStorage.setItem("authToken", token);
+        StorageService.setAccessToken(token);
         authToken = token;
       } catch (e) {
         console.warn("Failed to store refreshed token:", e);
@@ -679,64 +624,34 @@ export const FileAPI = {
 export const ApiUtils = {
   // Check if user is authenticated
   isAuthenticated: async () => {
-    const isLoggedIn = localStorage.getItem("isLoggedIn");
-    return isLoggedIn === "true";
+    return StorageService.isLoggedIn();
   },
 
   // Get stored user data
   getStoredUser: async () => {
-    try {
-      const userStr = localStorage.getItem("user");
-      if (!userStr) return null;
-
-      try {
-        return JSON.parse(userStr);
-      } catch (parseError) {
-        console.error("Error parsing stored user:", parseError);
-        // Clear corrupted data
-        localStorage.removeItem("user");
-        return null;
-      }
-    } catch (error) {
-      console.error("Error getting stored user:", error);
-      return null;
-    }
+    return StorageService.getUserData();
   },
 
   // Get current user ID
   getCurrentUserId: async () => {
-    try {
-      const userId = localStorage.getItem("userId");
-      if (!userId) {
-        return null;
-      }
-
-      const parsedUserId = parseInt(userId);
-      if (isNaN(parsedUserId)) {
-        return null;
-      }
-      return parsedUserId;
-    } catch (error) {
-      console.error("Error getting userId from storage:", error);
-      return null;
-    }
+    const userId = StorageService.getCurrentUserId();
+    return userId ? parseInt(userId) : null;
   },
 
   // Get current username
   getCurrentUsername: async () => {
-    return localStorage.getItem("username");
+    return StorageService.getUserField("username");
   },
 
-  // Clear all stored data
+  // Clear all stored data (use with caution - deletes all users)
   clearStorage: async () => {
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("user");
-    localStorage.removeItem("userId");
-    localStorage.removeItem("username");
-    localStorage.removeItem("isLoggedIn");
+    StorageService.clearAllStorage();
     authToken = null;
+  },
+
+  // Migrate old storage format to new format
+  migrateStorage: () => {
+    return StorageService.migrateOldStorage();
   },
 };
 

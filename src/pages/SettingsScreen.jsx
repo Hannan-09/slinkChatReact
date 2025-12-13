@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IoArrowBack, IoCamera, IoPerson, IoLockClosed, IoLogOut, IoCheckmark, IoClose } from 'react-icons/io5';
 import { ApiUtils, AuthAPI, UserAPI } from '../services/AuthService';
+import StorageService from '../services/StorageService';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmDialog from '../components/ConfirmDialog';
 
@@ -57,18 +58,20 @@ export default function SettingsScreen() {
                     lastName: profileData.lastName || '',
                 });
 
-                // Update localStorage with fresh data
-                if (profileData.firstName) localStorage.setItem('firstName', profileData.firstName);
-                if (profileData.lastName) localStorage.setItem('lastName', profileData.lastName);
-                if (profileData.username) localStorage.setItem('username', profileData.username);
-                if (profileData.profileURL) localStorage.setItem('profileURL', profileData.profileURL);
+                // Update storage with fresh data
+                StorageService.updateUserData(currentUserId, {
+                    firstName: profileData.firstName,
+                    lastName: profileData.lastName,
+                    username: profileData.username,
+                    profileURL: profileData.profileURL
+                });
             } else {
-                // Fallback to localStorage if API fails
-                const firstName = localStorage.getItem('firstName') || '';
-                const lastName = localStorage.getItem('lastName') || '';
-                const username = localStorage.getItem('username') || '';
-
-                const profileURL = localStorage.getItem('profileURL') || '';
+                // Fallback to storage if API fails
+                const userData = StorageService.getUserData(currentUserId);
+                const firstName = userData?.firstName || '';
+                const lastName = userData?.lastName || '';
+                const username = userData?.username || '';
+                const profileURL = userData?.profileURL || '';
 
                 setUserProfile({
                     firstName,
@@ -84,11 +87,12 @@ export default function SettingsScreen() {
         } catch (error) {
             console.error('Error loading profile:', error);
 
-            // Fallback to localStorage on error
-            const firstName = localStorage.getItem('firstName') || '';
-            const lastName = localStorage.getItem('lastName') || '';
-            const username = localStorage.getItem('username') || '';
-            const profileURL = localStorage.getItem('profileURL') || '';
+            // Fallback to storage on error
+            const userData = StorageService.getUserData(currentUserId);
+            const firstName = userData?.firstName || '';
+            const lastName = userData?.lastName || '';
+            const username = userData?.username || '';
+            const profileURL = userData?.profileURL || '';
 
             setUserProfile({
                 firstName,

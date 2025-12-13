@@ -13,6 +13,7 @@ import {
 } from 'react-icons/io5';
 import { Colors } from '../constants/Colors';
 import { AuthAPI } from '../services/AuthService';
+import StorageService from '../services/StorageService';
 import EncryptionService from '../services/EncryptionService';
 import { useToast } from '../contexts/ToastContext';
 
@@ -108,7 +109,7 @@ export default function SignupScreen() {
 
         setCreatingKey(true);
         try {
-            const storedUserId = localStorage.getItem('userId');
+            const storedUserId = StorageService.getCurrentUserId();
             if (!storedUserId) {
                 setPrivateKeyError('User ID not found. Please register again.');
                 return;
@@ -137,12 +138,40 @@ export default function SignupScreen() {
                         extractedPrivateKey = decryptedData;
                     }
 
-                    localStorage.setItem('userPrivateKey', encryptedPrivateKey);
-                    localStorage.setItem('decryptedBackendData', extractedPrivateKey);
+                    // Store private keys in user data
+                    console.log('📝 Storing private key data:', {
+                        userId: storedUserId,
+                        encryptedPrivateKeyLength: encryptedPrivateKey?.length || 0,
+                        extractedPrivateKeyLength: extractedPrivateKey?.length || 0,
+                        encryptedPrivateKeyPreview: encryptedPrivateKey?.substring(0, 30) + '...',
+                        extractedPrivateKeyPreview: extractedPrivateKey?.substring(0, 30) + '...'
+                    });
+
+                    const updateSuccess = StorageService.updateUserData(storedUserId, {
+                        userPrivateKey: encryptedPrivateKey,
+                        decryptedBackendData: extractedPrivateKey,
+                        encryptedPrivateKey: encryptedPrivateKey
+                    });
+
+                    console.log('✅ Private key storage result:', updateSuccess);
+
+                    // Verify storage immediately
+                    const verifyData = StorageService.getUserData(storedUserId);
+                    console.log('🔍 Verification - Stored data:', {
+                        userPrivateKeyLength: verifyData?.userPrivateKey?.length || 0,
+                        decryptedBackendDataLength: verifyData?.decryptedBackendData?.length || 0,
+                        userPrivateKeyPreview: verifyData?.userPrivateKey?.substring(0, 30) + '...',
+                        decryptedBackendDataPreview: verifyData?.decryptedBackendData?.substring(0, 30) + '...'
+                    });
+
+                    if (!verifyData?.userPrivateKey || !verifyData?.decryptedBackendData) {
+                        console.error('❌ CRITICAL: Private keys not stored properly!');
+                        console.error('Full verify data:', verifyData);
+                    }
                 } catch (decryptionError) {
                     console.error('Error processing backend response:', decryptionError);
                     try {
-                        localStorage.setItem('userPrivateKey', encryptedPrivateKey);
+                        StorageService.setUserField('userPrivateKey', encryptedPrivateKey);
                     } catch (storageError) {
                         console.error('Error saving encrypted private key locally:', storageError);
                     }
@@ -207,11 +236,9 @@ export default function SignupScreen() {
                 const userData = result.data.data;
 
                 try {
-                    localStorage.setItem('user', JSON.stringify(userData));
-                    localStorage.setItem('userId', userData.userId.toString());
-                    localStorage.setItem('username', userData.username);
-                    localStorage.setItem('firstName', userData.firstName);
-                    localStorage.setItem('lastName', userData.lastName);
+                    // Store user data using StorageService (already done in AuthAPI.register via loginUser)
+                    // But ensure it's stored in case register doesn't call loginUser
+                    StorageService.loginUser(userData);
                 } catch (storageError) {
                     console.error('Error saving user data to storage:', storageError);
                 }

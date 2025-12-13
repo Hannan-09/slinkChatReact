@@ -22,6 +22,7 @@ import UserProfileScreen from './pages/UserProfileScreen';
 import IosInstallGuide from './pages/IosInstallGuide';
 import DebugScreen from './pages/DebugScreen';
 import { ApiUtils } from './services/AuthService';
+import StorageService from './services/StorageService';
 import { usePushNotifications } from './hooks/usePushNotifications';
 import InAppNotificationManager from './components/InAppNotificationManager';
 
@@ -95,7 +96,7 @@ function AppContent({ currentUserId }) {
         console.log('📤 Attempt:', retryCount + 1);
 
         try {
-          const accessToken = localStorage.getItem('accessToken') || localStorage.getItem('authToken');
+          const accessToken = StorageService.getAccessToken();
           const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.0.200:8008/api/v1';
 
           const response = await fetch(`${API_BASE_URL}/users/set/fcm-token`, {
@@ -114,14 +115,20 @@ function AppContent({ currentUserId }) {
             try {
               const data = await response.json();
               console.log('✅ FCM token sent to backend successfully:', data);
-              // Store success flag to prevent duplicate sends
-              localStorage.setItem('fcmTokenSent', 'true');
-              localStorage.setItem('lastFcmToken', fcmToken);
+              // Store success flag in user data
+              StorageService.updateUserData(currentUserId, {
+                fcmTokenSent: true,
+                lastFcmToken: fcmToken,
+                fcmToken: fcmToken
+              });
             } catch (jsonError) {
               console.warn('⚠️ Failed to parse FCM token response:', jsonError);
               // Still consider it success if response was OK
-              localStorage.setItem('fcmTokenSent', 'true');
-              localStorage.setItem('lastFcmToken', fcmToken);
+              StorageService.updateUserData(currentUserId, {
+                fcmTokenSent: true,
+                lastFcmToken: fcmToken,
+                fcmToken: fcmToken
+              });
             }
           } else {
             try {
@@ -154,12 +161,13 @@ function AppContent({ currentUserId }) {
     };
 
     // Check if token was already sent
-    const lastSentToken = localStorage.getItem('lastFcmToken');
-    const tokenSent = localStorage.getItem('fcmTokenSent');
+    const userData = StorageService.getUserData(currentUserId);
+    const lastSentToken = userData?.lastFcmToken;
+    const tokenSent = userData?.fcmTokenSent;
 
     if (fcmToken && currentUserId) {
       // Only send if token is different or wasn't sent before
-      if (lastSentToken !== fcmToken || tokenSent !== 'true') {
+      if (lastSentToken !== fcmToken || tokenSent !== true) {
         sendTokenToBackend();
       } else {
         console.log('✅ FCM token already sent to backend');
@@ -206,6 +214,17 @@ function App() {
   useEffect(() => {
     const getUserId = async () => {
       console.log('🔍 Fetching current user ID from storage...');
+
+      // Migrate old storage format to new format (one-time operation)
+      try {
+        const migrated = ApiUtils.migrateStorage();
+        if (migrated) {
+          console.log('✅ Storage migrated to new format');
+        }
+      } catch (error) {
+        console.error('Failed to migrate storage:', error);
+      }
+
       const userId = await ApiUtils.getCurrentUserId();
       console.log('✅ Current user ID loaded:', userId);
       setCurrentUserId(userId);

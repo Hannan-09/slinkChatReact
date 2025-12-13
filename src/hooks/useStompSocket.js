@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Client } from "@stomp/stompjs";
+import StorageService from "../services/StorageService";
 
 const WEBSOCKET_URL =
   import.meta.env.VITE_WEBSOCKET_URL || "http://192.168.0.200:8008/ws";
@@ -54,8 +55,8 @@ export default function useStompSocket(options = {}) {
     setError(null);
 
     try {
-      // Get userId from localStorage for presence tracking
-      const userId = localStorage.getItem("userId");
+      // Get userId from storage for presence tracking
+      const userId = StorageService.getCurrentUserId();
       const connectHeaders = userId ? { userId: userId } : {};
 
       const client = new Client({

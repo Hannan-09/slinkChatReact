@@ -1,4 +1,5 @@
 // ChatApiService.js - API service for chat backend integration
+import StorageService from "./StorageService";
 
 // Base API configuration
 const API_CONFIG = {
@@ -39,10 +40,8 @@ class ChatApiService {
   // Generic fetch method with error handling
   async fetchWithErrorHandling(url, options = {}) {
     try {
-      // Try both accessToken and authToken for compatibility
-      const token =
-        localStorage.getItem("accessToken") ||
-        localStorage.getItem("authToken");
+      // Get access token from storage
+      const token = StorageService.getAccessToken();
 
       console.log("🔑 ChatApiService - Token found:", token ? "Yes" : "No");
       console.log("🔗 ChatApiService - Request URL:", url);
@@ -243,10 +242,8 @@ class ChatApiService {
   async uploadFiles(formData) {
     const url = `${this.baseUrl}/chat/file-upload`;
     try {
-      // Try both accessToken and authToken for compatibility
-      const token =
-        localStorage.getItem("accessToken") ||
-        localStorage.getItem("authToken");
+      // Get access token from storage
+      const token = StorageService.getAccessToken();
       const response = await fetch(url, {
         method: "POST",
         headers: {

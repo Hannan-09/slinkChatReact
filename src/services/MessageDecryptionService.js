@@ -1,4 +1,5 @@
 import CryptoJS from "crypto-js";
+import StorageService from "./StorageService";
 
 // Helper: convert Base64 → Uint8Array
 function base64ToBytes(base64) {
@@ -132,9 +133,9 @@ export async function decryptMessage(
 export function getPrivateKey() {
   try {
     // Try to get the decrypted backend data first
-    const privateKey = localStorage.getItem("decryptedBackendData");
+    const privateKey = StorageService.getUserField("decryptedBackendData");
     if (privateKey) {
-      console.log("✅ Private key found in localStorage", privateKey);
+      console.log("✅ Private key found in storage", privateKey);
       return privateKey;
     }
 
