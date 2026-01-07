@@ -3,7 +3,6 @@
  * Run this in browser console: copy and paste this code
  */
 
-console.log("🧹 Cleaning up currentUserId key...");
 
 try {
   const currentUserId = localStorage.getItem("currentUserId");

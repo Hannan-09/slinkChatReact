@@ -1079,9 +1079,9 @@ export default function ChatsScreen() {
                     {/* Header profile - 3D avatar ring with dynamic user profile */}
                     <div className="w-10 h-10 rounded-full mr-4 bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_14px_22px_rgba(0,0,0,0.96),0_0_0_1px_rgba(255,255,255,0.14),inset_0_3px_4px_rgba(255,255,255,0.22),inset_0_-4px_7px_rgba(0,0,0,0.95),inset_3px_0_4px_rgba(255,255,255,0.18),inset_-3px_0_4px_rgba(0,0,0,0.8)] border border-black/70 flex items-center justify-center">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center overflow-hidden">
-                            {userProfile.avatarUrl ? (
+                            {userProfile?.avatarUrl ? (
                                 <img
-                                    src={userProfile.avatarUrl}
+                                    src={userProfile?.avatarUrl}
                                     alt="Profile"
                                     onClick={() => navigate('/settings')}
                                     className="w-7 h-7 rounded-full cursor-pointer object-cover"
