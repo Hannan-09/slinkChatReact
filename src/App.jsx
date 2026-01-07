@@ -88,74 +88,84 @@ function AppContent({ currentUserId }) {
   useEffect(() => {
     let retryCount = 0;
     const maxRetries = 3;
+    let retryTimeout = null;
 
     const sendTokenToBackend = async () => {
-      if (fcmToken && currentUserId) {
-        console.log('📤 Sending FCM token to backend:', fcmToken);
-        console.log('📤 User ID:', currentUserId);
-        console.log('📤 Attempt:', retryCount + 1);
+      if (!fcmToken || !currentUserId) {
+        console.log('⏳ Waiting for FCM token or userId...', { fcmToken: !!fcmToken, currentUserId: !!currentUserId });
+        return;
+      }
 
-        try {
-          const accessToken = StorageService.getAccessToken();
-          const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.0.200:8008/api/v1';
+      console.log('📤 Sending FCM token to backend:', fcmToken);
+      console.log('📤 User ID:', currentUserId);
+      console.log('📤 Attempt:', retryCount + 1);
 
-          const response = await fetch(`${API_BASE_URL}/users/set/fcm-token`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${accessToken}`
-            },
-            body: JSON.stringify({
-              token: fcmToken
-            }),
-            timeout: 10000 // 10 second timeout
-          });
+      try {
+        const accessToken = StorageService.getAccessToken();
 
-          if (response.ok) {
-            try {
-              const data = await response.json();
-              console.log('✅ FCM token sent to backend successfully:', data);
-              // Store success flag in user data
-              StorageService.updateUserData(currentUserId, {
-                fcmTokenSent: true,
-                lastFcmToken: fcmToken,
-                fcmToken: fcmToken
-              });
-            } catch (jsonError) {
-              console.warn('⚠️ Failed to parse FCM token response:', jsonError);
-              // Still consider it success if response was OK
-              StorageService.updateUserData(currentUserId, {
-                fcmTokenSent: true,
-                lastFcmToken: fcmToken,
-                fcmToken: fcmToken
-              });
-            }
-          } else {
-            try {
-              const errorText = await response.text();
-              console.error('❌ Failed to send FCM token to backend:', response.status, errorText);
+        if (!accessToken) {
+          console.error('❌ No access token available');
+          return;
+        }
 
-              // Retry if not max retries
-              if (retryCount < maxRetries) {
-                retryCount++;
-                console.log(`🔄 Retrying FCM token send (${retryCount}/${maxRetries})...`);
-                setTimeout(sendTokenToBackend, retryCount * 2000); // Progressive delay: 2s, 4s, 6s
-              }
-            } catch (textError) {
-              console.error('❌ Failed to send FCM token to backend:', response.status);
-            }
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.0.200:8008/api/v1';
+
+        const response = await fetch(`${API_BASE_URL}/users/set/fcm-token`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+          },
+          body: JSON.stringify({
+            token: fcmToken
+          }),
+          timeout: 10000 // 10 second timeout
+        });
+
+        if (response.ok) {
+          try {
+            const data = await response.json();
+            console.log('✅ FCM token sent to backend successfully:', data);
+            // Store success flag in user data
+            StorageService.updateUserData(currentUserId, {
+              fcmTokenSent: true,
+              lastFcmToken: fcmToken,
+              fcmToken: fcmToken
+            });
+          } catch (jsonError) {
+            console.warn('⚠️ Failed to parse FCM token response:', jsonError);
+            // Still consider it success if response was OK
+            StorageService.updateUserData(currentUserId, {
+              fcmTokenSent: true,
+              lastFcmToken: fcmToken,
+              fcmToken: fcmToken
+            });
           }
-        } catch (error) {
-          console.error('❌ Error sending FCM token to backend:', error);
+        } else {
+          try {
+            const errorText = await response.text();
+            console.error('❌ Failed to send FCM token to backend:', response.status, errorText);
 
-          // Retry if not max retries
-          if (retryCount < maxRetries) {
-            retryCount++;
-            console.log(`🔄 Retrying FCM token send (${retryCount}/${maxRetries})...`);
-            setTimeout(sendTokenToBackend, retryCount * 2000); // Progressive delay: 2s, 4s, 6s
-          } else {
-            console.error('❌ Failed to send FCM token after', maxRetries, 'attempts');
+            // Retry if not max retries
+            if (retryCount < maxRetries) {
+              retryCount++;
+              console.log(`🔄 Retrying FCM token send (${retryCount}/${maxRetries})...`);
+              retryTimeout = setTimeout(sendTokenToBackend, retryCount * 2000); // Progressive delay: 2s, 4s, 6s
+            }
+          } catch (textError) {
+            console.error('❌ Failed to send FCM token to backend:', response.status);
           }
+        }
+      } catch (error) {
+        console.error('❌ Error sending FCM token to backend:', error);
+
+        // Retry if not max retries
+        if (retryCount < maxRetries) {
+          retryCount++;
+          console.log(`🔄 Retrying FCM token send (${retryCount}/${maxRetries})...`);
+          retryTimeout = setTimeout(sendTokenToBackend, retryCount * 2000); // Progressive delay: 2s, 4s, 6s
+        } else {
+          console.error('❌ Failed to send FCM token after', maxRetries, 'attempts');
         }
       }
     };
@@ -168,9 +178,55 @@ function AppContent({ currentUserId }) {
     if (fcmToken && currentUserId) {
       // Only send if token is different or wasn't sent before
       if (lastSentToken !== fcmToken || tokenSent !== true) {
+        console.log('🚀 FCM token needs to be sent to backend');
         sendTokenToBackend();
       } else {
         console.log('✅ FCM token already sent to backend');
+      }
+    } else if (currentUserId && !fcmToken) {
+      // User is logged in but FCM token not ready yet
+      console.log('⏳ User logged in, waiting for FCM token...');
+    }
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
+    };
+  }, [fcmToken, currentUserId]);
+
+  // Listen for user login events to send FCM token
+  useEffect(() => {
+    const handleUserLogin = () => {
+      console.log('👤 User logged in event detected');
+
+      // Store a flag to indicate we need to send FCM token
+      sessionStorage.setItem('needToSendFCM', 'true');
+    };
+
+    window.addEventListener('userLoggedIn', handleUserLogin);
+
+    return () => {
+      window.removeEventListener('userLoggedIn', handleUserLogin);
+    };
+  }, []);
+
+  // Check if we need to send FCM token after login
+  useEffect(() => {
+    const needToSend = sessionStorage.getItem('needToSendFCM');
+
+    if (needToSend === 'true' && fcmToken && currentUserId) {
+      console.log('🚀 Sending FCM token after login event');
+      sessionStorage.removeItem('needToSendFCM');
+
+      // Force update user data to trigger sending
+      const userData = StorageService.getUserData(currentUserId);
+      if (userData) {
+        StorageService.updateUserData(currentUserId, {
+          fcmTokenSent: false, // Reset flag to force sending
+          fcmToken: fcmToken
+        });
       }
     }
   }, [fcmToken, currentUserId]);
