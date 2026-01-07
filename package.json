@@ -9,7 +9,11 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "postinstall": "node scripts/patch-capacitor-java.cjs",
-    "patch-java": "node scripts/patch-capacitor-java.cjs"
+    "patch-java": "node scripts/patch-capacitor-java.cjs",
+    "android:sync": "npm run build && npx cap sync android",
+    "android:open": "npx cap open android",
+    "android:build": "npm run android:sync && cd android && gradlew assembleDebug",
+    "android:release": "npm run android:sync && cd android && gradlew assembleRelease"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.4",
