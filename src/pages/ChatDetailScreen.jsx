@@ -580,7 +580,7 @@ export default function ChatDetailScreen() {
                     (wsMessage.senderId === currentUserId ? "You" : name),
                 senderId: wsMessage.senderId,
                 receiverId: wsMessage.receiverId,
-                isEncrypted: !!(wsMessage.sender_envolop || wsMessage.receiver_envolop),
+                isEncrypted: false, // Don't show lock icon on new messages
                 isEdited: wsMessage.isEdited || false,
                 editedAt: wsMessage.editedAt || null,
                 replyTo: decryptedReplyTo,
@@ -1265,6 +1265,7 @@ export default function ChatDetailScreen() {
                 senderId: currentUserId,
                 receiverId: receiverUserId,
                 replyTo: replyToData,
+                isEncrypted: false, // Don't show lock icon on new messages
             };
 
             // Add to UI immediately
@@ -1337,9 +1338,6 @@ export default function ChatDetailScreen() {
     // Mark message as read
     const markMessageAsRead = (messageId) => {
         if (!connected || !currentUserId || !chatRoomId || !receiverUserId) return;
-        // Backend expects: /chat/read/{chatRoomId}/{senderId}/{receiverId}
-        // Where senderId is the one who SENT the message (receiverUserId in our context)
-        // And receiverId is the one READING the message (currentUserId)
         const destination = `/app/chat/read/${chatRoomId}/${receiverUserId}/${currentUserId}`;
         const success = publish(destination, {
             chatMessageId: messageId,
@@ -2921,23 +2919,23 @@ export default function ChatDetailScreen() {
                                                                                                                 href={fileUrl}
                                                                                                                 target="_blank"
                                                                                                                 rel="noopener noreferrer"
-                                                                                                                className={`flex items-center gap-2 p-3 rounded-lg ${item.isMe
+                                                                                                                className={`flex items-center gap-2 p-3 rounded-lg w-full max-w-[250px] ${item.isMe
                                                                                                                     ? "bg-white bg-opacity-10"
                                                                                                                     : "bg-gray-700"
                                                                                                                     } hover:opacity-80 transition-opacity`}
                                                                                                             >
-                                                                                                                <span className="text-2xl">
+                                                                                                                <span className="text-2xl flex-shrink-0">
                                                                                                                     {getFileIcon(
                                                                                                                         fileType
                                                                                                                     )}
                                                                                                                 </span>
-                                                                                                                <div className="flex-1 min-w-0">
+                                                                                                                <div className="flex-1 min-w-0 overflow-hidden">
                                                                                                                     <p className="text-sm text-white truncate">
                                                                                                                         {fileUrl
                                                                                                                             .split("/")
                                                                                                                             .pop()}
                                                                                                                     </p>
-                                                                                                                    <p className="text-xs text-gray-400">
+                                                                                                                    <p className="text-xs text-gray-400 truncate">
                                                                                                                         {fileType || "File"}
                                                                                                                     </p>
                                                                                                                 </div>
@@ -3383,7 +3381,12 @@ export default function ChatDetailScreen() {
             {showFilePreview && (
                 <div className="fixed inset-0 bg-black bg-opacity-95 z-50 flex flex-col">
                     {/* Header with safe area */}
-                    <div className="flex items-center justify-between px-4 py-3 bg-[#1a1a1a] border-b border-gray-700 safe-area-top">
+                    <div
+                        className="flex items-center justify-between px-4 py-3 bg-[#1a1a1a] border-b border-gray-700"
+                        style={{
+                            paddingTop: "max(0.75rem, env(safe-area-inset-top))"
+                        }}
+                    >
                         <h3 className="text-white text-lg font-semibold">
                             {selectedFiles.length}{" "}
                             {selectedFiles.length === 1 ? "File" : "Files"} Selected
@@ -3563,7 +3566,12 @@ export default function ChatDetailScreen() {
             {showAudioPreview && audioURL && (
                 <div className="fixed inset-0 bg-black bg-opacity-95 z-50 flex flex-col">
                     {/* Header with safe area */}
-                    <div className="flex items-center justify-between px-4 py-3 bg-[#1a1a1a] border-b border-gray-700 safe-area-top">
+                    <div
+                        className="flex items-center justify-between px-4 py-3 bg-[#1a1a1a] border-b border-gray-700"
+                        style={{
+                            paddingTop: "max(0.75rem, env(safe-area-inset-top))"
+                        }}
+                    >
                         <h3 className="text-white text-lg font-semibold">
                             Audio Recording
                         </h3>
@@ -3675,14 +3683,13 @@ export default function ChatDetailScreen() {
 
             {/* Media Viewer Modal */}
             {showMediaViewer && viewerMediaList.length > 0 && (
-                <div
-                    className="fixed inset-0 bg-black z-[60] flex flex-col"
-                    style={{ paddingTop: "env(safe-area-inset-top)" }}
-                >
+                <div className="fixed inset-0 bg-black z-[60] flex flex-col">
                     {/* Header with safe area */}
                     <div
                         className="flex items-center justify-between px-4 py-3 bg-black bg-opacity-50"
-                        style={{ marginTop: "env(safe-area-inset-top, 0px)" }}
+                        style={{
+                            paddingTop: "max(0.75rem, env(safe-area-inset-top))"
+                        }}
                     >
                         <button
                             onClick={closeMediaViewer}
@@ -3839,7 +3846,12 @@ export default function ChatDetailScreen() {
                                 src={viewerMediaList[currentMediaIndex]?.url}
                                 controls
                                 autoPlay
-                                className="max-w-full max-h-full"
+                                playsInline
+                                className="w-full h-full object-contain"
+                                style={{
+                                    maxWidth: '100%',
+                                    maxHeight: '100%'
+                                }}
                             />
                         )}
 

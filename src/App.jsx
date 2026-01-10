@@ -87,8 +87,9 @@ function AppContent({ currentUserId }) {
   // Send FCM token to backend when user is logged in (with retry logic)
   useEffect(() => {
     let retryCount = 0;
-    const maxRetries = 3;
+    const maxRetries = 5; // Increased retries for first-time login
     let retryTimeout = null;
+    let checkInterval = null;
 
     const sendTokenToBackend = async () => {
       if (!fcmToken || !currentUserId) {
@@ -108,7 +109,7 @@ function AppContent({ currentUserId }) {
           return;
         }
 
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.0.200:8008/api/v1';
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
         const response = await fetch(`${API_BASE_URL}/users/set/fcm-token`, {
           method: 'POST',
@@ -119,7 +120,7 @@ function AppContent({ currentUserId }) {
           body: JSON.stringify({
             token: fcmToken
           }),
-          timeout: 10000 // 10 second timeout
+          timeout: 10000
         });
 
         if (response.ok) {
@@ -132,6 +133,9 @@ function AppContent({ currentUserId }) {
               lastFcmToken: fcmToken,
               fcmToken: fcmToken
             });
+
+            // Clear the needToSendFCM flag on success
+            sessionStorage.removeItem('needToSendFCM');
           } catch (jsonError) {
             console.warn('⚠️ Failed to parse FCM token response:', jsonError);
             // Still consider it success if response was OK
@@ -140,6 +144,9 @@ function AppContent({ currentUserId }) {
               lastFcmToken: fcmToken,
               fcmToken: fcmToken
             });
+
+            // Clear the needToSendFCM flag on success
+            sessionStorage.removeItem('needToSendFCM');
           }
         } else {
           try {
@@ -150,7 +157,7 @@ function AppContent({ currentUserId }) {
             if (retryCount < maxRetries) {
               retryCount++;
               console.log(`🔄 Retrying FCM token send (${retryCount}/${maxRetries})...`);
-              retryTimeout = setTimeout(sendTokenToBackend, retryCount * 2000); // Progressive delay: 2s, 4s, 6s
+              retryTimeout = setTimeout(sendTokenToBackend, retryCount * 2000); // Progressive delay: 2s, 4s, 6s, 8s, 10s
             }
           } catch (textError) {
             console.error('❌ Failed to send FCM token to backend:', response.status);
@@ -163,7 +170,7 @@ function AppContent({ currentUserId }) {
         if (retryCount < maxRetries) {
           retryCount++;
           console.log(`🔄 Retrying FCM token send (${retryCount}/${maxRetries})...`);
-          retryTimeout = setTimeout(sendTokenToBackend, retryCount * 2000); // Progressive delay: 2s, 4s, 6s
+          retryTimeout = setTimeout(sendTokenToBackend, retryCount * 2000); // Progressive delay: 2s, 4s, 6s, 8s, 10s
         } else {
           console.error('❌ Failed to send FCM token after', maxRetries, 'attempts');
         }
@@ -186,23 +193,51 @@ function AppContent({ currentUserId }) {
     } else if (currentUserId && !fcmToken) {
       // User is logged in but FCM token not ready yet
       console.log('⏳ User logged in, waiting for FCM token...');
+
+      // Check if we need to wait for FCM token (after login/signup)
+      const needToSend = sessionStorage.getItem('needToSendFCM');
+      if (needToSend === 'true') {
+        console.log('⏳ Waiting for FCM token generation after login...');
+
+        // Poll for FCM token every 1 second for up to 30 seconds
+        let pollCount = 0;
+        const maxPolls = 30;
+
+        checkInterval = setInterval(() => {
+          pollCount++;
+          console.log(`⏳ Polling for FCM token (${pollCount}/${maxPolls})...`);
+
+          // Check if token is now available (will trigger the main effect)
+          if (pollCount >= maxPolls) {
+            console.warn('⚠️ FCM token not generated after 30 seconds');
+            clearInterval(checkInterval);
+            sessionStorage.removeItem('needToSendFCM');
+          }
+        }, 1000);
+      }
     }
 
-    // Cleanup timeout on unmount
+    // Cleanup timeout and interval on unmount
     return () => {
       if (retryTimeout) {
         clearTimeout(retryTimeout);
       }
+      if (checkInterval) {
+        clearInterval(checkInterval);
+      }
     };
   }, [fcmToken, currentUserId]);
 
-  // Listen for user login events to send FCM token
+  // Listen for user login events to set flag
   useEffect(() => {
     const handleUserLogin = () => {
       console.log('👤 User logged in event detected');
 
       // Store a flag to indicate we need to send FCM token
       sessionStorage.setItem('needToSendFCM', 'true');
+
+      // Force re-check by updating a dummy state or triggering effect
+      // The main effect will pick this up and start polling for FCM token
     };
 
     window.addEventListener('userLoggedIn', handleUserLogin);
@@ -211,25 +246,6 @@ function AppContent({ currentUserId }) {
       window.removeEventListener('userLoggedIn', handleUserLogin);
     };
   }, []);
-
-  // Check if we need to send FCM token after login
-  useEffect(() => {
-    const needToSend = sessionStorage.getItem('needToSendFCM');
-
-    if (needToSend === 'true' && fcmToken && currentUserId) {
-      console.log('🚀 Sending FCM token after login event');
-      sessionStorage.removeItem('needToSendFCM');
-
-      // Force update user data to trigger sending
-      const userData = StorageService.getUserData(currentUserId);
-      if (userData) {
-        StorageService.updateUserData(currentUserId, {
-          fcmTokenSent: false, // Reset flag to force sending
-          fcmToken: fcmToken
-        });
-      }
-    }
-  }, [fcmToken, currentUserId]);
 
   return (
     <WebSocketProvider>
@@ -286,6 +302,22 @@ function App() {
       setCurrentUserId(userId);
     };
     getUserId();
+  }, []);
+
+  // Listen for login events to update currentUserId
+  useEffect(() => {
+    const handleUserLogin = async () => {
+      console.log('👤 User login detected in App.jsx, refreshing userId...');
+      const userId = await ApiUtils.getCurrentUserId();
+      console.log('✅ Updated current user ID:', userId);
+      setCurrentUserId(userId);
+    };
+
+    window.addEventListener('userLoggedIn', handleUserLogin);
+
+    return () => {
+      window.removeEventListener('userLoggedIn', handleUserLogin);
+    };
   }, []);
 
   return (

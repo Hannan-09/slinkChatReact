@@ -35,6 +35,7 @@ export default function SignupScreen() {
     const [privateKeyError, setPrivateKeyError] = useState('');
     const [showPrivateKey, setShowPrivateKey] = useState(false);
     const [creatingKey, setCreatingKey] = useState(false);
+    const [registeredPassword, setRegisteredPassword] = useState(''); // Store password for auto-login
 
     // Animation for congratulations
     const [animateIn, setAnimateIn] = useState(false);
@@ -179,8 +180,38 @@ export default function SignupScreen() {
 
                 setShowPrivateKeyModal(false);
 
-                toast.success('Registration Complete! Please log in to access your chats.');
-                navigate('/login');
+                // Auto-login after successful private key creation
+                console.log('🔐 Private key created successfully, auto-logging in...');
+
+                // Get stored credentials
+                const userData = StorageService.getUserData(storedUserId);
+                const storedUsername = userData?.username;
+
+                if (storedUsername && registeredPassword) {
+                    console.log('📤 Attempting auto-login with username:', storedUsername);
+
+                    // Call login API
+                    const loginResult = await AuthAPI.login(storedUsername, registeredPassword);
+
+                    if (loginResult.success) {
+                        console.log('✅ Auto-login successful!');
+                        toast.success('Registration Complete! Welcome to SlinkChat!');
+
+                        // Dispatch login event for FCM token
+                        window.dispatchEvent(new CustomEvent('userLoggedIn'));
+
+                        // Navigate to chats screen
+                        navigate('/chats');
+                    } else {
+                        console.error('❌ Auto-login failed:', loginResult.error);
+                        toast.error('Registration complete, but auto-login failed. Please log in manually.');
+                        navigate('/login');
+                    }
+                } else {
+                    console.error('❌ Missing credentials for auto-login');
+                    toast.success('Registration Complete! Please log in to access your chats.');
+                    navigate('/login');
+                }
             } else {
                 setPrivateKeyError(result.error || 'Failed to register private key on server');
             }
@@ -242,6 +273,9 @@ export default function SignupScreen() {
                 } catch (storageError) {
                     console.error('Error saving user data to storage:', storageError);
                 }
+
+                // Store password for auto-login after private key creation
+                setRegisteredPassword(password);
 
                 // Show congratulations popup first
                 setShowCongratulations(true);

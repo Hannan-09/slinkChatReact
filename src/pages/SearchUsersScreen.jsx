@@ -251,66 +251,80 @@ export default function SearchUsersScreen() {
                         </p>
                     </div>
                 ) : (
-                    searchResults.map((item) => (
-                        <div
-                            key={item.id}
-                            className="flex items-center px-5 py-4 cursor-pointer transition-all rounded-2xl bg-gradient-to-b from-white/8 via-white/4 to-white/2 border border-white/15 shadow-[0_16px_30px_rgba(0,0,0,0.85),0_0_0_1px_rgba(255,255,255,0.04),inset_0_1px_2px_rgba(255,255,255,0.2),inset_0_-2px_4px_rgba(0,0,0,0.85)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.08),inset_0_2px_3px_rgba(255,255,255,0.24),inset_0_-3px_5px_rgba(0,0,0,0.9)] hover:bg-white/8"
-                        >
-                            <div className="w-12 h-12 mr-4 rounded-full bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_16px_24px_rgba(0,0,0,0.97),0_0_0_1px_rgba(255,255,255,0.16),inset_0_3px_4px_rgba(255,255,255,0.24),inset_0_-4px_7px_rgba(0,0,0,0.96),inset_3px_0_4px_rgba(255,255,255,0.18),inset_-3px_0_4px_rgba(0,0,0,0.82)] border border-black/70 flex items-center justify-center flex-shrink-0">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center overflow-hidden">
-                                    {item.avatar ? (
-                                        <img
-                                            src={item.avatar}
-                                            alt={item.name}
-                                            className="w-full h-full object-cover"
-                                            onError={(e) => {
-                                                e.target.style.display = 'none';
-                                                e.target.parentElement.innerHTML = `<span class="text-xs font-semibold text-white">${item.initials}</span>`;
-                                            }}
-                                        />
-                                    ) : (
-                                        <span className="text-xs font-semibold text-white">
-                                            {item.initials}
-                                        </span>
-                                    )}
+                    <div className="space-y-3">
+                        {searchResults.map((item) => (
+                            <div
+                                key={item.id}
+                                className="flex items-center px-5 py-4 cursor-pointer transition-all rounded-2xl bg-gradient-to-b from-white/8 via-white/4 to-white/2 border border-white/15 shadow-[0_16px_30px_rgba(0,0,0,0.85),0_0_0_1px_rgba(255,255,255,0.04),inset_0_1px_2px_rgba(255,255,255,0.2),inset_0_-2px_4px_rgba(0,0,0,0.85)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.08),inset_0_2px_3px_rgba(255,255,255,0.24),inset_0_-3px_5px_rgba(0,0,0,0.9)] hover:bg-white/8"
+                            >
+                                <div className="w-12 h-12 mr-4 rounded-full bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_16px_24px_rgba(0,0,0,0.97),0_0_0_1px_rgba(255,255,255,0.16),inset_0_3px_4px_rgba(255,255,255,0.24),inset_0_-4px_7px_rgba(0,0,0,0.96),inset_3px_0_4px_rgba(255,255,255,0.18),inset_-3px_0_4px_rgba(0,0,0,0.82)] border border-black/70 flex items-center justify-center flex-shrink-0">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center overflow-hidden">
+                                        {item.avatar && item.avatar !== 'null' && item.avatar !== '' ? (
+                                            <img
+                                                src={item.avatar}
+                                                alt={item.name}
+                                                className="w-full h-full object-cover"
+                                                crossOrigin="anonymous"
+                                                loading="lazy"
+                                                onError={(e) => {
+                                                    console.error('Failed to load avatar:', item.avatar);
+                                                    e.target.style.display = 'none';
+                                                    const parent = e.target.parentElement;
+                                                    if (parent && !parent.querySelector('span')) {
+                                                        const span = document.createElement('span');
+                                                        span.className = 'text-xs font-semibold text-white';
+                                                        span.textContent = item.initials;
+                                                        parent.appendChild(span);
+                                                    }
+                                                }}
+                                                onLoad={() => {
+                                                    console.log('Avatar loaded successfully:', item.avatar);
+                                                }}
+                                            />
+                                        ) : (
+                                            <span className="text-xs font-semibold text-white">
+                                                {item.initials}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
+                                <div className="flex-1">
+                                    <h3 className="text-white font-semibold text-base">
+                                        {item.name}
+                                    </h3>
+                                    <p className="text-gray-400 text-sm">@{item.username}</p>
+                                </div>
+                                {item.alreadyFriend ? (
+                                    <button
+                                        onClick={() => startChat(item)}
+                                        className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70"
+                                    >
+                                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#34c759] to-[#0b7b2e] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
+                                            <IoChatbubble className="text-white text-lg sm:text-xl" />
+                                        </div>
+                                    </button>
+                                ) : item.chatRequestStatus === 'PENDING' ? (
+                                    <button
+                                        disabled
+                                        className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 opacity-90 cursor-not-allowed"
+                                    >
+                                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#ffd60a] to-[#ff9f0a] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
+                                            <IoTime className="text-white text-lg sm:text-xl" />
+                                        </div>
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => sendChatRequest(item.id)}
+                                        className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 hover:scale-105 transition-transform"
+                                    >
+                                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#ff9f0a] to-[#ff3b30] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
+                                            <IoPersonAddOutline className="text-white text-lg sm:text-xl" />
+                                        </div>
+                                    </button>
+                                )}
                             </div>
-                            <div className="flex-1">
-                                <h3 className="text-white font-semibold text-base">
-                                    {item.name}
-                                </h3>
-                                <p className="text-gray-400 text-sm">@{item.username}</p>
-                            </div>
-                            {item.alreadyFriend ? (
-                                <button
-                                    onClick={() => startChat(item)}
-                                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70"
-                                >
-                                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#34c759] to-[#0b7b2e] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
-                                        <IoChatbubble className="text-white text-lg sm:text-xl" />
-                                    </div>
-                                </button>
-                            ) : item.chatRequestStatus === 'PENDING' ? (
-                                <button
-                                    disabled
-                                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 opacity-90 cursor-not-allowed"
-                                >
-                                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#ffd60a] to-[#ff9f0a] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
-                                        <IoTime className="text-white text-lg sm:text-xl" />
-                                    </div>
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={() => sendChatRequest(item.id)}
-                                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_10px_16px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.14),inset_0_2px_3px_rgba(255,255,255,0.22),inset_0_-3px_5px_rgba(0,0,0,0.9)] border border-black/70 hover:scale-105 transition-transform"
-                                >
-                                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-gradient-to-b from-[#ff9f0a] to-[#ff3b30] shadow-[inset_0_2px_3px_rgba(255,255,255,0.6),inset_0_-3px_4px_rgba(0,0,0,0.85)]">
-                                        <IoPersonAddOutline className="text-white text-lg sm:text-xl" />
-                                    </div>
-                                </button>
-                            )}
-                        </div>
-                    ))
+                        ))}
+                    </div>
                 )}
             </div>
 

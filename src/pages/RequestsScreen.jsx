@@ -245,25 +245,46 @@ export default function RequestsScreen() {
                             key={item.chatRequestId}
                             className="flex items-center px-5 py-4 hover:bg-white/5 transition-colors"
                         >
-                            <div className="w-12 h-12 rounded-full mr-4 shadow-lg bg-gradient-to-b from-[#3a3a3a] to-[#1a1a1a] flex items-center justify-center overflow-hidden">
-                                {(activeTab === 'received' ? item.senderProfileURL : item.receiverProfileURL) ? (
-                                    <img
-                                        src={activeTab === 'received' ? item.senderProfileURL : item.receiverProfileURL}
-                                        alt={activeTab === 'received' ? item.senderName || 'User' : item.receiverName || 'User'}
-                                        className="w-full h-full object-cover"
-                                        onError={(e) => {
-                                            e.target.onerror = null;
-                                            e.target.style.display = 'none';
-                                        }}
-                                    />
-                                ) : (
-                                    <span className="text-white text-sm font-semibold">
-                                        {activeTab === 'received'
-                                            ? (item.senderName || 'U').substring(0, 2).toUpperCase()
-                                            : (item.receiverName || 'U').substring(0, 2).toUpperCase()
+                            <div className="w-12 h-12 mr-4 rounded-full bg-gradient-to-b from-[#252525] to-[#101010] shadow-[0_16px_24px_rgba(0,0,0,0.97),0_0_0_1px_rgba(255,255,255,0.16),inset_0_3px_4px_rgba(255,255,255,0.24),inset_0_-4px_7px_rgba(0,0,0,0.96),inset_3px_0_4px_rgba(255,255,255,0.18),inset_-3px_0_4px_rgba(0,0,0,0.82)] border border-black/70 flex items-center justify-center flex-shrink-0">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-b from-[#181818] to-[#050505] shadow-[inset_0_2px_3px_rgba(255,255,255,0.45),inset_0_-3px_5px_rgba(0,0,0,0.95)] flex items-center justify-center overflow-hidden">
+                                    {(() => {
+                                        const profileURL = activeTab === 'received' ? item.senderProfileURL : item.receiverProfileURL;
+                                        const userName = activeTab === 'received' ? item.senderName : item.receiverName;
+                                        const initials = (userName || 'U').substring(0, 2).toUpperCase();
+
+                                        if (profileURL && profileURL !== 'null' && profileURL !== '') {
+                                            return (
+                                                <img
+                                                    src={profileURL}
+                                                    alt={userName || 'User'}
+                                                    className="w-full h-full object-cover"
+                                                    crossOrigin="anonymous"
+                                                    loading="lazy"
+                                                    onError={(e) => {
+                                                        console.error('Failed to load profile image:', profileURL);
+                                                        e.target.style.display = 'none';
+                                                        const parent = e.target.parentElement;
+                                                        if (parent && !parent.querySelector('span')) {
+                                                            const span = document.createElement('span');
+                                                            span.className = 'text-xs font-semibold text-white';
+                                                            span.textContent = initials;
+                                                            parent.appendChild(span);
+                                                        }
+                                                    }}
+                                                    onLoad={() => {
+                                                        console.log('Profile image loaded successfully:', profileURL);
+                                                    }}
+                                                />
+                                            );
+                                        } else {
+                                            return (
+                                                <span className="text-xs font-semibold text-white">
+                                                    {initials}
+                                                </span>
+                                            );
                                         }
-                                    </span>
-                                )}
+                                    })()}
+                                </div>
                             </div>
                             <div className="flex-1">
                                 <h3 className="text-white font-semibold text-base mb-1">

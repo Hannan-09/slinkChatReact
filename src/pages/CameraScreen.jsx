@@ -385,7 +385,7 @@ export default function CameraScreen() {
                     />
 
                     {/* Top Controls */}
-                    <div className="absolute top-[-10px] left-0 right-0 p-8 flex items-center justify-between z-10">
+                    <div className="absolute top-[10px] left-0 right-0 p-8 flex items-center justify-between z-10">
                         <button
                             onClick={() => returnTo ? navigate(returnTo) : navigate('/chats')}
                             className="w-12 h-12 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center"
